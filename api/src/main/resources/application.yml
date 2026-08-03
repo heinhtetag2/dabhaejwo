@@ -3,9 +3,11 @@ spring:
     name: dabhaejwo-api
 
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dabhaejwo}
-    username: ${POSTGRES_USER:dabhaejwo}
-    password: ${POSTGRES_PASSWORD:}
+    # MariaDB 에는 timestamptz 가 없다. 커넥션 타임존을 UTC 로 고정해
+    # DATETIME 컬럼이 항상 UTC 로만 오가게 한다 — 이게 깨지면 시각이 조용히 밀린다.
+    url: jdbc:mariadb://${MARIADB_HOST:localhost}:${MARIADB_PORT:3306}/${MARIADB_DB:dabhaejwo}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    username: ${MARIADB_USER:dabhaejwo}
+    password: ${MARIADB_PASSWORD:}
 
   jpa:
     # 스키마의 진실은 Flyway 다. Hibernate 는 검증만 한다.

@@ -349,6 +349,11 @@ AI 서비스는 사용량이 곧 비용이다. 원가가 화면에서 사라지�
 
 업체 관리 관련 테이블은 하위 문서를 참조한다. 여기서는 운영 콘솔 전반이 의존하는 테이블만 다룬다.
 
+> **아래 DDL 은 PostgreSQL 문법으로 쓰였고, 실제 스키마는 MariaDB 11.8 LTS 다.**
+> 구현의 진실은 [`api/src/main/resources/db/migration/V1__init.sql`](../../api/src/main/resources/db/migration/V1__init.sql) 이다.
+> 여기 DDL 은 어떤 데이터를 어떤 관계로 담을지에 대한 기획으로 읽고, 타입·문법은 그쪽을 따른다.
+> (배열 컬럼은 조인 테이블로, `timestamptz` 는 `DATETIME(6)` + UTC 규율로 대체됐다)
+
 ```sql
 -- AI 사용량 원장. 운영 콘솔의 절반이 이 테이블에 의존한다
 CREATE TABLE ai_usage (

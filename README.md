@@ -4,7 +4,7 @@
 
 ```
 dabhaejwo/
-├── api/       Spring Boot · Java 21 · PostgreSQL(pgvector)
+├── api/       Spring Boot · Java 21 · MariaDB 11.8 LTS (VECTOR)
 ├── admin/     Next.js — 운영 콘솔 (내부용)
 ├── tenant/    Next.js — 업체 대시보드
 ├── widget/    Vite library — 방문자 임베드 위젯
@@ -20,19 +20,18 @@ dabhaejwo/
 |---|---|---|
 | Java | 21+ | |
 | Node.js | 22+ | |
-| PostgreSQL | 16+ | **pgvector 확장 필요** |
+| MariaDB | **11.8 LTS 이상** | 그 아래 버전에는 `VECTOR` 타입이 없어 스키마가 만들어지지 않는다 |
 | Docker | 선택 | 있으면 통합 테스트가 돌아간다 |
 
 ```sh
 cp .env.example .env    # 값을 채운다. .env 는 커밋되지 않는다
 ```
 
-DB는 pgvector가 포함된 이미지를 쓰는 게 가장 간단하다.
-
 ```sh
-docker run -d --name dabhaejwo-db -p 5432:5432 \
-  -e POSTGRES_DB=dabhaejwo -e POSTGRES_USER=dabhaejwo -e POSTGRES_PASSWORD=... \
-  pgvector/pgvector:pg16
+docker run -d --name dabhaejwo-db -p 3306:3306 \
+  -e MARIADB_DATABASE=dabhaejwo -e MARIADB_USER=dabhaejwo \
+  -e MARIADB_PASSWORD=... -e MARIADB_ROOT_PASSWORD=... \
+  mariadb:11.8
 ```
 
 ## 실행
