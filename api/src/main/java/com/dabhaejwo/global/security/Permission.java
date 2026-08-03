@@ -1,0 +1,34 @@
+package com.dabhaejwo.global.security;
+
+/** 권한 키는 {RESOURCE}_{ACTION} (core security-rules). */
+public enum Permission {
+
+    TENANT_READ,
+    TENANT_NOTE_WRITE,
+    TENANT_STATUS_WRITE,
+    TENANT_PLAN_WRITE,
+    TENANT_TRIAL_WRITE,
+    TENANT_IMPERSONATE,
+    QUOTA_GRANT,
+
+    PROFITABILITY_READ,
+    AI_USAGE_READ,
+
+    JOB_READ,
+    JOB_RETRY,
+
+    PLAN_READ,
+    PLAN_WRITE,
+    MODEL_PRICE_READ,
+    MODEL_PRICE_WRITE,
+    COST_GUARD_READ,
+    COST_GUARD_WRITE,
+
+    FLAG_READ,
+    FLAG_WRITE,
+
+    TICKET_READ,
+    TICKET_WRITE,
+
+    AUDIT_READ
+}

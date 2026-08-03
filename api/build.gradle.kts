@@ -19,6 +19,9 @@ repositories {
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	// Spring Boot 4.1 BOM 은 spring-boot-starter-aop 를 더 이상 관리하지 않는다.
+	// spring-aop 는 spring-context 로 딸려오므로 @Aspect 파싱에 필요한 weaver 만 직접 건다.
+	implementation("org.aspectj:aspectjweaver:1.9.24")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.springframework.boot:spring-boot-starter-security")

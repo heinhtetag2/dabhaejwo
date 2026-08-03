@@ -57,7 +57,7 @@ dabhaejwo:
   storage:
     # TODO(stub): S3 호환 저장소 미연동. 로컬 디스크로 대체.
     local-path: ${FILE_STORAGE_PATH:./var/uploads}
-  notify:
+  notification:
     # TODO(stub): 슬랙 미연동. 로그만 남긴다.
     slack-webhook-url: ${SLACK_OPS_WEBHOOK_URL:}
 
