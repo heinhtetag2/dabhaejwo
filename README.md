@@ -84,9 +84,13 @@ cd tenant && npm run dev           # :4312
 cd widget && npm run dev           # /demo/index.html 에서 실제 임베드 확인
 ```
 
-`bootRun` 은 저장소 루트의 `.env` 를 읽어 환경변수로 넣어준다 —
-**Spring Boot 자체는 `.env` 를 읽지 않으므로** `api/build.gradle.kts` 에서 처리한다.
-운영 배포에는 적용되지 않으니 배포 환경의 시크릿 관리로 주입할 것.
+**Spring Boot 는 `.env` 를 읽지 않는다** — Node/Docker 쪽 관례라서다. 그래서
+`DotenvEnvironmentPostProcessor` 가 저장소 루트의 `.env` 를 프로퍼티로 얹어준다.
+`bootRun`·IDE·`java -jar` 어느 쪽으로 띄우든 똑같이 동작한다.
+
+- 실제 환경변수가 항상 `.env` 를 이긴다 (우선순위가 가장 낮다)
+- `production` 프로파일에서는 파일을 아예 읽지 않는다 — 운영 자격증명은
+  배포 환경의 시크릿 관리로 주입한다
 
 ## 설정 파일
 

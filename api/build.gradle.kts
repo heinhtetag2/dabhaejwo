@@ -54,28 +54,6 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
-/**
- * 저장소 루트의 .env 를 bootRun 의 환경변수로 넣어준다.
- *
- * Spring Boot 는 .env 를 읽지 않는다 — Node/Docker 쪽 관례라서다. 이게 없으면
- * .env 에 적어둔 접속 정보가 앱에 전달되지 않고, application-local.yml 의
- * 기본값(localhost)으로 조용히 붙어버린다.
- *
- * 개발 편의용이므로 bootRun 에만 건다. 운영은 배포 환경의 시크릿 관리로 주입한다.
- */
-tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
-	val dotenv = project.file("../.env")
-	if (dotenv.exists()) {
-		dotenv.readLines()
-			.map(String::trim)
-			.filter { it.isNotEmpty() && !it.startsWith("#") && it.contains('=') }
-			.forEach { line ->
-				// 값에 '=' 가 들어갈 수 있다(비밀번호). 첫 '=' 에서만 자른다.
-				val key = line.substringBefore('=').trim()
-				val value = line.substringAfter('=').trim()
-				if (key.isNotEmpty()) {
-					environment(key, value)
-				}
-			}
-	}
-}
+// .env 로딩은 여기가 아니라 애플리케이션 안에 있다
+// (DotenvEnvironmentPostProcessor). bootRun 에만 걸면 IDE 에서 main 을 직접
+// 실행할 때 건너뛰어 localhost 기본값으로 조용히 붙는다.

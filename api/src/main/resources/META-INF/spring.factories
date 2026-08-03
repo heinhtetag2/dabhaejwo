@@ -1,0 +1,5 @@
+# Spring Boot 4 는 EnvironmentPostProcessor 를 spring.factories 로 찾는다.
+# (.imports 규약은 자동설정 쪽이고 여기에는 적용되지 않는다 —
+#  spring-boot-4.1.0.jar 의 spring.factories 가 같은 방식으로 등록한다)
+org.springframework.boot.EnvironmentPostProcessor=\
+com.dabhaejwo.global.config.DotenvEnvironmentPostProcessor
