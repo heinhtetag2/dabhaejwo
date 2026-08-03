@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/*
+ * 업체 대시보드 디자인 토큰.
+ *
+ * 팔레트는 운영 콘솔과 같지만 강조색이 다르다 — 두 화면은 구조가 비슷해
+ * 혼동하기 쉬우므로 색으로 구별한다 (admin-console-plan.md §2.1).
+ *   업체 대시보드 → mark(노랑)
+ *   운영 콘솔    → seal(초록)
+ *
+ * 토큰 값 자체는 admin/src/app/globals.css 와 동기화 대상이다.
+ */
+@theme {
+  --color-ink: #17222e;
+  --color-ink-2: #22303f;
+  --color-ink-3: #31424f;
+
+  --color-slate: #5c6e7e;
+  --color-slate-2: #8b9aa6;
+
+  --color-line: #dce3e2;
+  --color-line-2: #e9edec;
+  --color-paper: #eff2f1;
+  --color-card: #ffffff;
+
+  /* 업체 대시보드 강조색 */
+  --color-mark: #f2b705;
+  --color-mark-soft: #fdf0c4;
+
+  --color-seal: #1b6b5c;
+  --color-seal-soft: #dcede8;
+
+  --color-brick: #bf3f2b;
+  --color-brick-soft: #f8e3df;
+
+  --radius-card: 10px;
+
+  --font-sans: var(--font-noto-sans-kr), system-ui, sans-serif;
+  --font-mono: var(--font-noto-sans-mono), var(--font-noto-sans-kr), monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 14.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-mark);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@utility tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
