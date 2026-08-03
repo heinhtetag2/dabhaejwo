@@ -3,7 +3,7 @@
 업체가 홈페이지에 스크립트 한 줄을 붙이면, 그 사이트를 학습한 챗봇이 방문자 질문에 답해주는 멀티 테넌트 SaaS.
 
 - 프로젝트 성격: 풀스택 웹 (멀티 테넌트 SaaS) — API 서버 1 + 웹 콘솔 2 + 임베드 스크립트 1
-- 스택: MariaDB 11.8 LTS + Spring Boot / Next.js(FSD) / Vite library — 선택 이유는 [docs/intake.md](docs/intake.md)
+- 스택: PostgreSQL(pgvector) + Spring Boot / Next.js(FSD) / Vite library — 선택 이유는 [docs/intake.md](docs/intake.md)
 
 > ⚠️ 상위 `e:\_tago_product\CLAUDE.md` 는 **FinBridge 라는 다른 프로젝트**의 정책 파일이다.
 > 이 프로젝트에는 적용되지 않는다 (그쪽은 MySQL·Ant Design·Maven). 이 파일이 dabhaejwo 의 기준이다.
@@ -22,7 +22,7 @@ dabhaejwo/
 │   └── architecture/
 │       ├── api-contracts.md    ← 계약 단일 진실 공급원
 │       └── llm-provider.md     ← 공급사 추상화 설계
-├── api/        Spring Boot · Java 21 · Gradle KTS · MariaDB
+├── api/        Spring Boot · Java 21 · Gradle KTS · PostgreSQL
 ├── admin/      Next.js — 운영 콘솔 (내부용)
 ├── tenant/     Next.js — 업체 대시보드
 └── widget/     Vite library — 임베드 위젯
@@ -62,13 +62,24 @@ dabhaejwo/
 
 | 날짜 | 결정 | 사유 |
 |---|---|---|
-| 2026-08-03 | **MariaDB 11.8 LTS 단일 DB** (사용자 지정) | 벡터가 11.8 에서 GA 되어 별도 벡터 DB 없이 간다. 별도 벡터 DB를 두면 테넌트 격리·백업·해지 시 삭제를 두 시스템에서 각각 보장해야 한다. **11.8 이 하한** — 그 아래는 `VECTOR` 타입이 없다 |
-| 2026-08-03 | **시각은 `DATETIME(6)` + UTC 규율** | MariaDB 에는 `timestamptz` 가 없다. JDBC·Hibernate·엔티티 세 곳에서 UTC 를 강제한다. `TIMESTAMP` 는 2038년 상한 때문에 쓰지 않는다 |
-| 2026-08-03 | **임베딩 차원 `VECTOR(1536)`** | 모델 교체 시 전체 재임베딩이 필요 — 되돌리기 비쌈. 문서 24만 건 기준 재학습 비용 발생 |
+| 2026-08-03 | **PostgreSQL 단일 DB (pgvector 포함)** | 별도 벡터 DB를 두면 테넌트 격리·백업·해지 시 삭제를 두 시스템에서 각각 보장해야 한다. 기획서 DDL도 이미 PG 문법. **한 번 MariaDB 11.8 로 갔다가 되돌렸다 — 아래 각주 참조** |
+| 2026-08-03 | **임베딩 차원 `vector(1536)`** | 모델 교체 시 전체 재임베딩이 필요 — 되돌리기 비쌈. 문서 24만 건 기준 재학습 비용 발생 |
 | 2026-08-03 | **LLM 공급사 추상화, 단가는 DB** | 공급사 가격 변동·환율 대응. 코드에 모델명·단가 하드코딩 금지 |
 | 2026-08-03 | **인증 3종 분리** (`/api/ops`, `/api/app`, `/api/widget`) | 운영자·업체 담당자·방문자는 신뢰 수준이 전혀 다르다. 토큰과 필터 체인을 나눈다 |
 | 2026-08-03 | **위젯 Shadow DOM 격리** | 남의 사이트 CSS와 충돌 방지. iframe 은 버블·넛지 오버레이와 반응형 크기 조절이 번거로움. 충돌이 실제로 나면 패널만 iframe 전환 |
 | 2026-08-03 | **모노레포 금지 — 4개 독립 프로젝트** | `docs/kickoff-prompt.md` §3 고정. 공유 상수·타입은 복제하되 출처 주석으로 동기화 지점 명시 |
+
+### 각주 — MariaDB 우회로 (2026-08-03, 되돌림)
+
+`kickoff-prompt.md` §2.2 가 MariaDB 를 적고 있고 Vector 가 11.8 LTS 에서 GA 되어 한 번 전환했다가,
+같은 날 PostgreSQL 로 되돌렸다(사용자 결정). 다시 꺼내기 전에 그때 치른 값을 보라.
+
+- `timestamptz` 가 없어 타임존을 **타입이 아니라 규율**로 지켜야 했다 — JDBC·Hibernate·엔티티 세 곳
+- 배열이 없어 `messages.source_document_ids`·`feature_flags.target_ids` 를 조인 테이블로 폈다
+- 부분 인덱스가 없어 `WHERE answered = false` 인덱스를 전체 인덱스로 바꿨다
+- `JSON` 이 바이너리가 아니라 경로 인덱싱이 안 된다 — `jsonb` 로 하던 조회를 포기해야 했다
+- **DDL 이 트랜잭션이 아니다.** V1 이 중간에 실패해 17개 테이블이 반쯤 만들어진 채 남았고 손으로 치웠다.
+  PostgreSQL 이었다면 그냥 롤백됐다
 
 ## 마일스톤
 
@@ -95,7 +106,7 @@ dabhaejwo/
 | 후보 | 내용 | 이유 |
 |---|---|---|
 | **M1 — 챗봇이 실제로 답한다** | 지식 소스 → 임베딩 → 벡터 검색 → 답변 생성 → `ai_usage` 적재. 위젯 ↔ api 연결 | 제품의 본체이자, 원가 파이프라인이 실제 데이터로 도는지 확인하는 유일한 방법 |
-| M1' — Docker 확보 후 통합 테스트 | Flyway·JPA 매핑(특히 `UUID`/`JSON`)·`VECTOR` 검색 검증 | M0 에서 한 번도 실행되지 않은 부분이다. M1 착수 전에 하는 편이 싸다 |
+| M1' — Docker 확보 후 통합 테스트 | Flyway·JPA 매핑·pgvector 검색 검증 | M0 에서 한 번도 실행되지 않은 부분이다. M1 착수 전에 하는 편이 싸다 |
 | M2 — 오늘·수익성 화면 | 일 집계 배치 + 두 화면 실동작 | 원가 데이터가 쌓이기 시작하면 바로 볼 수 있어야 한다 |
 | M3 — 대리 로그인 전 구간 | 세션 발급 → 배너 → 접속 이력 공개 → 감사 기록 | 골격은 있고 화면과 연결만 남았다 |
 

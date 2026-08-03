@@ -27,8 +27,10 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
-	// MariaDB 는 flyway-mysql 모듈이 담당한다 (별도 flyway-database-mariadb 는 없다)
-	implementation("org.flywaydb:flyway-mysql")
+	implementation("org.flywaydb:flyway-database-postgresql")
+
+	// pgvector 타입 매핑 (knowledge_chunks.embedding)
+	implementation("com.pgvector:pgvector:0.1.6")
 
 	// JWT — 운영자 / 업체 담당자 / 대리 로그인 토큰
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
@@ -36,7 +38,7 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
 	compileOnly("org.projectlombok:lombok")
-	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
+	runtimeOnly("org.postgresql:postgresql")
 	annotationProcessor("org.projectlombok:lombok")
 	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 	testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")

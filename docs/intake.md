@@ -13,13 +13,13 @@
 ## 2. 프로젝트 성격과 스택 결정
 
 - **성격**: 풀스택 웹 (멀티 테넌트 SaaS) — API 서버 1 + 웹 콘솔 2 + 임베드 스크립트 1
-- **선택 스택**: MariaDB 11.8 LTS + Spring Boot(api) + Next.js(admin·tenant) + Vite library(widget)
+- **선택 스택**: PostgreSQL + Spring Boot(api) + Next.js(admin·tenant) + Vite library(widget)
 
 ### 선택 이유
 
 | 결정 | 이유 |
 |---|---|
-| **MariaDB 11.8 LTS** | 사용자 지정. 챗봇의 본질이 문서 검색이라 벡터 저장소가 반드시 필요한데, **MariaDB Vector 가 11.8 LTS 에서 GA** 되어 별도 벡터 DB 없이 한 DB에서 끝낼 수 있다. 별도 벡터 DB를 두면 테넌트 격리·백업·해지 시 삭제를 두 시스템에서 각각 보장해야 한다. `kickoff-prompt.md` §2.2 백엔드 규약과도 일치한다 |
+| **PostgreSQL** | 기획서 DDL이 이미 PG 문법(`uuid`·`timestamptz`·`jsonb`·`bigserial`·`uuid[]`). 더 결정적인 건 **pgvector** — 챗봇의 본질이 문서 검색이라 벡터 저장소가 반드시 필요한데, 별도 벡터 DB를 두면 테넌트 격리·백업·해지 시 삭제를 두 시스템에서 각각 보장해야 한다. 한 DB에서 끝낸다 |
 | **Spring Boot** | 도메인 16개, 역할 7종, 상태머신 6개, 트랜잭션 경계가 분명한 관계형 서비스. `backend-spring-boot` 모듈 적용 조건에 정확히 부합 |
 | **Next.js + FSD** | `kickoff-prompt.md` §1이 이 프로젝트의 FE 규약으로 지정. 화면 20개, 도메인 다수 → `frontend-rules` 모듈 적용 조건 부합 |
 | **Vite library (widget)** | 남의 사이트에서 도는 스크립트. 프레임워크 런타임·라우터·폰트를 얹을 수 없다. 사이즈가 곧 제품 품질 |
@@ -29,7 +29,7 @@
 
 | 프로젝트 | 모듈 | 비고 |
 |---|---|---|
-| api | `backend-spring-boot.md` | 재사용. MySQL → **MariaDB 11.8** 로 치환 |
+| api | `backend-spring-boot.md` | 재사용. **MySQL → PostgreSQL 로 치환** |
 | admin · tenant | `frontend-rules.md` + `fsd-rules.md` | 재사용 |
 | widget | `widget-embed-script.md` | **신규 작성** — 팩토리에 저장 (`_guide.md` 규칙 2) |
 
@@ -247,8 +247,7 @@ core workflow-rules: 인터페이스를 정의하고 로컬/더미 구현을 stu
 | 5 | 한도 초과 기본 동작 | 기본값 진행 | 챗봇 중단 + 안내 표시. 원가가 예측 가능 (admin-console-plan §4.6 "초기 권장") |
 | 6 | 운영 콘솔 접근 IP | 기본값 진행 | IP allowlist 설정값. VPN 구축 여부는 인프라 결정 사항이라 코드 밖 |
 | 7 | **답변 실패 판정 기준** | 기본값 진행 | 최근접 조각 유사도 `< 0.72` → 실패. `cost_guards` 와 같은 설정 테이블에 둔다 |
-| 8 | **임베딩 모델 차원** | 기본값 진행 | `VECTOR(1536)`. 모델 교체 시 전체 재임베딩이 필요하므로 **되돌리기 어려운 결정** — CLAUDE.md 핵심 결정에 기록 |
-| 13 | **테넌트 필터가 붙은 벡터 검색 성능** | 기본값 진행 | MariaDB 의 `VECTOR INDEX` 는 `WHERE` 없는 `ORDER BY ... LIMIT` 에서만 쓰인다. 테넌트 격리 때문에 필터가 항상 붙으므로 인덱스를 못 탈 수 있다. 정확성이 먼저이므로 필터를 유지하고, 성능이 문제가 되면 테넌트별 파티셔닝을 검토한다 (IMPROVEMENTS P1) |
+| 8 | **임베딩 모델 차원** | 기본값 진행 | `vector(1536)`. 모델 교체 시 전체 재임베딩이 필요하므로 **되돌리기 어려운 결정** — CLAUDE.md 핵심 결정에 기록 |
 | 9 | **위젯 격리 방식** | 기본값 진행 | Shadow DOM. iframe은 버블·넛지 오버레이와 반응형 크기 조절이 번거롭다. 호스트 CSS 충돌이 실제로 발생하면 패널만 iframe으로 전환 |
 | 10 | **`purpose=ETC` 범위** | 기본값 진행 | 제목 요약·언어 감지만. 새 용도가 생기면 enum 추가 (기타로 뭉뚱그리면 절감 지점을 잃는다) |
 | 11 | 프로토타입 단가표의 Claude 모델 | 미확인 | 실제 사용 공급사는 `model_prices` 로 결정. 시드는 Gemini + OpenAI 임베딩으로 두되 **운영 개시 전 실단가 확인 필요** |

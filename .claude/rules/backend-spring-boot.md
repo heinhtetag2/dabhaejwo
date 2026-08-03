@@ -1,6 +1,6 @@
-# backend-spring-boot — Spring Boot 백엔드 모듈 (MariaDB)
+# backend-spring-boot — Spring Boot 백엔드 모듈 (PostgreSQL)
 
-> 팩토리 `E:\_agent\stacks\backend-spring-boot.md` 기반. 이 프로젝트는 **MariaDB 11.8 LTS** 를 쓴다.
+> 팩토리 `E:\_agent\stacks\backend-spring-boot.md` 기반. 이 프로젝트는 **PostgreSQL + pgvector** 를 쓴다.
 > 팩토리 원본이 MySQL을 고정하고 있어 치환했다 — `docs/IMPROVEMENTS.md` `[harness]` 참조.
 
 ## 적용 조건
@@ -8,12 +8,9 @@
 
 ## 스택
 - Java 21+ / Spring Boot 최신 안정판 / Gradle Kotlin DSL (`build.gradle.kts`)
-- Spring Data JPA + **MariaDB 11.8 LTS 이상**, 마이그레이션 Flyway(`flyway-mysql`), `ddl-auto: validate`
+- Spring Data JPA + **PostgreSQL 16+ / pgvector**, 마이그레이션 Flyway, `ddl-auto: validate`
 - Spring Security + JWT(jjwt), 캐시 Caffeine, API 문서 SpringDoc OpenAPI
-- 테스트: JUnit 5 + **Testcontainers(`mariadb:11.8`)**
-
-**11.8 을 하한으로 두는 이유는 `VECTOR` 타입이 그때 GA 되었기 때문이다.** 그 아래 버전에서는
-`knowledge_chunks` 가 만들어지지 않는다.
+- 테스트: JUnit 5 + **Testcontainers(`pgvector/pgvector`)**
 
 ## 디렉토리 구조 (도메인별 레이어드)
 
@@ -52,28 +49,12 @@ com.dabhaejwo/
 - Flyway: `V{n}__{설명}.sql` 순차 증가. 적용된 마이그레이션 수정 금지.
 - 설정값은 `application.yml` + `@ConfigurationProperties`. 매직 넘버/금액/계산식 하드코딩 금지.
 
-## MariaDB 고유 규칙
-
-- 식별자는 `UUID` 타입(테넌트 소유 엔티티), 원장·로그성 테이블은 `BIGINT AUTO_INCREMENT`.
-- **시각은 `DATETIME(6)` 에 UTC 로만 저장한다.** MariaDB 에는 `timestamptz` 가 없으므로
-  타임존은 타입이 아니라 규율로 지킨다:
-  JDBC `connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true` +
-  `hibernate.jdbc.time_zone: UTC` + 엔티티는 `OffsetDateTime`.
-  `TIMESTAMP` 는 UTC 정규화를 해주지만 2038년 상한이 있어 쓰지 않는다.
-- `JSON` 컬럼은 `@JdbcTypeCode(SqlTypes.JSON)`. MariaDB 의 JSON 은 PostgreSQL 의 `jsonb` 와 달리
-  바이너리가 아니라 검증이 붙은 LONGTEXT 다 — **경로 인덱싱이 안 되므로 JSON 안을 조회 조건으로 쓰지 않는다.**
-- **인덱스·UNIQUE 에 들어가는 문자열 컬럼은 `TEXT` 가 아니라 길이가 정해진 `VARCHAR` 여야 한다.**
-  `TEXT` 에 인덱스를 걸려면 접두 길이가 필요하고, 그러면 UNIQUE 가 의도대로 동작하지 않는다.
-- **부분 인덱스가 없다.** PostgreSQL 의 `CREATE INDEX ... WHERE` 에 해당하는 것이 없으므로
-  전체 인덱스로 두거나 생성 컬럼을 만든다.
-- **배열 타입이 없다.** `uuid[]` 같은 컬럼은 조인 테이블로 편다.
-- 벡터 검색은 `KnowledgeChunkRepository` 의 native query 로 격리한다.
-  `VEC_DISTANCE_COSINE` 이 서비스 레이어로 새어나가지 않게 한다.
-- **`VECTOR INDEX` 는 `WHERE` 없이 `ORDER BY VEC_DISTANCE_*(col, v) LIMIT n` 인 질의에서만 쓰인다.**
-  테넌트 격리 때문에 `WHERE tenant_id = ?` 가 항상 붙으므로 인덱스를 못 탈 수 있다.
-  **필터를 빼서 인덱스를 태우지 않는다** — 타 테넌트 데이터가 섞이는 것이 성능보다 훨씬 나쁘다.
-- Hibernate 는 MariaDB `VECTOR` 를 매핑하지 못한다. 임베딩 컬럼은 엔티티 필드로 두지 말고
-  repository 의 native query 로만 읽고 쓴다.
+## PostgreSQL 고유 규칙
+- 식별자는 `uuid` (테넌트 소유 엔티티), 원장·로그성 테이블은 `bigserial`. 기획서 DDL의 선택을 유지한다.
+- 시각은 전부 `timestamptz`. JPA는 `OffsetDateTime` 으로 받는다 — `LocalDateTime` 을 쓰면 타임존이 소리 없이 유실된다.
+- `jsonb` 컬럼은 Hibernate `@JdbcTypeCode(SqlTypes.JSON)`. 문자열로 다루지 않는다.
+- 벡터 검색은 `KnowledgeChunkRepository` 의 native query로 격리한다. `<=>` 연산자가 서비스 레이어로 새어나가지 않게 한다.
+- 배열 컬럼(`uuid[]`)은 조회 조건으로 쓰지 않는다 — 조인 테이블이 필요한 신호다.
 
 ## 이 프로젝트 고유 — LLM 호출
 - **모든 LLM 호출은 `global/llm/LlmGateway` 를 지난다.** Provider 를 직접 주입받아 호출하는 코드 금지.
@@ -81,7 +62,7 @@ com.dabhaejwo/
 - 모델명·단가는 코드에 없다. DB에서 읽는다.
 
 ## 테스트
-- Service 통합 테스트: `@SpringBootTest` + Testcontainers(**`mariadb:11.8`**). H2 대체 금지 (방언 차이 거짓 통과).
+- Service 통합 테스트: `@SpringBootTest` + Testcontainers(**PostgreSQL + pgvector 이미지**). H2 대체 금지 (방언 차이 거짓 통과).
 - 상태 전이·권한은 성공/거부 케이스 모두. Controller는 주요 플로우만.
 - **Docker가 없는 환경**: Testcontainers 불가 시 ① 도메인 로직을 entity 메서드로 모아 순수 단위 테스트로 커버, ② 통합 테스트는 IMPROVEMENTS P1로 등록하고 Docker 확보 후 추가. H2로 때우지 않는다.
 

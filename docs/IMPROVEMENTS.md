@@ -11,7 +11,7 @@
 | 항목 | 위치 | 등록일 | 비고 |
 |------|------|--------|------|
 | 노출됐던 Gemini API 키 폐기·재발급 | 구 `ai-info.md` | 2026-08-03 | 문서에서는 제거했으나 **키 자체는 아직 유효하다.** Google AI Studio 에서 폐기 후 재발급 → `.env` 에만 보관. 사용자 조치 필요 |
-| **DB 서버가 MariaDB 10.11 — VECTOR 없음** | 원격 DB 서버 (접속 정보는 `.env`) | 2026-08-03 | Ubuntu 24.04 기본 패키지라 10.11.13 이 깔려 있다. `VECTOR` 타입이 없어 `V1__init.sql` 이 `knowledge_chunks` 에서 실패한다. 실제로 한 번 걸렸다가 17개 테이블과 실패 이력이 남아 손으로 치웠다. 지금은 `FlywayVersionGuardConfig` 가 DB 에 쓰기 전에 막는다. **11.8 LTS 업그레이드가 남은 조치다** — 그전까지는 앱이 기동하지 않는다. 절차는 README 의 'DB 준비'. 사용자 조치 필요 |
+| **PostgreSQL 접속 정보 미확보** | `.env` | 2026-08-03 | MariaDB 에서 PostgreSQL 로 되돌렸다(사용자 결정). 사용자가 DB 를 생성해 접속 정보를 줄 예정이며, 그전까지는 앱을 띄울 수 없다. 받으면 `scripts/DbProbe.java` 로 pgvector 설치 여부를 먼저 확인한다. 사용자 조치 필요 |
 
 ## P1
 
@@ -21,11 +21,10 @@
 | 팩토리 FSD 모듈에 특정 프로젝트 사정이 섞임 | `E:\_agent\skills\fsd-rules.md` | 2026-08-03 | `[harness]` 상단 주의에 "ScoreShot admin 은 TanStack·Zustand 미설치"라는 **그 프로젝트만의 상태**가 재사용 모듈 본문에 들어 있다. 재사용 모듈은 스택 규칙만 담아야 한다 |
 | 스택 모듈 선택 기준 중복 | `E:\_agent\stacks\` | 2026-08-03 | `[harness]` `admin-next-console.md` 와 `frontend-rules.md` 의 적용 조건이 겹쳐(둘 다 관리자 화면 있는 Next 앱) 판단이 어렵다. 전자는 "외부 UI 라이브러리 금지", 후자는 허용이라 결과가 크게 갈린다 |
 | widget 스택 모듈 팩토리 미저장 | `.claude/rules/widget-embed-script.md` | 2026-08-03 | `[harness]` 신규 작성했으나 아직 `E:\_agent\stacks\` 에 없다. `_guide.md` 규칙 2에 따라 환류 필요 |
-| **Docker 미설치 — 통합 테스트 불가 (확정)** | `api/` | 2026-08-03 | 로컬에 Docker 가 없어 Testcontainers 를 못 쓴다. 원가 계산은 순수 단위 테스트(`ModelPriceLookupTest`)로 커버했으나, **Flyway 마이그레이션·JPA 매핑·벡터 검색은 아직 한 번도 실행되지 않았다.** Docker 확보 후 `@SpringBootTest` + Testcontainers(`mariadb:11.8`)로 검증할 것. **H2로 때우지 않는다** |
-| 로컬 MariaDB 부재 — 앱 기동 미검증 | `api/` | 2026-08-03 | `./gradlew build` 는 그린이지만 애플리케이션을 실제로 띄워본 적이 없다(`ddl-auto: validate` 가 DB를 요구). Docker 또는 로컬 MariaDB 11.8 확보 후 기동 확인 필요 |
-| **Hibernate ↔ DDL 타입 일치 미검증 (MariaDB)** | `api/` | 2026-08-03 | 특히 `UUID` 컬럼과 `JSON` 컬럼이 Hibernate MariaDBDialect 의 기대와 맞는지 확인되지 않았다. `ddl-auto: validate` 라 첫 기동 시 드러난다. MariaDB 확보 즉시 기동해 볼 것 |
-| **DB 가 공인 IP 에 열려 있고 계정에 호스트 제한이 없다** | 원격 DB 서버 :3306 | 2026-08-03 | `CURRENT_USER()` 가 `dabhaejwo@%` 라 어느 호스트에서든 접속된다. 개발 단계라 지금은 두기로 했다(사용자 결정). **운영 개시 전 필수** — 방화벽으로 3306 을 소스 IP 로 제한하거나 VPN 뒤로 넣고, 계정을 `dabhaejwo@'<앱 서버 IP>'` 로 좁힌다. 운영 콘솔 IP allowlist(`dabhaejwo.ops.ip-allowlist`)와 함께 정리할 것 |
-| **테넌트 필터가 붙으면 VECTOR INDEX 를 못 탈 수 있다** | `V1__init.sql` `knowledge_chunks` | 2026-08-03 | MariaDB 의 벡터 인덱스는 `WHERE` 없는 `ORDER BY VEC_DISTANCE_*(col, v) LIMIT n` 에서만 쓰인다. 테넌트 격리 때문에 `WHERE tenant_id = ?` 가 항상 붙는다. **필터를 빼서 인덱스를 태우지 않는다** — 타 테넌트 데이터가 섞이는 것이 성능보다 훨씬 나쁘다. 실측 후 느리면 테넌트별 파티셔닝 검토 |
+| **Docker 미설치 — 통합 테스트 불가 (확정)** | `api/` | 2026-08-03 | 로컬에 Docker 가 없어 Testcontainers 를 못 쓴다. 원가 계산은 순수 단위 테스트(`ModelPriceLookupTest`)로 커버했으나, **Flyway 마이그레이션·JPA 매핑·벡터 검색은 아직 한 번도 실행되지 않았다.** Docker 확보 후 `@SpringBootTest` + Testcontainers(`pgvector/pgvector:pg17`)로 검증할 것. **H2로 때우지 않는다** |
+| 앱 기동 미검증 (PostgreSQL) | `api/` | 2026-08-03 | `./gradlew build` 는 그린이지만 PostgreSQL 로는 아직 띄워본 적이 없다(`ddl-auto: validate` 가 DB를 요구). MariaDB 로는 한 번 기동해 27개 테이블·감사 트리거·seed 적재까지 확인했으나, 그 검증은 PG 로 이월되지 않는다. 접속 정보를 받는 즉시 기동 확인 |
+| **Hibernate ↔ DDL 타입 일치 미검증 (PostgreSQL)** | `api/` | 2026-08-03 | `uuid`·`jsonb`·`timestamptz` 가 Hibernate PostgreSQLDialect 의 기대와 맞는지 확인되지 않았다. `ddl-auto: validate` 라 첫 기동 시 드러난다 |
+| DB 노출 범위·계정 권한 확인 | 새 PostgreSQL 서버 | 2026-08-03 | 이전 MariaDB 서버는 공인 IP 에 열려 있고 계정에 호스트 제한이 없었다(`dabhaejwo@%`). 새 DB 를 받으면 같은 문제가 없는지 확인한다 — `pg_hba.conf` 범위, `listen_addresses`, 방화벽. **운영 개시 전 필수**. 운영 콘솔 IP allowlist(`dabhaejwo.ops.ip-allowlist`)와 함께 정리할 것 |
 | SpringDoc OpenAPI 미도입 | `api/build.gradle.kts` | 2026-08-03 | 최신 `springdoc-openapi-starter-webmvc-ui` 2.8.6 은 Spring Boot 3.x 대상이라 Boot 4.1 호환이 불확실해 제외했다. 호환 버전 확인 후 추가 |
 | 프로토타입 HTML에 doctype·html·head·body 없음 | `docs/prototype/*.html` | 2026-08-03 | quirks mode 로 렌더될 수 있어 "UI 100% 동일" 판정의 기준이 흔들린다. 코드 전환은 표준 모드 기준으로 맞춘다 |
 

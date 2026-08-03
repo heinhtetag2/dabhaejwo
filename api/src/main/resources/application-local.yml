@@ -1,7 +1,7 @@
 # 개발 프로파일. 기본값을 넉넉히 두어 환경변수 없이도 뜬다.
 #
 # 비밀번호·API 키는 여기 적지 않는다. 저장소 루트의 .env 에 넣으면
-# bootRun 이 환경변수로 넣어준다 (api/build.gradle.kts).
+# DotenvEnvironmentPostProcessor 가 프로퍼티로 얹어준다.
 # 굳이 파일로 두어야 하면 application-secret.yml 을 만든다 — gitignore 대상이다.
 
 server:
@@ -9,9 +9,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mariadb://${MARIADB_HOST:localhost}:${MARIADB_PORT:3306}/${MARIADB_DB:dabhaejwo}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
-    username: ${MARIADB_USER:dabhaejwo}
-    password: ${MARIADB_PASSWORD:}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dabhaejwo}
+    username: ${POSTGRES_USER:dabhaejwo}
+    password: ${POSTGRES_PASSWORD:}
 
 dabhaejwo:
   auth:

@@ -200,9 +200,6 @@
 
 ## 7. 데이터 모델
 
-> **아래 DDL 은 PostgreSQL 문법으로 쓰였고, 실제 스키마는 MariaDB 11.8 LTS 다.**
-> 구현의 진실은 [`api/src/main/resources/db/migration/V1__init.sql`](../../api/src/main/resources/db/migration/V1__init.sql) 이다.
-
 ```sql
 -- 업체
 CREATE TABLE tenants (

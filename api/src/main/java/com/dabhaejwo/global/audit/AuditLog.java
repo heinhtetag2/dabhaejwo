@@ -43,7 +43,7 @@ public class AuditLog {
     private String reason;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "json")
+    @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> meta;
 
     @Column(name = "created_at", nullable = false)

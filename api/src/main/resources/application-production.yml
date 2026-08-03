@@ -11,9 +11,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mariadb://${MARIADB_HOST}:${MARIADB_PORT}/${MARIADB_DB}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
-    username: ${MARIADB_USER}
-    password: ${MARIADB_PASSWORD}
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
 
