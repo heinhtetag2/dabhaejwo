@@ -53,6 +53,26 @@ java --class-path <mariadb-java-client.jar> scripts/DbProbe.java \
 cd api && ./gradlew bootRun
 ```
 
+앱에도 같은 검사가 들어 있다(`FlywayVersionGuardConfig`). 버전이 못 미치면
+Flyway 가 스키마 이력 테이블을 만들기도 전에 멈추므로 DB 는 손도 대지 않은 상태로 남는다.
+
+#### 마이그레이션이 도중에 실패했다면
+
+MariaDB 는 DDL 이 트랜잭션이 아니라 되돌리기가 자동으로 되지 않는다.
+절반만 만들어진 테이블과 `flyway_schema_history` 의 실패 기록이 남는다.
+개발 DB 라면 전부 지우고 다시 시작하는 편이 빠르다.
+
+```sql
+SET FOREIGN_KEY_CHECKS = 0;
+-- information_schema 로 목록을 뽑아 DROP TABLE 을 만든다
+SELECT CONCAT('DROP TABLE IF EXISTS `', table_name, '`;')
+FROM information_schema.tables WHERE table_schema = DATABASE();
+SET FOREIGN_KEY_CHECKS = 1;
+```
+
+**운영 DB 에서는 이렇게 하지 않는다.** 실패 지점까지 적용된 내용을 확인하고
+되돌리는 마이그레이션을 별도로 작성한 뒤 `flyway repair` 로 이력을 정리한다.
+
 #### Ubuntu 24.04 기본 패키지는 10.11 이다
 
 `apt install mariadb-server` 로 깔면 10.11 이 오고, 여기에는 `VECTOR` 타입이 없다.
