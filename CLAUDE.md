@@ -73,7 +73,15 @@ dabhaejwo/
 
 <!-- 최신이 위. HARNESS.md 규칙대로 기록. -->
 
-- **진행중: M0 부트스트랩** — Phase 0(문서 정리)·인테이크·하네스 조립 완료. 계약/스키마 → api → admin → tenant → widget 순으로 진행 중.
+- **진행중: M0 부트스트랩** (2026-08-03)
+  - 완료 — 문서 정리·인테이크·하네스 조립·API 계약·DB 스키마(V1)
+  - 완료 — `api` 골격: Spring Boot 4.1 / Java 21 / Gradle 9.5.1, 예외 체계,
+    `LlmGateway` + 원가 파이프라인(단가 조회 → 원가 계산 → 원장 적재), `StubLlmProvider`.
+    **`./gradlew build` 그린** (단위 테스트 4개 통과)
+  - 완료 — `admin` 스캐폴드 + 의존성 설치 (Next 16.2.12 / React 19 / Tailwind 4)
+  - **다음 위치** — `api` 의 인증 3종(ops/app/widget) → 감사 서비스 → 테넌트 도메인 →
+    오늘·업체 엔드포인트. 그다음 `admin` FSD 셸 → `tenant` → `widget`
+  - 환경 제약 — Docker 없음(통합 테스트 불가, IMPROVEMENTS P1), Gradle 없음(Initializr 공식 래퍼 사용)
 
 ## 미완료 / Stub 목록
 

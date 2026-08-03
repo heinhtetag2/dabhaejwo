@@ -20,7 +20,9 @@
 | 팩토리 FSD 모듈에 특정 프로젝트 사정이 섞임 | `E:\_agent\skills\fsd-rules.md` | 2026-08-03 | `[harness]` 상단 주의에 "ScoreShot admin 은 TanStack·Zustand 미설치"라는 **그 프로젝트만의 상태**가 재사용 모듈 본문에 들어 있다. 재사용 모듈은 스택 규칙만 담아야 한다 |
 | 스택 모듈 선택 기준 중복 | `E:\_agent\stacks\` | 2026-08-03 | `[harness]` `admin-next-console.md` 와 `frontend-rules.md` 의 적용 조건이 겹쳐(둘 다 관리자 화면 있는 Next 앱) 판단이 어렵다. 전자는 "외부 UI 라이브러리 금지", 후자는 허용이라 결과가 크게 갈린다 |
 | widget 스택 모듈 팩토리 미저장 | `.claude/rules/widget-embed-script.md` | 2026-08-03 | `[harness]` 신규 작성했으나 아직 `E:\_agent\stacks\` 에 없다. `_guide.md` 규칙 2에 따라 환류 필요 |
-| Testcontainers 실행 가능 여부 미확인 | `api/` | 2026-08-03 | Docker 없으면 통합 테스트 불가. 그 경우 도메인 로직을 entity 메서드로 모아 순수 단위 테스트로 커버하고 이 항목을 유지한다. **H2로 때우지 않는다** |
+| **Docker 미설치 — 통합 테스트 불가 (확정)** | `api/` | 2026-08-03 | 로컬에 Docker 가 없어 Testcontainers 를 못 쓴다. 원가 계산은 순수 단위 테스트(`ModelPriceLookupTest`)로 커버했으나, **Flyway 마이그레이션·JPA 매핑·pgvector 검색은 아직 한 번도 실행되지 않았다.** Docker 확보 후 `@SpringBootTest` + Testcontainers(`pgvector/pgvector`)로 검증할 것. **H2로 때우지 않는다** |
+| 로컬 PostgreSQL 부재 — 앱 기동 미검증 | `api/` | 2026-08-03 | `./gradlew build` 는 그린이지만 애플리케이션을 실제로 띄워본 적이 없다(`ddl-auto: validate` 가 DB를 요구). Docker 또는 로컬 PG 확보 후 기동 확인 필요 |
+| SpringDoc OpenAPI 미도입 | `api/build.gradle.kts` | 2026-08-03 | 최신 `springdoc-openapi-starter-webmvc-ui` 2.8.6 은 Spring Boot 3.x 대상이라 Boot 4.1 호환이 불확실해 제외했다. 호환 버전 확인 후 추가 |
 | 프로토타입 HTML에 doctype·html·head·body 없음 | `docs/prototype/*.html` | 2026-08-03 | quirks mode 로 렌더될 수 있어 "UI 100% 동일" 판정의 기준이 흔들린다. 코드 전환은 표준 모드 기준으로 맞춘다 |
 
 ## P2
