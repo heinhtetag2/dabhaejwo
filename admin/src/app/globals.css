@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * 운영 콘솔 디자인 토큰.
+ *
+ * 프로토타입(docs/prototype/chatbot-admin-console.html)의 CSS 변수를 옮긴 것이다.
+ * 화면에서 hex 를 직접 쓰지 않고 여기 토큰만 참조한다.
+ *
+ * 업체 대시보드와 강조색이 다르다 — 운영자가 자기 콘솔인 줄 알고 고객 설정을
+ * 바꾸는 사고를 막기 위한 장치다 (admin-console-plan.md §2.1).
+ *   운영 콘솔    → seal(초록)
+ *   업체 대시보드 → mark(노랑)
+ */
+@theme {
+  --color-ink: #17222e;
+  --color-ink-2: #22303f;
+  --color-ink-3: #31424f;
+
+  --color-slate: #5c6e7e;
+  --color-slate-2: #8b9aa6;
+
+  --color-line: #dce3e2;
+  --color-line-2: #e9edec;
+  --color-paper: #eff2f1;
+  --color-card: #ffffff;
+
+  /* 운영 콘솔 강조색 */
+  --color-seal: #1b6b5c;
+  --color-seal-soft: #dcede8;
+
+  --color-mark: #f2b705;
+  --color-mark-soft: #fdf0c4;
+
+  /* 원가 손실 구간 */
+  --color-brick: #bf3f2b;
+  --color-brick-soft: #f8e3df;
+
+  --color-plum: #6c4ba6;
+  --color-plum-soft: #ede7f7;
+
+  --radius-card: 10px;
+
+  --font-sans: var(--font-noto-sans-kr), system-ui, sans-serif;
+  --font-mono: var(--font-noto-sans-mono), var(--font-noto-sans-kr), monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 14.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :focus-visible {
+    outline: 2px solid var(--color-seal);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility tabular {
+  /* 정렬이 필요한 숫자·날짜는 고정폭으로 (frontend-rules) */
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
