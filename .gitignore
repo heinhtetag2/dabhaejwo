@@ -1,0 +1,37 @@
+# ---- 비밀 ----
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-secret.yml
+
+# ---- Node ----
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+npm-debug.log*
+yarn-error.log*
+
+# ---- Java / Gradle ----
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+api/build/
+api/bin/
+*.class
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ---- 런타임 산출물 ----
+*.log
+coverage/
+playwright-report/
+test-results/

@@ -1,0 +1,1244 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>챗봇 콘솔 — 업체 대시보드 프로토타입</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Sans+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ink:#17222E;
+  --ink-2:#22303F;
+  --ink-3:#31424F;
+  --slate:#5C6E7E;
+  --slate-2:#8B9AA6;
+  --line:#DCE3E2;
+  --line-2:#E9EDEC;
+  --paper:#EFF2F1;
+  --card:#FFFFFF;
+  --mark:#F2B705;
+  --mark-soft:#FDF0C4;
+  --seal:#1B6B5C;
+  --seal-soft:#DCEDE8;
+  --brick:#BF3F2B;
+  --brick-soft:#F8E3DF;
+  --r:10px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Noto Sans KR',system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:14.5px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px;border-radius:4px}
+
+/* ---------- 유틸 타입 ---------- */
+.mono{font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+.eyebrow{
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;
+  font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--slate-2);font-weight:500;
+}
+.mark{
+  background:linear-gradient(to top, var(--mark-soft) 0%, var(--mark-soft) 42%, transparent 42%);
+  padding:0 2px;
+}
+
+/* ---------- 레이아웃 ---------- */
+.app{display:flex;min-height:100vh}
+
+/* 사이드바 */
+.side{
+  width:236px;flex-shrink:0;background:var(--ink);color:#C9D4DC;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+}
+.brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand-mark{display:flex;align-items:center;gap:9px}
+.brand-dot{
+  width:22px;height:22px;border-radius:6px;background:var(--mark);
+  display:grid;place-items:center;color:var(--ink);font-weight:700;font-size:12px;
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;
+}
+.brand-name{color:#fff;font-weight:600;letter-spacing:-.01em}
+.tenant{
+  margin-top:14px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.06);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+  font-size:13px;color:#DDE6EB;
+}
+.tenant:hover{background:rgba(255,255,255,.1)}
+.tenant small{display:block;font-size:10.5px;color:#7E8F9C;letter-spacing:.06em}
+
+nav{padding:14px 12px;flex:1;overflow-y:auto}
+.nav-group{margin-bottom:18px}
+.nav-group .eyebrow{padding:0 8px 7px;color:#6C7D8B;font-size:10px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:8px 10px;border-radius:7px;color:#B9C6CF;font-size:13.5px;margin-bottom:1px;
+  transition:background .12s,color .12s;
+}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.on{background:rgba(242,183,5,.14);color:#fff;font-weight:500}
+.nav-item.on .ic{color:var(--mark)}
+.ic{width:15px;flex-shrink:0;color:#7A8B99;font-size:13px;text-align:center}
+.badge{
+  margin-left:auto;font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:10.5px;
+  background:var(--mark);color:var(--ink);border-radius:20px;padding:1px 6px;font-weight:600;
+}
+.badge.q{background:rgba(255,255,255,.14);color:#C9D4DC}
+
+.side-foot{padding:14px;border-top:1px solid rgba(255,255,255,.08)}
+.status-card{background:rgba(255,255,255,.05);border-radius:8px;padding:11px 12px}
+.status-row{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#DDE6EB}
+.pulse{width:7px;height:7px;border-radius:50%;background:#3FD9A8;box-shadow:0 0 0 3px rgba(63,217,168,.18)}
+.meter{height:4px;background:rgba(255,255,255,.12);border-radius:3px;margin-top:10px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--mark);border-radius:3px}
+.meter-txt{display:flex;justify-content:space-between;margin-top:6px;font-size:10.5px;color:#7E8F9C}
+
+/* 메인 */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:16px 30px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:20;
+}
+.top h1{font-size:19px;font-weight:600;letter-spacing:-.02em}
+.top .sub{font-size:12.5px;color:var(--slate-2);margin-top:1px}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+.view{padding:26px 30px 60px;max-width:1180px;display:none}
+.view.on{display:block}
+
+/* ---------- 컴포넌트 ---------- */
+.btn{
+  padding:7.5px 14px;border-radius:7px;font-size:13.5px;font-weight:500;
+  border:1px solid var(--line);background:var(--card);color:var(--ink);
+  transition:background .12s,border-color .12s;white-space:nowrap;
+}
+.btn:hover{background:#F6F8F8;border-color:#C9D3D2}
+.btn-p{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn-p:hover{background:var(--ink-2);border-color:var(--ink-2)}
+.btn-m{background:var(--mark);border-color:var(--mark);color:var(--ink);font-weight:600}
+.btn-m:hover{background:#E0A902;border-color:#E0A902}
+.btn-s{padding:4.5px 10px;font-size:12.5px;border-radius:6px}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--slate)}
+.btn-ghost:hover{background:#E6EBEA;border-color:transparent}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.card-h{
+  padding:15px 18px;border-bottom:1px solid var(--line-2);
+  display:flex;align-items:center;gap:12px;
+}
+.card-h h3{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.card-h .eyebrow{margin-left:auto}
+.card-b{padding:18px}
+
+.chip{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:11px;font-weight:500;
+  padding:2.5px 8px;border-radius:20px;letter-spacing:.03em;
+}
+.chip.ok{background:var(--seal-soft);color:var(--seal)}
+.chip.warn{background:var(--mark-soft);color:#8A6A00}
+.chip.err{background:var(--brick-soft);color:var(--brick)}
+.chip.idle{background:#E9EDEC;color:var(--slate)}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+table{width:100%;border-collapse:collapse}
+th{
+  text-align:left;font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:10.5px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--slate-2);font-weight:500;
+  padding:0 14px 9px;border-bottom:1px solid var(--line-2);
+}
+td{padding:12px 14px;border-bottom:1px solid var(--line-2);font-size:13.5px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#FAFBFB}
+.t-title{font-weight:500}
+.t-sub{font-size:11.5px;color:var(--slate-2);font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+
+.field{margin-bottom:18px}
+.field label{display:block;font-size:12.5px;font-weight:500;margin-bottom:6px}
+.field .hint{font-size:11.5px;color:var(--slate-2);margin-top:5px;line-height:1.5}
+.inp{
+  width:100%;padding:8.5px 11px;border:1px solid var(--line);border-radius:7px;
+  background:var(--card);font-size:13.5px;transition:border-color .12s;
+}
+.inp:focus{outline:none;border-color:var(--ink-3);box-shadow:0 0 0 3px rgba(23,34,46,.06)}
+textarea.inp{resize:vertical;min-height:74px;line-height:1.6}
+
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+/* ---------- 홈: 시그니처 헤드라인 ---------- */
+.thesis{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:30px 32px;margin-bottom:22px;position:relative;overflow:hidden;
+}
+.thesis .eyebrow{margin-bottom:14px}
+.thesis h2{
+  font-size:29px;font-weight:600;letter-spacing:-.03em;line-height:1.42;
+  max-width:640px;
+}
+.thesis h2 b{font-weight:700;font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:31px}
+.thesis-cta{margin-top:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.thesis-note{font-size:12px;color:var(--slate-2)}
+
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px}
+.stat .eyebrow{font-size:10px}
+.stat .n{font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:25px;font-weight:600;letter-spacing:-.03em;margin-top:7px;line-height:1}
+.stat .d{font-size:11.5px;color:var(--slate-2);margin-top:6px;font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+.stat .d.up{color:var(--seal)}
+.stat .d.down{color:var(--brick)}
+
+/* 소스 스트립 (시그니처) */
+.strip{display:flex;gap:3px;margin-top:4px}
+.strip i{flex:1;height:26px;border-radius:2px;background:var(--seal);opacity:.85}
+.strip i.w{background:var(--mark)}
+.strip i.e{background:var(--brick)}
+.strip i.n{background:var(--line)}
+.strip-legend{display:flex;gap:14px;margin-top:11px;font-size:11px;color:var(--slate)}
+.strip-legend span{display:flex;align-items:center;gap:5px}
+.sq{width:8px;height:8px;border-radius:2px}
+
+/* ---------- 답변 개선 ---------- */
+.gap{border:1px solid var(--line);border-radius:var(--r);background:var(--card);margin-bottom:12px;overflow:hidden}
+.gap-h{padding:15px 18px;display:flex;align-items:flex-start;gap:14px;cursor:pointer}
+.gap-h:hover{background:#FAFBFB}
+.gap-q{flex:1;min-width:0}
+.gap-q .q{font-weight:500;font-size:14.5px;letter-spacing:-.01em}
+.gap-q .meta{font-size:11.5px;color:var(--slate-2);margin-top:5px;font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+.gap-count{
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:11px;font-weight:600;
+  background:var(--mark-soft);color:#8A6A00;padding:3px 8px;border-radius:20px;white-space:nowrap;
+}
+.gap-b{padding:0 18px 18px;border-top:1px solid var(--line-2);display:none}
+.gap.open .gap-b{display:block;padding-top:16px}
+.gap.open .gap-h{background:#FAFBFB}
+.said{
+  background:var(--paper);border-left:2px solid var(--line);
+  padding:10px 13px;border-radius:0 6px 6px 0;font-size:13px;color:var(--slate);margin-bottom:16px;
+}
+
+/* ---------- 위젯 미리보기 ---------- */
+.preview-wrap{
+  background:linear-gradient(160deg,#E4E9E8,#F3F5F4);
+  border:1px solid var(--line);border-radius:var(--r);
+  padding:22px;display:flex;justify-content:center;align-items:flex-end;min-height:520px;
+}
+.widget{
+  width:330px;background:var(--card);border-radius:14px;overflow:hidden;
+  box-shadow:0 18px 40px -12px rgba(23,34,46,.28),0 0 0 1px rgba(23,34,46,.07);
+  display:flex;flex-direction:column;height:470px;
+}
+.w-head{background:var(--ink);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.w-av{width:30px;height:30px;border-radius:9px;background:var(--mark);display:grid;place-items:center;color:var(--ink);font-weight:700;font-size:13px}
+.w-head .nm{font-size:13.5px;font-weight:600}
+.w-head .st{font-size:10.5px;color:#8FA3B0;font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+.w-body{flex:1;overflow-y:auto;padding:16px;background:#FAFBFB;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:83%;font-size:13px;line-height:1.62;padding:9px 12px;border-radius:12px}
+.msg.bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px;align-self:flex-start}
+.msg.me{background:var(--ink);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.src{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+.src a{
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:10px;text-decoration:none;
+  background:var(--paper);color:var(--slate);padding:2.5px 7px;border-radius:5px;border:1px solid var(--line-2);
+}
+.src a:hover{background:var(--mark-soft);color:#8A6A00}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:100%}
+.sugg button{
+  font-size:12px;border:1px solid var(--line);background:var(--card);
+  padding:5px 10px;border-radius:16px;color:var(--slate);
+}
+.sugg button:hover{border-color:var(--ink-3);color:var(--ink)}
+.w-foot{padding:11px 12px;border-top:1px solid var(--line);display:flex;gap:8px;background:var(--card)}
+.w-foot input{flex:1;border:none;font-size:13px}
+.w-foot input:focus{outline:none}
+.w-send{width:30px;height:30px;border-radius:8px;background:var(--mark);color:var(--ink);display:grid;place-items:center;font-size:14px}
+
+/* ---------- 설치 ---------- */
+.code{
+  background:var(--ink);color:#C9D4DC;border-radius:9px;padding:16px 18px;
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:12.5px;line-height:1.85;
+  overflow-x:auto;white-space:pre;position:relative;
+}
+.code .k{color:#7FB8E0}.code .s{color:#F2B705}.code .c{color:#6B7C89}
+.copy{position:absolute;top:11px;right:11px;background:rgba(255,255,255,.1);color:#fff;padding:4px 10px;border-radius:6px;font-size:11.5px;font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+.copy:hover{background:rgba(255,255,255,.19)}
+
+.step{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line-2)}
+.step:last-child{border-bottom:none}
+.step-n{
+  width:22px;height:22px;border-radius:6px;background:var(--ink);color:#fff;flex-shrink:0;
+  display:grid;place-items:center;font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:11px;font-weight:600;margin-top:2px;
+}
+.step h4{font-size:13.5px;font-weight:600;margin-bottom:4px}
+.step p{font-size:12.5px;color:var(--slate);line-height:1.6}
+
+/* 탭 */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
+.tab{padding:9px 14px;font-size:13.5px;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);font-weight:500;border-bottom-color:var(--mark)}
+
+/* 대화 로그 split */
+.split{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+.conv-item{padding:13px 15px;border-bottom:1px solid var(--line-2);cursor:pointer;display:block;width:100%;text-align:left}
+.conv-item:hover{background:#FAFBFB}
+.conv-item.on{background:var(--mark-soft)}
+.conv-item .l1{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.conv-item .who{font-size:12.5px;font-weight:500}
+.conv-item .tm{font-size:10.5px;color:var(--slate-2);font-family:'Noto Sans Mono','Noto Sans KR',monospace}
+.conv-item .pv{font-size:12px;color:var(--slate);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.bubble{max-width:76%;font-size:13.5px;line-height:1.65;padding:10px 13px;border-radius:12px;margin-bottom:12px}
+.bubble.u{background:var(--paper);border-bottom-left-radius:4px}
+.bubble.a{background:var(--card);border:1px solid var(--line);margin-left:auto;border-bottom-right-radius:4px}
+
+/* ---------- 공통 질문 ---------- */
+.faq-row{display:flex;align-items:center;gap:13px;padding:11px 14px;border-bottom:1px solid var(--line-2)}
+.faq-row:last-child{border-bottom:none}
+.faq-row:hover{background:#FAFBFB}
+.faq-row.sel{background:var(--mark-soft)}
+.ord{display:flex;flex-direction:column;gap:2px}
+.ord button{font-size:8px;line-height:1;color:var(--slate-2);padding:2px 3px;border-radius:3px}
+.ord button:hover{background:var(--line-2);color:var(--ink)}
+.sw{width:34px;height:19px;border-radius:20px;background:var(--line);position:relative;transition:background .15s;flex-shrink:0;cursor:pointer}
+.sw i{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(23,34,46,.25)}
+.sw.on{background:var(--seal)}
+.sw.on i{left:17px}
+.saved-tag{
+  font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:9px;letter-spacing:.1em;
+  color:var(--seal);margin-bottom:6px;display:flex;align-items:center;gap:4px;
+}
+.saved-tag::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--seal)}
+
+.empty{text-align:center;padding:48px 20px;color:var(--slate)}
+.empty h4{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.empty p{font-size:13px;max-width:340px;margin:0 auto 16px}
+
+/* 모달 */
+.scrim{position:fixed;inset:0;background:rgba(23,34,46,.42);display:none;place-items:center;z-index:50;padding:20px}
+.scrim.on{display:grid}
+.modal{background:var(--card);border-radius:12px;width:100%;max-width:470px;box-shadow:0 24px 60px -12px rgba(23,34,46,.4)}
+.modal-h{padding:18px 20px;border-bottom:1px solid var(--line-2);display:flex;align-items:center}
+.modal-h h3{font-size:15px;font-weight:600}
+.modal-b{padding:20px}
+.modal-f{padding:14px 20px;border-top:1px solid var(--line-2);display:flex;gap:8px;justify-content:flex-end}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translate(-50%,80px);
+  background:var(--ink);color:#fff;padding:11px 20px;border-radius:8px;font-size:13px;
+  z-index:60;opacity:0;transition:all .22s ease;
+}
+.toast.on{transform:translate(-50%,0);opacity:1}
+
+@media (max-width:900px){
+  .side{position:fixed;left:-236px;z-index:40;transition:left .2s}
+  .side.open{left:0}
+  .grid-4,.grid-2,.split{grid-template-columns:1fr}
+  .view{padding:20px 16px 60px}
+  .top{padding:14px 16px}
+  .thesis{padding:22px}
+  .thesis h2{font-size:22px}
+  .thesis h2 b{font-size:24px}
+  .menu-btn{display:block !important}
+}
+.menu-btn{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+
+<div class="app">
+  <!-- ============ 사이드바 ============ -->
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="brand-mark">
+        <div class="brand-dot">A</div>
+        <div class="brand-name">답해줘</div>
+      </div>
+      <button class="tenant">
+        <span>노르드하임 가구<small class="mono">nordheim.co.kr</small></span>
+        <span style="color:#7A8B99;font-size:11px">▾</span>
+      </button>
+    </div>
+
+    <nav>
+      <div class="nav-group">
+        <div class="eyebrow">운영</div>
+        <button class="nav-item on" data-go="home"><span class="ic">◈</span>홈</button>
+        <button class="nav-item" data-go="improve"><span class="ic">◐</span>답변 개선<span class="badge">9</span></button>
+        <button class="nav-item" data-go="convs"><span class="ic">▤</span>대화 로그</button>
+        <button class="nav-item" data-go="leads"><span class="ic">◇</span>남긴 연락처<span class="badge q">3</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="eyebrow">챗봇</div>
+        <button class="nav-item" data-go="sources"><span class="ic">▦</span>지식 소스</button>
+        <button class="nav-item" data-go="faq"><span class="ic">◈</span>공통 질문<span class="badge q" id="navFaqBadge">6</span></button>
+        <button class="nav-item" data-go="settings"><span class="ic">◑</span>말투와 모양</button>
+        <button class="nav-item" data-go="install"><span class="ic">◍</span>설치</button>
+      </div>
+      <div class="nav-group">
+        <div class="eyebrow">계정</div>
+        <button class="nav-item" data-go="plan"><span class="ic">◫</span>요금제</button>
+        <button class="nav-item" data-go="team"><span class="ic">◎</span>팀원</button>
+      </div>
+    </nav>
+
+    <div class="side-foot">
+      <div class="status-card">
+        <div class="status-row"><span class="pulse"></span>사이트에서 작동 중</div>
+        <div class="meter"><i style="width:38%"></i></div>
+        <div class="meter-txt mono"><span>1,142 / 3,000 대화</span><span>38%</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- ============ 상단바 ============ -->
+    <header class="top">
+      <button class="btn btn-s menu-btn" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+      <div>
+        <h1 id="pageTitle">홈</h1>
+        <div class="sub" id="pageSub">2026년 8월 3일 월요일 · 최근 학습 3시간 전</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" data-go="settings">챗봇 테스트</button>
+        <button class="btn btn-p" onclick="openModal()">지식 추가</button>
+      </div>
+    </header>
+
+    <!-- ============ 홈 ============ -->
+    <section class="view on" id="v-home">
+      <div class="thesis">
+        <div class="eyebrow">오늘의 한 줄</div>
+        <h2>오늘 들어온 <b>128</b>건의 질문 중<br><span class="mark"><b>9</b>건은 답하지 못했습니다.</span></h2>
+        <div class="thesis-cta">
+          <button class="btn btn-m" data-go="improve">9건 채우러 가기</button>
+          <span class="thesis-note">답 못 한 질문에 한 번 답을 달아두면, 다음부터는 챗봇이 대신 답합니다.</span>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:22px">
+        <div class="stat">
+          <div class="eyebrow">오늘 대화</div>
+          <div class="n">128</div>
+          <div class="d up">▲ 어제보다 +21</div>
+        </div>
+        <div class="stat">
+          <div class="eyebrow">답변 성공률</div>
+          <div class="n">93<span style="font-size:15px;color:var(--slate-2)">%</span></div>
+          <div class="d down">▼ 지난주 96%</div>
+        </div>
+        <div class="stat">
+          <div class="eyebrow">남긴 연락처</div>
+          <div class="n">3</div>
+          <div class="d">이번 주 누적 11</div>
+        </div>
+        <div class="stat">
+          <div class="eyebrow">평균 응답</div>
+          <div class="n">1.9<span style="font-size:15px;color:var(--slate-2)">초</span></div>
+          <div class="d">정상 범위</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h"><h3>지식 상태</h3><span class="eyebrow">248개 문서</span></div>
+          <div class="card-b">
+            <div class="strip">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i class="w"></i><i class="w"></i><i></i><i></i><i></i>
+              <i></i><i></i><i class="e"></i><i></i><i></i><i></i><i></i><i class="n"></i><i class="n"></i><i class="n"></i>
+            </div>
+            <div class="strip-legend">
+              <span><i class="sq" style="background:var(--seal)"></i>학습 완료 231</span>
+              <span><i class="sq" style="background:var(--mark)"></i>처리 중 12</span>
+              <span><i class="sq" style="background:var(--brick)"></i>실패 5</span>
+            </div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line-2);display:flex;gap:8px">
+              <button class="btn btn-s" data-go="sources">소스 관리</button>
+              <button class="btn btn-s" onclick="toast('5건 다시 학습을 시작했습니다')">실패 5건 다시 학습</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h3>많이 물어본 질문</h3><span class="eyebrow">최근 7일</span></div>
+          <div class="card-b" style="padding:6px 0">
+            <table>
+              <tbody>
+                <tr><td style="width:34px" class="mono t-sub">01</td><td>배송은 며칠 걸리나요?</td><td style="text-align:right" class="mono t-sub">84</td></tr>
+                <tr><td class="mono t-sub">02</td><td>원목 소파 방수 되나요?</td><td style="text-align:right" class="mono t-sub">61</td></tr>
+                <tr><td class="mono t-sub">03</td><td>조립 서비스 비용</td><td style="text-align:right" class="mono t-sub">47</td></tr>
+                <tr><td class="mono t-sub">04</td><td>매장 위치 알려주세요</td><td style="text-align:right" class="mono t-sub">39</td></tr>
+                <tr><td class="mono t-sub">05</td><td>반품 기간이 언제까지죠</td><td style="text-align:right" class="mono t-sub">28</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 답변 개선 ============ -->
+    <section class="view" id="v-improve">
+      <p style="color:var(--slate);font-size:13.5px;margin-bottom:20px;max-width:620px">
+        챗봇이 답을 찾지 못했거나, 방문자가 👎를 누른 질문입니다. 답을 등록하면 다음 질문부터 바로 사용됩니다.
+      </p>
+
+      <div class="gap open">
+        <div class="gap-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="chip err"><span class="dot"></span>답변 실패</span>
+          <div class="gap-q">
+            <div class="q">제주도까지 배송되나요? 추가 비용 있어요?</div>
+            <div class="meta">최근 8월 3일 14:22 · 상품 상세 페이지에서</div>
+          </div>
+          <span class="gap-count">7회</span>
+        </div>
+        <div class="gap-b">
+          <div class="said">챗봇 답변 — 죄송합니다, 해당 내용은 확인이 어렵습니다. 매장으로 문의해 주세요.</div>
+          <div class="field" style="margin-bottom:12px">
+            <label>이렇게 답하도록 등록</label>
+            <textarea class="inp" placeholder="예: 제주 및 도서 지역은 배송 가능하며, 지역별로 추가 운임이 붙습니다. 결제 단계에서 자동 계산됩니다.">제주 및 도서 지역도 배송 가능합니다. 지역에 따라 도선료가 추가되며, 결제 단계에서 자동으로 계산되어 표시됩니다.</textarea>
+            <div class="hint">이 답변은 고정 답변으로 저장되며, 비슷한 표현의 질문에도 함께 적용됩니다.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-m btn-s" onclick="toast('고정 답변으로 등록했습니다')">답변 등록</button>
+            <button class="btn btn-s" onclick="openModal()">관련 문서 추가</button>
+            <button class="btn btn-ghost btn-s" onclick="toast('목록에서 숨겼습니다')">넘어가기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="gap-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="chip warn"><span class="dot"></span>👎 받음</span>
+          <div class="gap-q">
+            <div class="q">A/S 신청은 어디서 하나요</div>
+            <div class="meta">최근 8월 3일 11:07 · 고객센터 페이지에서</div>
+          </div>
+          <span class="gap-count">4회</span>
+        </div>
+        <div class="gap-b">
+          <div class="said">챗봇 답변 — 고객센터를 통해 접수하실 수 있습니다.</div>
+          <div class="field"><label>이렇게 답하도록 등록</label><textarea class="inp" placeholder="더 구체적인 답변을 적어주세요"></textarea></div>
+          <button class="btn btn-m btn-s" onclick="toast('고정 답변으로 등록했습니다')">답변 등록</button>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="gap-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="chip err"><span class="dot"></span>답변 실패</span>
+          <div class="gap-q">
+            <div class="q">지금 매장에 재고 있는지 확인 가능한가요?</div>
+            <div class="meta">최근 8월 2일 19:40 · 메인 페이지에서</div>
+          </div>
+          <span class="gap-count">6회</span>
+        </div>
+        <div class="gap-b">
+          <div class="said">챗봇 답변 — 재고 정보는 제공하고 있지 않습니다.</div>
+          <div class="field"><label>이렇게 답하도록 등록</label><textarea class="inp"></textarea></div>
+          <button class="btn btn-m btn-s" onclick="toast('고정 답변으로 등록했습니다')">답변 등록</button>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="gap-h" onclick="this.parentElement.classList.toggle('open')">
+          <span class="chip err"><span class="dot"></span>답변 실패</span>
+          <div class="gap-q">
+            <div class="q">쿠폰 두 개 같이 쓸 수 있나요</div>
+            <div class="meta">최근 8월 2일 16:11 · 장바구니에서</div>
+          </div>
+          <span class="gap-count">3회</span>
+        </div>
+        <div class="gap-b">
+          <div class="said">챗봇 답변 — 죄송합니다, 해당 내용은 확인이 어렵습니다.</div>
+          <div class="field"><label>이렇게 답하도록 등록</label><textarea class="inp"></textarea></div>
+          <button class="btn btn-m btn-s" onclick="toast('고정 답변으로 등록했습니다')">답변 등록</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 지식 소스 ============ -->
+    <section class="view" id="v-sources">
+      <div class="tabs">
+        <!-- 소스 종류별 합계 = 230+14+4 = 248. 상단 '248개 문서' 및 운영 콘솔 T.doc 과 일치시킬 것.
+             상태별 수치(학습완료 231 / 처리 중 12 / 실패 5)와는 다른 축이다. -->
+        <button class="tab on" onclick="srcTab(this,0)">웹페이지 <span class="mono" style="color:var(--slate-2)">230</span></button>
+        <button class="tab" onclick="srcTab(this,1)">파일 <span class="mono" style="color:var(--slate-2)">14</span></button>
+        <button class="tab" onclick="srcTab(this,2)">직접 입력 <span class="mono" style="color:var(--slate-2)">4</span></button>
+      </div>
+
+      <div class="src-pane">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-b" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:13.5px;font-weight:500">nordheim.co.kr</div>
+              <div class="t-sub" style="margin-top:3px">매주 월요일 새벽 3시에 자동으로 다시 읽습니다 · 마지막 3시간 전</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--slate)">
+              <input type="checkbox" checked> 자동 갱신
+            </label>
+            <button class="btn btn-s" onclick="toast('사이트를 다시 읽는 중입니다')">지금 다시 읽기</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <h3>수집된 페이지</h3>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <input class="inp" placeholder="주소나 제목으로 찾기" style="width:190px;padding:5.5px 10px;font-size:12.5px">
+              <button class="btn btn-s">필터</button>
+            </div>
+          </div>
+          <div style="padding:14px 4px 4px">
+            <table>
+              <thead><tr><th style="width:36px"></th><th>페이지</th><th style="width:112px">상태</th><th style="width:104px">마지막 학습</th><th style="width:40px"></th></tr></thead>
+              <tbody>
+                <tr><td><input type="checkbox" checked></td>
+                  <td><div class="t-title">배송 및 반품 안내</div><div class="t-sub">/guide/delivery</div></td>
+                  <td><span class="chip ok"><span class="dot"></span>학습 완료</span></td><td class="t-sub">3시간 전</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><input type="checkbox" checked></td>
+                  <td><div class="t-title">오크 3인 소파 — 노르드 라인</div><div class="t-sub">/product/1204</div></td>
+                  <td><span class="chip ok"><span class="dot"></span>학습 완료</span></td><td class="t-sub">3시간 전</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><input type="checkbox" checked></td>
+                  <td><div class="t-title">원목 관리 방법</div><div class="t-sub">/blog/wood-care</div></td>
+                  <td><span class="chip warn"><span class="dot"></span>처리 중</span></td><td class="t-sub">—</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><input type="checkbox"></td>
+                  <td><div class="t-title">채용 공고</div><div class="t-sub">/careers</div></td>
+                  <td><span class="chip idle"><span class="dot"></span>제외됨</span></td><td class="t-sub">—</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><input type="checkbox" checked></td>
+                  <td><div class="t-title">매장 안내</div><div class="t-sub">/stores</div></td>
+                  <td><span class="chip err"><span class="dot"></span>읽기 실패</span></td><td class="t-sub">3시간 전</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><input type="checkbox" checked></td>
+                  <td><div class="t-title">자주 묻는 질문</div><div class="t-sub">/faq</div></td>
+                  <td><span class="chip ok"><span class="dot"></span>학습 완료</span></td><td class="t-sub">3시간 전</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="src-pane" style="display:none">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-b" style="border:2px dashed var(--line);border-radius:8px;text-align:center;padding:34px">
+            <div style="font-size:14px;font-weight:500;margin-bottom:5px">PDF, Word, 엑셀 파일을 여기에 끌어다 놓으세요</div>
+            <div style="font-size:12.5px;color:var(--slate-2);margin-bottom:14px">파일 하나당 최대 20MB · 스캔한 문서는 글자 인식이 어려울 수 있습니다</div>
+            <button class="btn btn-p btn-s">파일 고르기</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>업로드한 파일</h3></div>
+          <div style="padding:14px 4px 4px">
+            <table>
+              <thead><tr><th>파일</th><th style="width:112px">상태</th><th style="width:80px">크기</th><th style="width:104px">올린 날짜</th><th style="width:40px"></th></tr></thead>
+              <tbody>
+                <tr><td><div class="t-title">2026 제품 카탈로그.pdf</div><div class="t-sub">148 페이지 · 3,201개 조각</div></td>
+                  <td><span class="chip ok"><span class="dot"></span>학습 완료</span></td><td class="t-sub">14.2MB</td><td class="t-sub">07-28</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><div class="t-title">배송 정책 개정본.pdf</div><div class="t-sub">6 페이지 · 82개 조각</div></td>
+                  <td><span class="chip ok"><span class="dot"></span>학습 완료</span></td><td class="t-sub">0.9MB</td><td class="t-sub">07-30</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                <tr><td><div class="t-title">매장별 재고표.xlsx</div><div class="t-sub">글자를 읽지 못했습니다</div></td>
+                  <td><span class="chip err"><span class="dot"></span>실패</span></td><td class="t-sub">2.1MB</td><td class="t-sub">08-01</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="src-pane" style="display:none">
+        <div class="card">
+          <div class="card-h"><h3>직접 입력한 내용</h3><button class="btn btn-s" style="margin-left:auto">새로 쓰기</button></div>
+          <div class="card-b">
+            <p style="font-size:13px;color:var(--slate);margin-bottom:16px">사이트에 없는 내용을 여기에 적어두면 챗봇이 함께 참고합니다. 매장 운영시간, 사내 규정, 이벤트 안내처럼 페이지로 만들지 않은 정보에 씁니다.</p>
+            <div class="field"><label>제목</label><input class="inp" value="여름 휴가 기간 배송 안내"></div>
+            <div class="field"><label>내용</label><textarea class="inp" style="min-height:110px">8월 10일부터 14일까지 물류센터가 쉽니다. 이 기간 주문은 8월 17일부터 순차 출고되며, 주문서에 휴무 안내가 함께 표시됩니다.</textarea></div>
+            <button class="btn btn-m btn-s" onclick="toast('저장했습니다. 곧 학습에 반영됩니다')">저장</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============ 공통 질문 ============ -->
+    <section class="view" id="v-faq">
+      <div class="split" style="grid-template-columns:1fr 336px">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-b" style="padding:15px 18px;font-size:13px;color:var(--slate);line-height:1.65">
+              채팅창을 열면 여기 등록한 질문이 버튼으로 보입니다. 방문자가 버튼을 누르면
+              <b style="color:var(--ink);font-weight:600">AI가 답을 새로 만들지 않고, 저장해 둔 답변을 그대로</b> 보여줍니다.
+              기다림 없이 바로 뜨고, 대화 사용량에도 들어가지 않습니다.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <h3>공통 질문</h3>
+              <span class="eyebrow"><span id="faqShown">0</span>개 노출 / <span id="faqCount">0</span>개 등록</span>
+              <button class="btn btn-p btn-s" style="margin-left:auto" onclick="newFaq()">질문 추가</button>
+            </div>
+            <div style="display:flex;padding:9px 14px 8px;border-bottom:1px solid var(--line-2);gap:13px">
+              <span class="eyebrow" style="flex:1">순서 · 질문</span>
+              <span class="eyebrow" style="width:56px;text-align:right">누른 수</span>
+              <span class="eyebrow" style="width:34px;text-align:center">노출</span>
+            </div>
+            <div id="faqList"></div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-h"><h3>질문 수정</h3><span class="eyebrow" id="faqEditing"></span></div>
+            <div class="card-b">
+              <div class="field"><label>질문 — 버튼에 보일 문구</label>
+                <input class="inp" id="fq">
+                <div class="hint">버튼 한 줄에 들어가야 합니다. 20자 안쪽을 권합니다.</div>
+              </div>
+              <div class="field"><label>답변</label>
+                <textarea class="inp" id="fa" style="min-height:98px"></textarea>
+                <div class="hint">적어둔 그대로 방문자에게 보입니다. 줄바꿈도 그대로 유지됩니다.</div>
+              </div>
+              <div class="field"><label>함께 보여줄 문서</label>
+                <input class="inp" id="fl" placeholder="배송 및 반품 안내, 원목 관리 방법">
+                <div class="hint">답변 아래에 링크로 붙습니다. 쉼표로 구분하세요.</div>
+              </div>
+              <div class="field" style="margin-bottom:18px">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13.5px">
+                  <input type="checkbox" id="fs"> 채팅창을 열었을 때 버튼으로 보이기
+                </label>
+                <div class="hint">꺼두면 버튼에는 안 나오지만, 방문자가 비슷한 내용을 직접 입력하면 이 답변이 쓰입니다.</div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-m btn-s" onclick="saveFaq()">저장</button>
+                <button class="btn btn-s" onclick="delFaq()">삭제</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:sticky;top:88px">
+          <div class="eyebrow" style="margin-bottom:9px">방문자가 채팅창을 열면</div>
+          <div class="preview-wrap" style="min-height:0;padding:18px">
+            <div class="widget" style="width:100%;max-width:298px;height:430px">
+              <div class="w-head">
+                <div class="w-av">노</div>
+                <div><div class="nm">노르드 도우미</div><div class="st">보통 몇 초 안에 답해요</div></div>
+              </div>
+              <div class="w-body" id="faqChat"></div>
+              <div class="w-foot"><input placeholder="직접 입력할 수도 있어요" disabled><button class="w-send">↑</button></div>
+            </div>
+          </div>
+          <button class="btn btn-s" style="width:100%;margin-top:12px" onclick="openState('faqChat')">처음 화면으로</button>
+          <div class="hint" style="margin-top:10px;line-height:1.6">버튼을 눌러보세요. 저장해 둔 답변이 바로 나옵니다.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 말투와 모양 ============ -->
+    <section class="view" id="v-settings">
+      <div class="split" style="grid-template-columns:1fr 380px">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-h"><h3>모양</h3></div>
+            <div class="card-b">
+              <div class="grid-2">
+                <div class="field"><label>챗봇 이름</label><input class="inp" value="노르드 도우미"></div>
+                <div class="field"><label>버블 색상</label>
+                  <div style="display:flex;gap:7px">
+                    <span style="width:30px;height:30px;border-radius:7px;background:#17222E;border:2px solid var(--ink);cursor:pointer"></span>
+                    <span style="width:30px;height:30px;border-radius:7px;background:#1B6B5C;cursor:pointer"></span>
+                    <span style="width:30px;height:30px;border-radius:7px;background:#BF3F2B;cursor:pointer"></span>
+                    <span style="width:30px;height:30px;border-radius:7px;background:#3B5BDB;cursor:pointer"></span>
+                    <input class="inp mono" value="#17222E" style="width:96px;padding:5px 9px;font-size:12px">
+                  </div>
+                </div>
+              </div>
+              <div class="field"><label>첫 인사말</label><input class="inp" value="안녕하세요! 가구 고르시는 것 도와드릴게요."></div>
+              <div class="field" style="margin-bottom:0"><label>처음 보이는 질문 버튼</label>
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--paper);border-radius:8px">
+                  <div style="flex:1;font-size:12.5px;color:var(--slate);line-height:1.55">
+                    <b style="color:var(--ink);font-weight:600" id="settingsFaqCount">4개</b>의 공통 질문이 버튼으로 보입니다.
+                    문구와 답변은 공통 질문에서 관리합니다.
+                  </div>
+                  <button class="btn btn-s" data-go="faq">공통 질문 열기</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-h"><h3>말투</h3></div>
+            <div class="card-b">
+              <div class="field"><label>어떤 태도로 답할까요</label>
+                <textarea class="inp" style="min-height:88px">노르드하임 가구의 상담 직원입니다. 정중한 존댓말을 쓰고, 답변은 세 문장 안으로 짧게 합니다. 제품을 추천할 때는 반드시 사이트에 있는 제품만 이야기합니다.</textarea>
+                <div class="hint">챗봇의 성격을 정합니다. 짧고 구체적으로 쓸수록 잘 따릅니다.</div>
+              </div>
+              <div class="field"><label>모를 때 할 말</label>
+                <input class="inp" value="제가 확인하기 어려운 내용이네요. 상담원에게 연결해 드릴까요?">
+              </div>
+              <div class="field" style="margin-bottom:0"><label>말하지 말 것</label>
+                <input class="inp" value="타사 브랜드 비교, 할인 협상, 재고 수량">
+                <div class="hint">여기 적힌 주제는 안내를 거절하고 상담원 연결을 제안합니다.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>답을 못 찾았을 때</h3></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:11px">
+              <label style="display:flex;gap:9px;align-items:flex-start;font-size:13.5px"><input type="checkbox" checked style="margin-top:4px">
+                <span>연락처 남기기 제안 <span style="display:block;font-size:11.5px;color:var(--slate-2)">이름과 전화번호를 받아 '남긴 연락처'에 모읍니다</span></span></label>
+              <label style="display:flex;gap:9px;align-items:flex-start;font-size:13.5px"><input type="checkbox" checked style="margin-top:4px">
+                <span>고객센터 번호 안내 <span style="display:block;font-size:11.5px;color:var(--slate-2)">1588-0000</span></span></label>
+              <label style="display:flex;gap:9px;align-items:flex-start;font-size:13.5px"><input type="checkbox" style="margin-top:4px">
+                <span>운영시간에는 상담원 연결 <span style="display:block;font-size:11.5px;color:var(--slate-2)">평일 09:00–18:00</span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:sticky;top:88px">
+          <div class="eyebrow" style="margin-bottom:9px">미리보기 · 실제로 이렇게 보입니다</div>
+          <div class="preview-wrap">
+            <div class="widget">
+              <div class="w-head">
+                <div class="w-av">노</div>
+                <div><div class="nm">노르드 도우미</div><div class="st">보통 몇 초 안에 답해요</div></div>
+              </div>
+              <div class="w-body" id="chatBody">
+                <div class="msg bot">안녕하세요! 가구 고르시는 것 도와드릴게요.</div>
+                <div class="sugg">
+                  <button onclick="ask('배송은 며칠 걸리나요?')">배송은 며칠 걸리나요?</button>
+                  <button onclick="ask('소파 재질이 궁금해요')">소파 재질이 궁금해요</button>
+                </div>
+              </div>
+              <div class="w-foot">
+                <input id="chatInput" placeholder="메시지를 입력하세요" onkeydown="if(event.key==='Enter')send()">
+                <button class="w-send" onclick="send()">↑</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-s" style="flex:1" onclick="resetChat()">대화 지우기</button>
+            <button class="btn btn-p btn-s" style="flex:1" onclick="toast('설정을 저장했습니다')">저장</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 설치 ============ -->
+    <section class="view" id="v-install">
+      <div class="split" style="grid-template-columns:1fr 340px">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-h"><h3>홈페이지에 붙일 코드</h3><span class="chip ok" style="margin-left:auto"><span class="dot"></span>연결 확인됨</span></div>
+            <div class="card-b">
+              <p style="font-size:13px;color:var(--slate);margin-bottom:14px">아래 코드를 홈페이지의 <span class="mono" style="background:var(--paper);padding:1px 5px;border-radius:4px">&lt;/body&gt;</span> 바로 위에 붙여넣으세요. 모든 페이지에 들어가야 합니다.</p>
+              <div class="code"><button class="copy" onclick="toast('코드를 복사했습니다')">복사</button><span class="c">&lt;!-- 답해줘 챗봇 --&gt;</span>
+<span class="k">&lt;script&gt;</span>
+  window.dabhaejwo = { key: <span class="s">"pk_live_a8f3k2m9x7q1"</span> };
+<span class="k">&lt;/script&gt;</span>
+<span class="k">&lt;script</span> src=<span class="s">"https://cdn.dabhaejwo.com/w.js"</span> async<span class="k">&gt;&lt;/script&gt;</span></div>
+              <div class="hint" style="margin-top:11px">이 키는 공개돼도 괜찮습니다. 아래에 등록한 주소에서만 작동하기 때문입니다.</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-h"><h3>허용할 주소</h3><button class="btn btn-s" style="margin-left:auto">주소 추가</button></div>
+            <div style="padding:14px 4px 4px">
+              <table>
+                <tbody>
+                  <tr><td><span class="mono" style="font-size:13px">nordheim.co.kr</span></td>
+                    <td style="width:130px"><span class="chip ok"><span class="dot"></span>작동 중</span></td>
+                    <td class="t-sub" style="width:120px">마지막 호출 2분 전</td>
+                    <td style="width:40px"><button class="btn-ghost btn btn-s">···</button></td></tr>
+                  <tr><td><span class="mono" style="font-size:13px">shop.nordheim.co.kr</span></td>
+                    <td><span class="chip ok"><span class="dot"></span>작동 중</span></td><td class="t-sub">마지막 호출 9분 전</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                  <tr><td><span class="mono" style="font-size:13px">nordheim-test.vercel.app</span></td>
+                    <td><span class="chip idle"><span class="dot"></span>호출 없음</span></td><td class="t-sub">—</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>어디에 붙일지 모르겠다면</h3></div>
+            <div class="card-b" style="padding-top:4px">
+              <div class="step"><div class="step-n">1</div><div><h4>카페24</h4><p>쇼핑몰 관리자 → 디자인 → HTML 편집 → 공통 레이아웃의 body 끝에 붙여넣습니다.</p></div></div>
+              <div class="step"><div class="step-n">2</div><div><h4>아임웹</h4><p>사이트 관리 → 고급 설정 → 외부 스크립트 → body 영역에 붙여넣습니다.</p></div></div>
+              <div class="step"><div class="step-n">3</div><div><h4>워드프레스</h4><p>테마의 footer.php를 열거나, 스크립트 삽입 플러그인의 Footer 칸에 붙여넣습니다.</p></div></div>
+              <div class="step"><div class="step-n">4</div><div><h4>직접 만든 사이트</h4><p>개발자에게 이 코드를 그대로 전달해 주세요. <button class="btn btn-s" style="margin-left:4px" onclick="toast('설치 안내 링크를 복사했습니다')">개발자에게 보낼 링크 복사</button></p></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:sticky;top:88px">
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-h"><h3>어디에 띄울까요</h3></div>
+            <div class="card-b">
+              <div class="field"><label>노출 페이지</label>
+                <select class="inp"><option>모든 페이지</option><option>지정한 페이지만</option><option>지정한 페이지 제외</option></select>
+              </div>
+              <div class="field"><label>버블 위치</label>
+                <select class="inp"><option>오른쪽 아래</option><option>왼쪽 아래</option></select>
+              </div>
+              <div class="field" style="margin-bottom:0"><label>자동으로 말 걸기</label>
+                <select class="inp"><option>15초 후 인사말 띄우기</option><option>띄우지 않기</option><option>5초 후</option></select>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>최근 호출</h3></div>
+            <div class="card-b" style="font-family:'Noto Sans Mono','Noto Sans KR',monospace;font-size:11.5px;color:var(--slate);line-height:2">
+              <div>14:38:02 &nbsp;/product/1204 &nbsp;<span style="color:var(--seal)">200</span></div>
+              <div>14:37:41 &nbsp;/guide/delivery &nbsp;<span style="color:var(--seal)">200</span></div>
+              <div>14:36:19 &nbsp;/ &nbsp;<span style="color:var(--seal)">200</span></div>
+              <div>14:31:55 &nbsp;unknown-site.kr &nbsp;<span style="color:var(--brick)">403</span></div>
+              <div>14:29:03 &nbsp;/faq &nbsp;<span style="color:var(--seal)">200</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 대화 로그 ============ -->
+    <section class="view" id="v-convs">
+      <div class="split">
+        <div class="card">
+          <div class="card-h" style="padding:11px 14px">
+            <input class="inp" placeholder="대화 내용 검색" style="padding:5.5px 10px;font-size:12.5px">
+          </div>
+          <div style="max-height:600px;overflow-y:auto">
+            <button class="conv-item on"><div class="l1"><span class="who">방문자 · 서울</span><span class="tm">14:22</span></div><div class="pv">제주도까지 배송되나요? 추가 비용…</div></button>
+            <button class="conv-item"><div class="l1"><span class="who">방문자 · 부산</span><span class="tm">13:58</span></div><div class="pv">오크 소파 폭이 몇 cm인가요</div></button>
+            <button class="conv-item"><div class="l1"><span class="who">김OO · 연락처 남김</span><span class="tm">13:11</span></div><div class="pv">조립 서비스 신청하고 싶어요</div></button>
+            <button class="conv-item"><div class="l1"><span class="who">방문자 · 대구</span><span class="tm">12:40</span></div><div class="pv">반품하려면 어떻게 하나요</div></button>
+            <button class="conv-item"><div class="l1"><span class="who">방문자 · 인천</span><span class="tm">11:07</span></div><div class="pv">A/S 신청은 어디서 하나요</div></button>
+            <button class="conv-item"><div class="l1"><span class="who">방문자 · 서울</span><span class="tm">10:22</span></div><div class="pv">매장 주차 되나요?</div></button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><h3>방문자 · 서울</h3><div class="t-sub" style="margin-top:2px">8월 3일 14:22 · 4분 · /product/1204 에서 시작</div></div>
+            <div style="margin-left:auto;display:flex;gap:7px">
+              <button class="btn btn-s" data-go="improve">답변 개선으로</button>
+              <button class="btn btn-s">내보내기</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="bubble u">안녕하세요</div>
+            <div class="bubble a">안녕하세요! 가구 고르시는 것 도와드릴게요.</div>
+            <div class="bubble u">오크 3인 소파 지금 주문하면 언제 오나요?</div>
+            <div class="bubble a">오크 3인 소파는 주문 후 영업일 기준 5~7일 내 배송됩니다. 조립 설치를 함께 신청하시면 하루 정도 더 걸릴 수 있습니다.
+              <div class="src"><a href="#">배송 및 반품 안내</a><a href="#">오크 3인 소파 — 노르드 라인</a></div>
+            </div>
+            <div class="bubble u">제주도까지 배송되나요? 추가 비용 있어요?</div>
+            <div class="bubble a" style="border-color:#EBBFB7;background:#FEF7F5">죄송합니다, 해당 내용은 확인이 어렵습니다. 매장으로 문의해 주세요.
+              <div style="margin-top:9px;padding-top:9px;border-top:1px dashed #EBBFB7;display:flex;align-items:center;gap:8px">
+                <span class="chip err"><span class="dot"></span>답변 실패</span>
+                <button class="btn btn-m btn-s" data-go="improve">여기에 답 달기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 남긴 연락처 ============ -->
+    <section class="view" id="v-leads">
+      <div class="card">
+        <div class="card-h"><h3>남긴 연락처</h3><span class="eyebrow">이번 달 11명</span>
+          <div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-s">CSV 내보내기</button><button class="btn btn-s">알림 설정</button></div>
+        </div>
+        <div style="padding:14px 4px 4px">
+          <table>
+            <thead><tr><th>이름</th><th>연락처</th><th>남긴 이유</th><th style="width:110px">시각</th><th style="width:100px">처리</th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">김OO</td><td class="mono t-sub">010-****-3391</td><td>조립 서비스 신청 문의</td><td class="t-sub">오늘 13:11</td><td><span class="chip warn"><span class="dot"></span>대기</span></td></tr>
+              <tr><td class="t-title">이OO</td><td class="mono t-sub">010-****-7712</td><td>대량 구매 견적 요청</td><td class="t-sub">오늘 10:04</td><td><span class="chip warn"><span class="dot"></span>대기</span></td></tr>
+              <tr><td class="t-title">박OO</td><td class="mono t-sub">010-****-2205</td><td>제주 배송 관련</td><td class="t-sub">어제 17:52</td><td><span class="chip ok"><span class="dot"></span>연락함</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 요금제 ============ -->
+    <section class="view" id="v-plan">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h"><h3>지금 쓰는 요금제</h3></div>
+          <div class="card-b">
+            <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:5px">
+              <span style="font-size:22px;font-weight:600;letter-spacing:-.02em">비즈니스</span>
+              <span class="mono" style="color:var(--slate)">월 89,000원</span>
+            </div>
+            <div class="t-sub" style="margin-bottom:18px">다음 결제일 2026년 8월 28일</div>
+            <div style="margin-bottom:7px;display:flex;justify-content:space-between;font-size:12.5px"><span>이번 달 대화</span><span class="mono">1,142 / 3,000</span></div>
+            <div class="meter" style="background:var(--line-2)"><i style="width:38%;background:var(--ink)"></i></div>
+            <div style="margin:16px 0 7px;display:flex;justify-content:space-between;font-size:12.5px"><span>학습 문서</span><span class="mono">248 / 500</span></div>
+            <div class="meter" style="background:var(--line-2)"><i style="width:50%;background:var(--ink)"></i></div>
+            <div style="display:flex;gap:8px;margin-top:20px">
+              <button class="btn btn-p btn-s">요금제 변경</button>
+              <button class="btn btn-s">결제 수단</button>
+              <button class="btn btn-s">세금계산서</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>결제 내역</h3></div>
+          <div style="padding:14px 4px 4px">
+            <table><tbody>
+              <tr><td class="mono t-sub">2026-07-28</td><td>비즈니스 월 이용료</td><td style="text-align:right" class="mono">89,000원</td><td style="width:60px;text-align:right"><a href="#" style="font-size:11.5px;color:var(--slate)">영수증</a></td></tr>
+              <tr><td class="mono t-sub">2026-06-28</td><td>비즈니스 월 이용료</td><td style="text-align:right" class="mono">89,000원</td><td style="text-align:right"><a href="#" style="font-size:11.5px;color:var(--slate)">영수증</a></td></tr>
+              <tr><td class="mono t-sub">2026-05-28</td><td>스타터 월 이용료</td><td style="text-align:right" class="mono">39,000원</td><td style="text-align:right"><a href="#" style="font-size:11.5px;color:var(--slate)">영수증</a></td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 팀원 ============ -->
+    <section class="view" id="v-team">
+      <div class="card">
+        <div class="card-h"><h3>팀원</h3><button class="btn btn-p btn-s" style="margin-left:auto">팀원 초대</button></div>
+        <div style="padding:14px 4px 4px">
+          <table>
+            <thead><tr><th>이름</th><th>이메일</th><th style="width:130px">권한</th><th style="width:110px">마지막 접속</th><th style="width:40px"></th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">정OO</td><td class="mono t-sub">owner@nordheim.co.kr</td><td><span class="chip idle">소유자</span></td><td class="t-sub">지금</td><td></td></tr>
+              <tr><td class="t-title">한OO</td><td class="mono t-sub">cs@nordheim.co.kr</td><td><select class="inp" style="padding:3px 7px;font-size:12px"><option>편집</option><option>보기만</option></select></td><td class="t-sub">2시간 전</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+              <tr><td class="t-title">초대 보냄</td><td class="mono t-sub">md@nordheim.co.kr</td><td><span class="chip warn"><span class="dot"></span>수락 대기</span></td><td class="t-sub">—</td><td><button class="btn-ghost btn btn-s">···</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 모달 -->
+<div class="scrim" id="scrim" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-h"><h3>지식 추가</h3></div>
+    <div class="modal-b">
+      <div class="field"><label>어떤 걸 학습시킬까요</label>
+        <select class="inp"><option>웹사이트 주소</option><option>파일 올리기</option><option>직접 입력</option><option>고정 답변</option></select>
+      </div>
+      <div class="field" style="margin-bottom:0"><label>주소</label>
+        <input class="inp" placeholder="https://nordheim.co.kr">
+        <div class="hint">주소를 넣으면 하위 페이지를 찾아 목록으로 보여드립니다. 학습할 페이지는 그다음에 고르시면 됩니다.</div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="closeModal()">취소</button>
+      <button class="btn btn-p" onclick="closeModal();toast('페이지를 찾는 중입니다')">페이지 찾기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TITLES={
+  home:['홈','2026년 8월 3일 월요일 · 최근 학습 3시간 전'],
+  improve:['답변 개선','챗봇이 답하지 못한 질문 9건'],
+  convs:['대화 로그','오늘 128건'],
+  leads:['남긴 연락처','대기 중 2명'],
+  sources:['지식 소스','248개 문서 학습됨'],
+  faq:['공통 질문','버튼으로 보이는 질문 4개'],
+  settings:['말투와 모양','바꾸면 오른쪽에서 바로 확인할 수 있습니다'],
+  install:['설치','nordheim.co.kr 에서 작동 중'],
+  plan:['요금제','비즈니스 · 다음 결제 8월 28일'],
+  team:['팀원','3명']
+};
+function go(k){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+k).classList.add('on');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.go===k));
+  document.getElementById('pageTitle').textContent=TITLES[k][0];
+  document.getElementById('pageSub').textContent=TITLES[k][1];
+  document.getElementById('side').classList.remove('open');
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+
+function srcTab(el,i){
+  document.querySelectorAll('#v-sources .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.src-pane').forEach((p,n)=>p.style.display=n===i?'block':'none');
+}
+
+let tt;
+function toast(m){
+  const t=document.getElementById('toast');
+  t.textContent=m;t.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200);
+}
+function openModal(){document.getElementById('scrim').classList.add('on')}
+function closeModal(){document.getElementById('scrim').classList.remove('on')}
+
+/* ============ 공통 질문 ============ */
+const GREETING='안녕하세요! 가구 고르시는 것 도와드릴게요.';
+/* 방문자 위젯(chatbot-visitor-widget.html)의 FAQS 와 id·질문·답변이 일치해야 한다.
+   같은 테넌트(노르드하임)의 같은 데이터이므로 한쪽만 고치지 말 것. */
+let FAQS=[
+  {id:1,q:'배송은 며칠 걸리나요?',
+   a:'주문 후 영업일 기준 5~7일 안에 배송됩니다. 조립 설치를 함께 신청하시면 하루 정도 더 걸릴 수 있습니다.',
+   links:['배송 및 반품 안내'],show:true,hits:842,follow:[2]},
+  {id:2,q:'제주도도 배송되나요?',
+   a:'제주 및 도서 지역도 배송 가능합니다. 지역에 따라 도선료가 추가되며, 결제 단계에서 자동으로 계산되어 표시됩니다.',
+   links:['배송 및 반품 안내'],show:true,hits:311,follow:[]},
+  {id:3,q:'소파 재질이 궁금해요',
+   a:'노르드 라인 소파는 북미산 화이트 오크 원목 프레임에 이탈리아산 세미 아닐린 가죽을 씌웠습니다. 가죽은 물에 약하니 젖은 천으로 닦지 마세요.',
+   links:['오크 3인 소파 — 노르드 라인','원목 관리 방법'],show:true,hits:504,follow:[]},
+  {id:4,q:'매장 위치 알려주세요',
+   a:'서울 성수, 판교, 부산 해운대 세 곳에 쇼룸이 있습니다. 방문 전 예약하시면 상담사가 미리 준비해 둡니다.',
+   links:['매장 안내'],show:true,hits:288,follow:[]},
+  {id:5,q:'반품 기간이 언제까지인가요?',
+   a:'수령일로부터 14일 이내에 반품하실 수 있습니다. 조립을 마친 제품은 단순 변심 반품이 어렵습니다.',
+   links:['배송 및 반품 안내'],show:false,hits:97,follow:[]},
+  {id:6,q:'세금계산서 발행되나요?',
+   a:'사업자 회원은 결제 시 신청란에서 요청하실 수 있습니다. 결제 완료 후 3일 안에 발행됩니다.',
+   links:[],show:false,hits:18,follow:[]}
+];
+let selId=1, nextId=7;
+const esc=s=>s.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+function renderFaq(){
+  const list=document.getElementById('faqList');
+  list.innerHTML=FAQS.map((f,i)=>`
+    <div class="faq-row ${f.id===selId?'sel':''}">
+      <div class="ord">
+        <button onclick="moveFaq(${f.id},-1)" style="opacity:${i===0?.2:1}">▲</button>
+        <button onclick="moveFaq(${f.id},1)" style="opacity:${i===FAQS.length-1?.2:1}">▼</button>
+      </div>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="selFaq(${f.id})">
+        <div style="font-size:13.5px;font-weight:500">${esc(f.q)}</div>
+        <div class="t-sub" style="margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.a).slice(0,44)}…</div>
+      </div>
+      <span class="mono t-sub" style="width:56px;text-align:right">${f.hits.toLocaleString()}</span>
+      <div class="sw ${f.show?'on':''}" onclick="toggleFaq(${f.id})" title="채팅창에 버튼으로 보이기"><i></i></div>
+    </div>`).join('');
+
+  const shown=FAQS.filter(f=>f.show).length;
+  document.getElementById('faqShown').textContent=shown;
+  document.getElementById('faqCount').textContent=FAQS.length;
+  document.getElementById('navFaqBadge').textContent=FAQS.length;
+  document.getElementById('settingsFaqCount').textContent=shown+'개';
+  TITLES.faq[1]='버튼으로 보이는 질문 '+shown+'개';
+  if(document.getElementById('v-faq').classList.contains('on'))
+    document.getElementById('pageSub').textContent=TITLES.faq[1];
+
+  const f=FAQS.find(x=>x.id===selId);
+  document.getElementById('faqEditing').textContent=f?'선택 중':'선택된 질문 없음';
+  if(f){
+    fq.value=f.q; fa.value=f.a; fl.value=f.links.join(', '); fs.checked=f.show;
+  }
+  renderChats();
+}
+function selFaq(id){selId=id;renderFaq();}
+function toggleFaq(id){const f=FAQS.find(x=>x.id===id);f.show=!f.show;renderFaq();
+  toast(f.show?'채팅창에 버튼으로 보입니다':'버튼에서 숨겼습니다');}
+function moveFaq(id,d){
+  const i=FAQS.findIndex(x=>x.id===id), j=i+d;
+  if(j<0||j>=FAQS.length)return;
+  [FAQS[i],FAQS[j]]=[FAQS[j],FAQS[i]];renderFaq();
+}
+function newFaq(){
+  FAQS.push({id:nextId,q:'새 질문',a:'',links:[],show:false,hits:0,follow:[]});
+  selId=nextId++;renderFaq();fq.focus();fq.select();
+}
+function saveFaq(){
+  const f=FAQS.find(x=>x.id===selId);if(!f)return;
+  f.q=fq.value.trim()||'제목 없는 질문';
+  f.a=fa.value.trim();
+  f.links=fl.value.split(',').map(s=>s.trim()).filter(Boolean);
+  f.show=fs.checked;
+  renderFaq();toast('저장했습니다');
+}
+function delFaq(){
+  FAQS=FAQS.filter(x=>x.id!==selId);
+  selId=FAQS.length?FAQS[0].id:0;renderFaq();toast('삭제했습니다');
+}
+
+/* ============ 미리보기 챗 ============ */
+function push(bodyId,html,cls){
+  const b=document.getElementById(bodyId);
+  const d=document.createElement('div');d.className='msg '+cls;d.innerHTML=html;
+  b.appendChild(d);b.scrollTop=b.scrollHeight;return d;
+}
+function suggBar(bodyId,items){
+  if(!items.length)return;
+  const b=document.getElementById(bodyId);
+  const d=document.createElement('div');d.className='sugg';
+  d.innerHTML=items.map(f=>`<button onclick="askFaq('${bodyId}',${f.id})">${esc(f.q)}</button>`).join('');
+  b.appendChild(d);b.scrollTop=b.scrollHeight;
+}
+function openState(bodyId){
+  const b=document.getElementById(bodyId);if(!b)return;
+  b.innerHTML='<div class="msg bot">'+esc(GREETING)+'</div>';
+  suggBar(bodyId,FAQS.filter(f=>f.show));
+}
+function renderChats(){openState('chatBody');openState('faqChat');}
+
+function answerBlock(f){
+  let h='<div class="saved-tag">저장된 답변</div>'+esc(f.a).replace(/\n/g,'<br>');
+  if(f.links.length)
+    h+='<div class="src">'+f.links.map(s=>'<a href="#" onclick="return false">'+esc(s)+'</a>').join('')+'</div>';
+  return h;
+}
+function askFaq(bodyId,id){
+  const f=FAQS.find(x=>x.id===id);if(!f)return;
+  document.querySelectorAll('#'+bodyId+' .sugg').forEach(s=>s.remove());
+  push(bodyId,esc(f.q),'me');
+  f.hits++;
+  setTimeout(()=>{
+    push(bodyId,f.a?answerBlock(f):'<span style="color:var(--slate-2)">아직 답변이 비어 있습니다</span>','bot');
+    suggBar(bodyId,f.follow.map(i=>FAQS.find(x=>x.id===i)).filter(Boolean));
+  },180);
+}
+
+/* 직접 입력 — 저장된 답변 우선, 없으면 문서에서 찾아 생성 */
+const RAG={
+  '조립':['조립 설치 서비스는 품목당 3만 원부터이며, 배송 시 함께 신청하실 수 있습니다.',['2026 제품 카탈로그.pdf']],
+  '주차':['성수 쇼룸은 건물 지하 주차장을 2시간 무료로 이용하실 수 있습니다.',['매장 안내']],
+  '쿠폰':['쿠폰은 주문 한 건에 하나만 적용됩니다. 적립금은 쿠폰과 함께 쓰실 수 있습니다.',['배송 및 반품 안내']]
+};
+function ask(q){document.getElementById('chatInput').value=q;send();}
+function send(){
+  const i=document.getElementById('chatInput');
+  const q=i.value.trim();if(!q)return;i.value='';
+  document.querySelectorAll('#chatBody .sugg').forEach(s=>s.remove());
+  push('chatBody',esc(q),'me');
+
+  const key=s=>(s.match(/[가-힣A-Za-z]{2,}/g)||[]).filter(w=>w.length>=2);
+  const qw=key(q);
+  const saved=FAQS.filter(f=>f.a).map(f=>{
+    const fw=key(f.q);
+    const score=fw.filter(w=>qw.some(x=>x.includes(w)||w.includes(x))).length;
+    return {f,score};
+  }).sort((a,b)=>b.score-a.score)[0];
+
+  if(saved && saved.score>0){ // 저장된 답변은 기다림 없이
+    setTimeout(()=>{push('chatBody',answerBlock(saved.f),'bot');saved.f.hits++;},180);
+    return;
+  }
+  const typing=push('chatBody','<span style="color:var(--slate-2)">…</span>','bot');
+  setTimeout(()=>{
+    let hit=null;
+    for(const k in RAG) if(q.includes(k)) hit=RAG[k];
+    if(hit){
+      typing.innerHTML=esc(hit[0])+'<div class="src">'+hit[1].map(s=>'<a href="#" onclick="return false">'+s+'</a>').join('')+'</div>';
+    }else{
+      typing.innerHTML='제가 확인하기 어려운 내용이네요. 상담원에게 연결해 드릴까요?'+
+        '<div class="src" style="border-top-color:#EBBFB7"><a href="#" onclick="return false" style="background:var(--brick-soft);color:var(--brick);border-color:#EBBFB7">답변 개선 목록에 쌓임</a></div>';
+    }
+    document.getElementById('chatBody').scrollTop=9999;
+  },760);
+}
+function resetChat(){openState('chatBody');}
+
+renderFaq();
+</script>
