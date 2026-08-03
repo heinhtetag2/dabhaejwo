@@ -1,0 +1,22 @@
+{
+  "name": "dabhaejwo-widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "size": "node scripts/size.mjs"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.0.0",
+    "typescript": "^5",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  }
+}

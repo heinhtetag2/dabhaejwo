@@ -73,15 +73,30 @@ dabhaejwo/
 
 <!-- 최신이 위. HARNESS.md 규칙대로 기록. -->
 
-- **진행중: M0 부트스트랩** (2026-08-03)
-  - 완료 — 문서 정리·인테이크·하네스 조립·API 계약·DB 스키마(V1)
-  - 완료 — `api` 골격: Spring Boot 4.1 / Java 21 / Gradle 9.5.1, 예외 체계,
-    `LlmGateway` + 원가 파이프라인(단가 조회 → 원가 계산 → 원장 적재), `StubLlmProvider`.
-    **`./gradlew build` 그린** (단위 테스트 4개 통과)
-  - 완료 — `admin` 스캐폴드 + 의존성 설치 (Next 16.2.12 / React 19 / Tailwind 4)
-  - **다음 위치** — `api` 의 인증 3종(ops/app/widget) → 감사 서비스 → 테넌트 도메인 →
-    오늘·업체 엔드포인트. 그다음 `admin` FSD 셸 → `tenant` → `widget`
+- **M0 부트스트랩 완료** (2026-08-03) — 4개 프로젝트 전부 검증 그린
+  - 문서 정리·인테이크·하네스 조립·API 계약·DB 스키마(V1, 27개 테이블)
+  - `api` — Spring Boot 4.1 / Java 21 / Gradle 9.5.1. `LlmGateway` + 원가 파이프라인,
+    인증 3종 분리, `@RequirePermission` AOP, 감사 기록, 업체 목록 엔드포인트.
+    **`./gradlew build` 그린** (단위 테스트 21개)
+  - `admin` — 운영 콘솔 FSD 셸 + 10화면 라우트. **lint/typecheck/build 그린**
+  - `tenant` — 업체 대시보드 FSD 셸 + 10화면 라우트 + 대리 접속 배너.
+    **lint/typecheck/build 그린**
+  - `widget` — Vite 8 IIFE + Preact + Shadow DOM. **typecheck/test(9)/build/size 그린**,
+    gzip 8.86KB (예산 30KB)
   - 환경 제약 — Docker 없음(통합 테스트 불가, IMPROVEMENTS P1), Gradle 없음(Initializr 공식 래퍼 사용)
+  - 다음 마일스톤 후보는 아래 "다음 마일스톤 제안" 참조
+
+## 다음 마일스톤 제안
+
+기획서의 개발 단계(admin-console-plan.md §11)는 **관측 → 대응 → 통제 → 확장** 순이다.
+그 1단계가 "원가 데이터를 오픈과 동시에 쌓기 시작한다"이고, M0 에서 그 배관을 이미 깔았다.
+
+| 후보 | 내용 | 이유 |
+|---|---|---|
+| **M1 — 챗봇이 실제로 답한다** | 지식 소스 → 임베딩 → 벡터 검색 → 답변 생성 → `ai_usage` 적재. 위젯 ↔ api 연결 | 제품의 본체이자, 원가 파이프라인이 실제 데이터로 도는지 확인하는 유일한 방법 |
+| M1' — Docker 확보 후 통합 테스트 | Flyway·JPA 매핑·pgvector 검색 검증 | M0 에서 한 번도 실행되지 않은 부분이다. M1 착수 전에 하는 편이 싸다 |
+| M2 — 오늘·수익성 화면 | 일 집계 배치 + 두 화면 실동작 | 원가 데이터가 쌓이기 시작하면 바로 볼 수 있어야 한다 |
+| M3 — 대리 로그인 전 구간 | 세션 발급 → 배너 → 접속 이력 공개 → 감사 기록 | 골격은 있고 화면과 연결만 남았다 |
 
 ## 미완료 / Stub 목록
 

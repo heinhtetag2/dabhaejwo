@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>노르드하임 가구 — 위젯 임베드 테스트</title>
+    <style>
+      /*
+       * 일부러 공격적인 전역 스타일을 넣어 둔다.
+       * 위젯이 Shadow DOM 으로 제대로 격리돼 있다면 아무 영향도 받지 않아야 한다.
+       */
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Georgia, serif; background: #f1ede6; color: #2a2723; }
+      button { background: red !important; border: 4px dashed lime; font-size: 24px; }
+      div { line-height: 3; }
+      .root { display: none !important; }
+      header { border-bottom: 1px solid #e3dfd8; background: #fff; padding: 18px 24px; }
+      main { max-width: 900px; margin: 0 auto; padding: 48px 24px 120px; }
+      h1 { font-size: 34px; letter-spacing: -0.03em; }
+      p { margin-top: 14px; color: #6b6255; max-width: 520px; }
+    </style>
+  </head>
+  <body>
+    <header><strong>NORDHEIM</strong></header>
+    <main>
+      <h1>가상 업체 사이트</h1>
+      <p>
+        위젯을 실제 임베드 형태로 확인하기 위한 페이지다. 위 CSS 는 전역 button 스타일과
+        <code>.root</code> 숨김을 일부러 넣어 두었으므로, 오른쪽 아래 버블이 정상적으로
+        보이고 눌린다면 Shadow DOM 격리가 동작한다는 뜻이다.
+      </p>
+      <p>
+        <button>호스트 페이지의 버튼 (빨강이어야 정상)</button>
+      </p>
+    </main>
+
+    <!-- 답해줘 챗봇 -->
+    <script>
+      window.dabhaejwo = {
+        key: "pk_live_a8f3k2m9x7q1",
+        apiBaseUrl: "http://localhost:8080",
+        nudgeDelayMs: 4000,
+      };
+    </script>
+    <script type="module" src="/src/loader.tsx"></script>
+  </body>
+</html>
