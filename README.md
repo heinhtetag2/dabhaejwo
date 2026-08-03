@@ -34,6 +34,40 @@ docker run -d --name dabhaejwo-db -p 3306:3306 \
   mariadb:11.8
 ```
 
+### DB 준비 — 마이그레이션 전에 반드시 점검한다
+
+**MariaDB 는 DDL 이 트랜잭션이 아니다.** `V1__init.sql` 이 중간에 실패하면 앞쪽 테이블은
+만들어진 채 남고 Flyway 는 되돌리지 못한다. 반쯤 만들어진 스키마와 실패한 이력을
+손으로 치워야 하므로, 서버 상태를 먼저 확인한 뒤에 마이그레이션을 건다.
+
+```sh
+# 드라이버 jar 경로는 ./gradlew build 후 Gradle 캐시에서 찾는다
+java --class-path <mariadb-java-client.jar> scripts/DbProbe.java \
+     "$MARIADB_HOST" "$MARIADB_PORT" "$MARIADB_DB" "$MARIADB_USER" "$MARIADB_PASSWORD"
+```
+
+버전·VECTOR 지원·기존 테이블 유무를 확인하고, 적용해도 되는 상태면 exit 0 을 낸다.
+**exit 0 을 받은 뒤에** 앱을 띄운다 — Flyway 가 기동 시 마이그레이션을 적용한다.
+
+```sh
+cd api && ./gradlew bootRun
+```
+
+#### Ubuntu 24.04 기본 패키지는 10.11 이다
+
+`apt install mariadb-server` 로 깔면 10.11 이 오고, 여기에는 `VECTOR` 타입이 없다.
+11.8 LTS 는 MariaDB 공식 저장소를 추가해야 한다.
+
+```sh
+curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup \
+  | sudo bash -s -- --mariadb-server-version="11.8"
+sudo apt update && sudo apt install mariadb-server
+sudo mariadb-upgrade      # 메이저 버전을 건너뛰므로 반드시 실행
+```
+
+10.11 → 11.8 은 메이저 버전을 여러 개 넘는 업그레이드다. 같은 서버에 다른 DB 가 있으면
+먼저 백업할 것. 명령은 MariaDB 공식 문서로 한 번 더 확인하는 편이 안전하다.
+
 ## 실행
 
 ```sh

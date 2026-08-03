@@ -11,6 +11,7 @@
 | 항목 | 위치 | 등록일 | 비고 |
 |------|------|--------|------|
 | 노출됐던 Gemini API 키 폐기·재발급 | 구 `ai-info.md` | 2026-08-03 | 문서에서는 제거했으나 **키 자체는 아직 유효하다.** Google AI Studio 에서 폐기 후 재발급 → `.env` 에만 보관. 사용자 조치 필요 |
+| **DB 서버가 MariaDB 10.11 — VECTOR 없음** | 원격 DB 서버 (접속 정보는 `.env`) | 2026-08-03 | Ubuntu 24.04 기본 패키지라 10.11.13 이 깔려 있다. `VECTOR` 타입이 없어 `V1__init.sql` 이 `knowledge_chunks` 에서 실패한다. **11.8 LTS 로 업그레이드하기 전에는 마이그레이션을 걸면 안 된다** (MariaDB 는 DDL 이 트랜잭션이 아니라 절반만 만들어진 스키마가 남는다). 업그레이드 절차는 README 참조. 사용자 조치 필요 |
 
 ## P1
 
@@ -23,6 +24,7 @@
 | **Docker 미설치 — 통합 테스트 불가 (확정)** | `api/` | 2026-08-03 | 로컬에 Docker 가 없어 Testcontainers 를 못 쓴다. 원가 계산은 순수 단위 테스트(`ModelPriceLookupTest`)로 커버했으나, **Flyway 마이그레이션·JPA 매핑·벡터 검색은 아직 한 번도 실행되지 않았다.** Docker 확보 후 `@SpringBootTest` + Testcontainers(`mariadb:11.8`)로 검증할 것. **H2로 때우지 않는다** |
 | 로컬 MariaDB 부재 — 앱 기동 미검증 | `api/` | 2026-08-03 | `./gradlew build` 는 그린이지만 애플리케이션을 실제로 띄워본 적이 없다(`ddl-auto: validate` 가 DB를 요구). Docker 또는 로컬 MariaDB 11.8 확보 후 기동 확인 필요 |
 | **Hibernate ↔ DDL 타입 일치 미검증 (MariaDB)** | `api/` | 2026-08-03 | 특히 `UUID` 컬럼과 `JSON` 컬럼이 Hibernate MariaDBDialect 의 기대와 맞는지 확인되지 않았다. `ddl-auto: validate` 라 첫 기동 시 드러난다. MariaDB 확보 즉시 기동해 볼 것 |
+| **DB 가 공인 IP 에 열려 있고 계정에 호스트 제한이 없다** | 원격 DB 서버 :3306 | 2026-08-03 | `CURRENT_USER()` 가 `dabhaejwo@%` 라 어느 호스트에서든 접속된다. 개발 단계라 지금은 두기로 했다(사용자 결정). **운영 개시 전 필수** — 방화벽으로 3306 을 소스 IP 로 제한하거나 VPN 뒤로 넣고, 계정을 `dabhaejwo@'<앱 서버 IP>'` 로 좁힌다. 운영 콘솔 IP allowlist(`dabhaejwo.ops.ip-allowlist`)와 함께 정리할 것 |
 | **테넌트 필터가 붙으면 VECTOR INDEX 를 못 탈 수 있다** | `V1__init.sql` `knowledge_chunks` | 2026-08-03 | MariaDB 의 벡터 인덱스는 `WHERE` 없는 `ORDER BY VEC_DISTANCE_*(col, v) LIMIT n` 에서만 쓰인다. 테넌트 격리 때문에 `WHERE tenant_id = ?` 가 항상 붙는다. **필터를 빼서 인덱스를 태우지 않는다** — 타 테넌트 데이터가 섞이는 것이 성능보다 훨씬 나쁘다. 실측 후 느리면 테넌트별 파티셔닝 검토 |
 | SpringDoc OpenAPI 미도입 | `api/build.gradle.kts` | 2026-08-03 | 최신 `springdoc-openapi-starter-webmvc-ui` 2.8.6 은 Spring Boot 3.x 대상이라 Boot 4.1 호환이 불확실해 제외했다. 호환 버전 확인 후 추가 |
 | 프로토타입 HTML에 doctype·html·head·body 없음 | `docs/prototype/*.html` | 2026-08-03 | quirks mode 로 렌더될 수 있어 "UI 100% 동일" 판정의 기준이 흔들린다. 코드 전환은 표준 모드 기준으로 맞춘다 |
