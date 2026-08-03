@@ -70,12 +70,39 @@ sudo mariadb-upgrade      # 메이저 버전을 건너뛰므로 반드시 실행
 
 ## 실행
 
+| 대상 | 포트 |
+|---|---|
+| api | **4310** |
+| admin (운영 콘솔) | **4311** |
+| tenant (업체 대시보드) | **4312** |
+| widget (데모 서버) | 5173 (Vite 기본) |
+
 ```sh
-cd api    && ./gradlew bootRun     # :8080 — 기동 시 Flyway가 스키마를 만든다
-cd admin  && npm run dev           # :3000 운영 콘솔
-cd tenant && npm run dev           # :3000 업체 대시보드 (포트 충돌 시 -p 로 변경)
+cd api    && ./gradlew bootRun     # :4310 — 기동 시 Flyway가 스키마를 만든다
+cd admin  && npm run dev           # :4311
+cd tenant && npm run dev           # :4312
 cd widget && npm run dev           # /demo/index.html 에서 실제 임베드 확인
 ```
+
+`bootRun` 은 저장소 루트의 `.env` 를 읽어 환경변수로 넣어준다 —
+**Spring Boot 자체는 `.env` 를 읽지 않으므로** `api/build.gradle.kts` 에서 처리한다.
+운영 배포에는 적용되지 않으니 배포 환경의 시크릿 관리로 주입할 것.
+
+## 설정 파일
+
+```
+api/src/main/resources/
+├── application.yml             공통. 프로파일과 무관한 값
+├── application-local.yml       개발. 기본값이 넉넉하다 (기본 프로파일)
+└── application-production.yml  운영. 기본값을 주지 않는다
+```
+
+운영 프로파일은 `SPRING_PROFILES_ACTIVE=production` 으로 켠다.
+**기본값을 일부러 비워 두었다** — 환경변수가 빠지면 기동에 실패한다.
+운영에서 조용히 `localhost` 나 빈 비밀번호로 뜨는 것보다 못 뜨는 편이 낫다.
+
+비밀은 어느 yml 에도 적지 않는다. 파일로 두어야 하면 `application-secret.yml`
+(gitignore 대상)을 만든다.
 
 ## 검증
 

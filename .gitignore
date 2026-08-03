@@ -2,7 +2,8 @@
 .env
 .env.*
 !.env.example
-**/application-local.yml
+# application-local.yml 은 추적한다 — 자리표시자와 localhost 기본값만 들어간다.
+# 비밀을 파일로 두어야 하면 아래 이름을 쓴다.
 **/application-secret.yml
 
 # ---- Node ----

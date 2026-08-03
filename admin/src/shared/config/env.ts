@@ -6,5 +6,6 @@ const schema = z.object({
 });
 
 export const env = schema.parse({
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080",
+  // 포트 4310 = api. admin 은 4311, tenant 는 4312 를 쓴다.
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4310",
 });
