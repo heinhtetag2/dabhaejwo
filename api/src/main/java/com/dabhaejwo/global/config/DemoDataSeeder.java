@@ -229,9 +229,10 @@ public class DemoDataSeeder {
 
             String[] webTitles = {"배송 및 반품 안내", "오크 3인 소파 — 노르드 라인", "원목 관리 방법",
                     "매장 안내", "조립 서비스", "회사 소개", "자주 묻는 질문", "이용약관"};
+            // 웹 216 + 파일 11 + 직접입력 4 = 학습완료 231, 처리중 10+2 = 12, 실패 4+1 = 5
             for (int i = 0; i < 230; i++) {
-                DocumentStatus status = i < 218 ? DocumentStatus.INDEXED
-                        : i < 228 ? DocumentStatus.PROCESSING : DocumentStatus.FAILED;
+                DocumentStatus status = i < 216 ? DocumentStatus.INDEXED
+                        : i < 226 ? DocumentStatus.PROCESSING : DocumentStatus.FAILED;
                 KnowledgeDocument doc = KnowledgeDocument.of(tenantId, web.getId(),
                         webTitles[i % webTitles.length] + (i < webTitles.length ? "" : " " + i),
                         "/page/" + (i + 1), status);

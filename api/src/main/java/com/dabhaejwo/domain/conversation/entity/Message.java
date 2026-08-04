@@ -48,6 +48,13 @@ public class Message {
     @Column(name = "faq_id")
     private UUID faqId;
 
+    /**
+     * 답을 만드는 데 걸린 시간. 답변 파이프라인이 채운다.
+     * 잰 적이 없으면 null 이다 — 0 으로 채우면 "0ms 에 답했다"는 거짓이 된다.
+     */
+    @Column(name = "latency_ms")
+    private Integer latencyMs;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

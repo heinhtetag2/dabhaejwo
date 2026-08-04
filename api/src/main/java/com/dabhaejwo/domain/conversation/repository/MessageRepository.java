@@ -51,6 +51,19 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
                                        @Param("from") OffsetDateTime from,
                                        org.springframework.data.domain.Pageable pageable);
 
+    /**
+     * 평균 응답 시간(ms). 저장 답변은 모델을 거치지 않아 거의 0ms 라 제외한다 —
+     * 함께 평균 내면 실제 체감보다 좋게 나온다.
+     *
+     * @return 잰 메시지가 하나도 없으면 null
+     */
+    @Query("""
+            SELECT AVG(m.latencyMs) FROM Message m
+            WHERE m.tenantId = :tenantId AND m.latencyMs IS NOT NULL AND m.saved = false
+              AND m.createdAt >= :from
+            """)
+    Double averageLatency(@Param("tenantId") UUID tenantId, @Param("from") OffsetDateTime from);
+
     interface TopQuestion {
         String getQuestion();
 
