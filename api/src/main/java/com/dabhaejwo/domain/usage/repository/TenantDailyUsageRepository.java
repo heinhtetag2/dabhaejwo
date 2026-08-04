@@ -27,6 +27,18 @@ public interface TenantDailyUsageRepository
             """)
     List<MonthlyTotal> aggregateBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    /**
+     * 단일 업체 합계. 업체 대시보드는 자기 테넌트 하나만 보므로 전체 집계를 돌릴 이유가 없다.
+     * 결과가 없으면(그 달에 대화가 없으면) 0 을 반환한다 — null 이 아니다.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(u.convCount), 0) FROM TenantDailyUsage u
+            WHERE u.tenantId = :tenantId AND u.day >= :from AND u.day <= :to
+            """)
+    long sumConvCount(@Param("tenantId") UUID tenantId,
+                      @Param("from") LocalDate from,
+                      @Param("to") LocalDate to);
+
     /** 프로젝션. 필드명은 위 쿼리의 alias 와 일치해야 한다. */
     interface MonthlyTotal {
         UUID getTenantId();

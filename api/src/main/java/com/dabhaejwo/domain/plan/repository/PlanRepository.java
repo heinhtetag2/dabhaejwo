@@ -10,4 +10,6 @@ public interface PlanRepository extends JpaRepository<Plan, UUID> {
 
     /** 판매 중단된 구 요금제도 목록에 남긴다 — 사용 업체 수를 보여줘야 하기 때문이다. */
     List<Plan> findAllByOrderBySortOrderAsc();
+
+    java.util.Optional<Plan> findByCode(String code);
 }

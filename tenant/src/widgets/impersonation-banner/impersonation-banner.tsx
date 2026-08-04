@@ -2,7 +2,7 @@
 
 import dayjs from "dayjs";
 
-import { useAuthStore } from "@/shared/lib/auth-store";
+import { useAppContextQuery } from "@/entities/auth/session";
 
 /**
  * 운영팀 대리 접속 배너.
@@ -13,7 +13,8 @@ import { useAuthStore } from "@/shared/lib/auth-store";
  * 프로토타입에는 없던 요소다 — 기획서에만 있고 구현이 빠져 있었다.
  */
 export function ImpersonationBanner() {
-  const impersonation = useAuthStore((state) => state.impersonation);
+  const { data } = useAppContextQuery();
+  const impersonation = data?.impersonation;
 
   if (!impersonation) {
     return null;
@@ -25,9 +26,7 @@ export function ImpersonationBanner() {
       className="sticky top-0 z-60 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-brick px-4 py-2 text-center text-[13px] text-white"
     >
       <strong className="font-semibold">운영팀이 대리 접속 중입니다</strong>
-      <span className="text-white/85">
-        {impersonation.operatorName} · {impersonation.reason}
-      </span>
+      <span className="text-white/85">{impersonation.reason}</span>
       <span className="tabular text-[11.5px] text-white/70">
         {dayjs(impersonation.expiresAt).format("HH:mm")} 만료
       </span>

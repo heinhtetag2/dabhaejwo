@@ -29,6 +29,11 @@ public class JwtProvider {
 
     public static final String TYPE_OPS = "ops";
     public static final String TYPE_APP = "app";
+    /**
+     * 리프레시 토큰. 액세스 토큰과 {@code typ} 이 달라서 리프레시 토큰을 그대로
+     * {@code Authorization} 에 넣어도 API 를 호출할 수 없다.
+     */
+    public static final String TYPE_REFRESH = "refresh";
 
     private static final String CLAIM_TYPE = "typ";
     private static final String CLAIM_ROLE = "role";
@@ -36,6 +41,7 @@ public class JwtProvider {
     private static final String CLAIM_NAME = "name";
     private static final String CLAIM_IMPERSONATION = "impersonationSessionId";
     private static final String CLAIM_OPERATOR = "impersonatingOperatorId";
+    private static final String CLAIM_SCOPE = "scope";
 
     private final SecretKey key;
     private final AppProperties.Auth auth;
@@ -85,6 +91,32 @@ public class JwtProvider {
                 .claim(CLAIM_IMPERSONATION, sessionId.toString())
                 .claim(CLAIM_OPERATOR, operatorId.toString())
                 .compact();
+    }
+
+    /**
+     * 리프레시 토큰 발급. 어느 체계의 주체인지({@code scope}) 함께 담아, 재발급 시
+     * 원래 주체 종류로만 액세스 토큰을 만들 수 있게 한다.
+     *
+     * <p>서버에 저장하지 않는 상태 없는 토큰이라 개별 무효화가 불가능하다. 로그아웃은
+     * 클라이언트가 토큰을 버리는 것으로 처리한다. 강제 무효화가 필요해지면 저장소를
+     * 붙여야 한다 — docs/IMPROVEMENTS.md 참조.
+     */
+    public String issueRefreshToken(UUID subjectId, String scope) {
+        return build(subjectId.toString(), Duration.ofDays(auth.refreshTtlDays()))
+                .claim(CLAIM_TYPE, TYPE_REFRESH)
+                .claim(CLAIM_SCOPE, scope)
+                .compact();
+    }
+
+    /** @return 리프레시 토큰의 주체 id 와 scope. */
+    public RefreshSubject parseRefresh(String token) {
+        Claims claims = parse(token, TYPE_REFRESH);
+        return new RefreshSubject(
+                UUID.fromString(claims.getSubject()),
+                claims.get(CLAIM_SCOPE, String.class));
+    }
+
+    public record RefreshSubject(UUID subjectId, String scope) {
     }
 
     private io.jsonwebtoken.JwtBuilder build(String subject, Duration ttl) {

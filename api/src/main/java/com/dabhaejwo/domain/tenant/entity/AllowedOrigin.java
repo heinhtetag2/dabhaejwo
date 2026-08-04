@@ -38,6 +38,32 @@ public class AllowedOrigin {
     protected AllowedOrigin() {
     }
 
+    /**
+     * 저장 형태는 호스트명이다 — 스킴·포트·경로를 붙이지 않는다.
+     * 위젯이 보내는 {@code Origin} 헤더에서 호스트만 떼어 비교하므로 형태가 어긋나면 전부 403 이 된다.
+     */
+    public static AllowedOrigin of(UUID tenantId, String origin) {
+        AllowedOrigin allowed = new AllowedOrigin();
+        allowed.tenantId = tenantId;
+        allowed.origin = normalizeHost(origin);
+        allowed.createdAt = OffsetDateTime.now();
+        return allowed;
+    }
+
+    static String normalizeHost(String raw) {
+        String value = raw == null ? "" : raw.strip().toLowerCase(java.util.Locale.ROOT);
+        value = value.replaceFirst("^https?://", "");
+        int slash = value.indexOf('/');
+        if (slash >= 0) {
+            value = value.substring(0, slash);
+        }
+        int colon = value.indexOf(':');
+        if (colon >= 0) {
+            value = value.substring(0, colon);
+        }
+        return value;
+    }
+
     public void markCalled() {
         this.lastCalledAt = OffsetDateTime.now();
     }

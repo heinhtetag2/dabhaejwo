@@ -347,6 +347,36 @@ CHURNED → (종착)
 
 ## 9. 업체 대시보드 (`/api/app`)
 
+### 9-0. 로그인과 컨텍스트
+
+```json
+{ "id": "m1...", "name": "정OO", "email": "owner@nordheim.co.kr",
+  "role": "OWNER", "inviteState": "ACCEPTED", "lastSeenAt": "2026-08-03T05:41:00Z" }
+```
+
+`role`: `OWNER` · `EDITOR` · `VIEWER` / `inviteState`: `PENDING` · `ACCEPTED`
+
+`PENDING` 인 담당자는 비밀번호가 없다. 로그인 시도는 `UNAUTHENTICATED` 로 거부한다 —
+"초대 대기 중"이라고 알려주면 어떤 이메일이 등록돼 있는지 알려주는 셈이 된다.
+
+```
+POST /api/auth/app/login   { email, password } → { accessToken, refreshToken, member }
+GET  /api/app/me           → { member, tenant, usage, impersonation }
+```
+
+```json
+{
+  "member": { "id": "m1...", "name": "정OO", "role": "OWNER" },
+  "tenant": { "id": "a8f3...", "name": "노르드하임 가구", "primaryDomain": "nordheim.co.kr",
+              "publishableKey": "pk_live_a8f3k2m9x7q1", "status": "ACTIVE",
+              "plan": { "id": "p2...", "name": "비즈니스", "monthlyFee": 89000 } },
+  "usage": { "convCount": 1142, "convLimit": 3000, "docCount": 248, "docLimit": 500 },
+  "impersonation": null
+}
+```
+
+`tenant` 와 `usage` 의 필드는 §2 TenantDetail 과 **이름·타입이 완전히 같다.** 부분집합일 뿐이다.
+
 ### 9-1. Faq (공통 질문 = 저장 답변)
 
 ```json
@@ -384,10 +414,13 @@ CHURNED → (종착)
 { "id": 55, "question": "제주도까지 배송되나요? 추가 비용 있어요?",
   "reason": "ANSWER_FAILED", "occurrenceCount": 7,
   "lastAskedAt": "2026-08-03T05:22:00Z", "lastPath": "/product/1204",
-  "botAnswer": "죄송합니다, 해당 내용은 확인이 어렵습니다." }
+  "botAnswer": "죄송합니다, 해당 내용은 확인이 어렵습니다.", "status": "OPEN" }
 ```
 
-`reason`: `ANSWER_FAILED` · `THUMBS_DOWN`
+`reason`: `ANSWER_FAILED` · `THUMBS_DOWN` / `status`: `OPEN` · `RESOLVED` · `DISMISSED`
+
+같은 질문을 표현만 바꿔 물어도 하나로 묶인다 — 공백·문장부호를 걷어낸 정규화 키로 누적한다.
+`resolve` 는 FAQ 를 만들고 gap 을 `RESOLVED` 로 바꾼다. `dismiss` 는 목록에서만 감춘다(`DISMISSED`).
 
 ```json
 { "id": "L9...", "name": "김OO", "contact": "010-****-3391",
@@ -398,13 +431,41 @@ CHURNED → (종착)
 
 | Method | Path |
 |---|---|
+| GET | `/api/app/home` — 홈 요약 |
 | GET | `/api/app/answer-gaps` |
-| POST | `/api/app/answer-gaps/{id}/resolve` (→ Faq 생성) |
+| POST | `/api/app/answer-gaps/{id}/resolve` (→ Faq 생성) · `/dismiss` |
 | GET | `/api/app/conversations` · `/api/app/conversations/{id}` |
 | GET · PATCH | `/api/app/leads` · `/api/app/leads/{id}` |
 | GET · POST · DELETE | `/api/app/members` |
 | GET · PUT | `/api/app/appearance` |
 | GET · POST · DELETE | `/api/app/allowed-origins` |
+| GET | `/api/app/plan` — 요금제·사용량·결제 내역 |
+
+### 9-4. 홈 요약 · 챗봇 설정
+
+```json
+{ "todayConvCount": 128, "todayConvDelta": 21,
+  "answerSuccessPercent": 93, "answerSuccessPercentLastWeek": 96,
+  "openGapCount": 9, "todayLeadCount": 3, "weekLeadCount": 11, "avgResponseMs": 1900,
+  "knowledge": { "documentCount": 248, "indexedCount": 231, "processingCount": 12, "failedCount": 5 },
+  "topQuestions": [ { "question": "배송은 며칠 걸리나요?", "askCount": 84 } ] }
+```
+
+```json
+{ "botName": "노르드 도우미", "brandColor": "#17222E",
+  "greeting": "안녕하세요! 가구 고르시는 것 도와드릴게요.",
+  "persona": "노르드하임 가구의 상담 직원입니다...",
+  "fallbackMessage": "제가 확인하기 어려운 내용이네요...",
+  "forbiddenTopics": ["타사 브랜드 비교", "할인 협상", "재고 수량"],
+  "leadCaptureEnabled": true, "supportPhone": "1588-0000",
+  "agentHandoffEnabled": false, "agentHours": "평일 09:00–18:00",
+  "widgetPosition": "BOTTOM_RIGHT", "pageScope": "ALL", "pagePatterns": [],
+  "nudgeDelaySeconds": 15 }
+```
+
+`widgetPosition`: `BOTTOM_RIGHT` · `BOTTOM_LEFT` / `pageScope`: `ALL` · `INCLUDE` · `EXCLUDE`
+`nudgeDelaySeconds` 가 `0` 이면 자동으로 말 걸지 않는다.
+`forbiddenTopics` 는 화면에서 쉼표로 입력받되 **배열로 저장한다** — 문자열로 두면 나중에 항목 단위로 못 다룬다.
 
 `GET /api/app/conversations/{id}` 는 고객 데이터 열람이므로 **대리 로그인 세션으로 호출되면 감사 기록에 `VIEW_CONVERSATIONS` 를 남긴다.**
 

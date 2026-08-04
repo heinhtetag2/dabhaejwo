@@ -1,0 +1,9 @@
+package com.dabhaejwo.domain.auth.dto.request;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public record AppLoginRequest(
+        @NotBlank @Email String email,
+        @NotBlank String password) {
+}
