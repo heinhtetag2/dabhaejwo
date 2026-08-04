@@ -1,27 +1,38 @@
 /**
  * 업체 대시보드 라우트.
  *
- * 화면 구성은 docs/prototype/chatbot-tenant-dashboard.html 의 사이드바와 일치한다.
- * (이 면은 별도 기획서가 없고 프로토타입이 사실상 스펙이다 — docs/intake.md §5-2)
+ * 공개 영역과 로그인 영역을 URL 로 가른다 — `/app` 아래가 로그인 필요다.
+ * `/dashboard` 가 아니라 `/app` 인 이유는 API prefix(`/api/app/**`)와 같은 말을 쓰기 위해서다.
+ * 같은 영역을 두 이름으로 부르면 코드에서 계속 번역하게 된다.
+ *
+ * 화면 구성 근거:
+ *   공개 — docs/plan/tenant-public-plan.md §3
+ *   대시보드 — docs/plan/tenant-plan.md §3
  */
 export const ROUTES = {
+  // 공개
+  landing: "/",
+  pricing: "/pricing",
+  signup: "/signup",
   login: "/login",
+  terms: "/terms",
+  privacy: "/privacy",
 
-  // 운영
-  home: "/",
-  improve: "/improve",
-  conversations: "/conversations",
-  leads: "/leads",
+  // 대시보드 — 운영
+  home: "/app",
+  improve: "/app/improve",
+  conversations: "/app/conversations",
+  leads: "/app/leads",
 
-  // 챗봇
-  sources: "/sources",
-  faq: "/faq",
-  appearance: "/appearance",
-  install: "/install",
+  // 대시보드 — 챗봇
+  sources: "/app/sources",
+  faq: "/app/faq",
+  appearance: "/app/appearance",
+  install: "/app/install",
 
-  // 계정
-  plan: "/plan",
-  team: "/team",
+  // 대시보드 — 계정
+  plan: "/app/plan",
+  team: "/app/team",
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
@@ -55,4 +66,9 @@ export const NAV_GROUPS: ReadonlyArray<{
       { href: ROUTES.team, label: "팀원" },
     ],
   },
+];
+
+/** 공개 헤더의 이동 항목. */
+export const PUBLIC_NAV: ReadonlyArray<{ href: RoutePath; label: string }> = [
+  { href: ROUTES.pricing, label: "요금제" },
 ];

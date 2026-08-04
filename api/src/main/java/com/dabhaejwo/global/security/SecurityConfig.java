@@ -5,6 +5,7 @@ import com.dabhaejwo.domain.tenant.repository.TenantRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,7 +23,8 @@ import tools.jackson.databind.ObjectMapper;
  * /api/ops/**    운영자 JWT
  * /api/app/**    업체 담당자 JWT (대리 로그인 토큰 포함)
  * /api/widget/** 공개 키 + Origin
- * /api/auth/**   공개
+ * /api/public/** 주체 없음 — 누구나 읽는 정보만 (GET 전용)
+ * /api/auth/**   공개 — 인증을 만들어내는 행위
  * </pre>
  */
 @Configuration
@@ -71,11 +73,19 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * 주체가 없는 공개 정보. 요금제 소개처럼 로그인 전에 읽어야 하는 것만 둔다.
+     *
+     * <p><b>쓰기 엔드포인트를 두지 않는다.</b> 인증을 만들어내는 행위(가입)는
+     * {@code /api/auth/**} 에 있고 레이트 리밋도 거기 붙는다
+     * (docs/plan/tenant-public-plan.md §7.1).
+     */
     @Bean
     @Order(4)
     SecurityFilterChain publicChain(HttpSecurity http) throws Exception {
         return baseline(http)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                         .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
                         .anyRequest().denyAll())
                 .build();

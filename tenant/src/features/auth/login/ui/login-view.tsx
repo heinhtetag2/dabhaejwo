@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
@@ -26,21 +27,14 @@ export function LoginView() {
   });
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-10">
-      <div className="w-full max-w-[380px]">
-        <div className="mb-7 flex items-center gap-2.5">
-          <span className="grid size-[22px] place-items-center rounded-md bg-mark font-mono text-xs font-bold text-ink">
-            A
-          </span>
-          <span className="font-semibold tracking-[-0.01em]">답해줘</span>
-        </div>
-
-        <h1 className="text-[19px] font-semibold tracking-[-0.02em]">업체 대시보드</h1>
-        <p className="mt-1 text-[12.5px] text-slate-2">
+    <div className="mx-auto max-w-[440px] px-5 pt-14 pb-10">
+      <div className="w-full">
+        <h1 className="text-[26px] font-semibold tracking-[-0.03em]">로그인</h1>
+        <p className="mt-2.5 text-[13.5px] text-slate">
           홈페이지에 붙인 챗봇을 여기서 관리합니다.
         </p>
 
-        <form onSubmit={onSubmit} noValidate className="mt-6 rounded-card border border-line bg-card p-5">
+        <form onSubmit={onSubmit} noValidate className="mt-7 rounded-card border border-line bg-card p-6">
           <div className="mb-[18px]">
             <label htmlFor="email" className="mb-1.5 block text-[12.5px] font-medium">
               이메일
@@ -88,15 +82,26 @@ export function LoginView() {
             </p>
           ) : null}
 
-          <Button type="submit" variant="primary" className="w-full" disabled={login.isPending}>
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full justify-center"
+            disabled={login.isPending}
+          >
             {login.isPending ? "확인 중…" : "로그인"}
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-[11.5px] text-slate-2">
-          계정이 없다면 담당자에게 초대를 요청하세요.
+        <p className="mt-4 text-center text-[12.5px] text-slate-2">
+          아직 계정이 없으신가요?{" "}
+          <Link href={ROUTES.signup} className="underline">
+            무료로 시작하기
+          </Link>
+        </p>
+        <p className="mt-1.5 text-center text-[11.5px] text-slate-2">
+          팀원으로 초대받으셨다면 초대 메일의 링크로 들어와 주세요.
         </p>
       </div>
-    </main>
+    </div>
   );
 }

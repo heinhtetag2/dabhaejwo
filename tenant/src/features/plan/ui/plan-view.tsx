@@ -1,11 +1,17 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   BILLING_STATUS_LABEL,
   usePlanOverviewQuery,
+  useUpgradeRequest,
   type BillingStatus,
 } from "@/entities/tenant/plan";
+import { ApiError } from "@/shared/api/http-client";
+import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
+import { env } from "@/shared/config/env";
 import { ErrorState, LoadingState } from "@/shared/common/states";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge, type Tone } from "@/shared/ui/status-badge";
@@ -78,10 +84,12 @@ export function PlanView() {
               </Notice>
             ) : null}
 
-            {/* TODO(stub): PG 미연동. 버튼을 만들어두고 눌리게 하면 눌러본 사람이 기다린다. */}
-            <p className="mt-4 text-[11.5px] leading-relaxed text-slate-2">
-              요금제 변경·결제 수단·세금계산서는 아직 준비 중입니다. 필요하시면 문의로
-              남겨주시면 운영팀이 처리해 드립니다.
+            <UpgradeRequest currentPlanCode={data.plan.id} />
+
+            {/* TODO(stub): PG 미연동이라 카드 자동 결제가 없다. 신청 → 운영팀 수동 처리다. */}
+            <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">
+              카드 자동 결제는 준비 중입니다. 신청하시면 1영업일 안에 담당자가 연락드려
+              계약과 수납을 도와드립니다. 세금계산서가 필요하시면 함께 알려주세요.
             </p>
           </CardBody>
         </Card>
@@ -111,6 +119,113 @@ export function PlanView() {
       </div>
     </>
   );
+}
+
+/**
+ * 유료 전환 신청.
+ *
+ * <p>요금제 목록은 <b>공개 엔드포인트</b>에서 읽는다 — 소개 페이지와 같은 목록을 보여줘야
+ * "봤던 요금제가 여기 없다"는 일이 안 생긴다.
+ */
+function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
+  const [open, setOpen] = useState(false);
+  const [plans, setPlans] = useState<PublicPlanOption[] | null>(null);
+  const [planCode, setPlanCode] = useState("");
+  const [note, setNote] = useState("");
+  const request = useUpgradeRequest();
+
+  const load = () => {
+    setOpen(true);
+    if (plans !== null) {
+      return;
+    }
+    void fetch(new URL("/api/public/plans", env.apiBaseUrl))
+      .then((response) => (response.ok ? response.json() : []))
+      .then((rows: PublicPlanOption[]) => {
+        const sellable = rows.filter((row) => !row.negotiable && row.code !== "TRIAL");
+        setPlans(sellable);
+        setPlanCode(sellable[0]?.code ?? "");
+      })
+      .catch(() => setPlans([]));
+  };
+
+  if (request.isSuccess) {
+    return (
+      <Notice tone="info" className="mt-4.5">
+        신청을 접수했습니다. 1영업일 안에 담당자가 연락드립니다. 그때까지 요금제는 그대로입니다.
+      </Notice>
+    );
+  }
+
+  if (!open) {
+    return (
+      <Button variant="accent" size="sm" className="mt-4.5" onClick={load}>
+        요금제 변경 신청
+      </Button>
+    );
+  }
+
+  return (
+    <div className="mt-4.5 rounded-[7px] border border-line bg-paper p-3.5">
+      <label htmlFor="upgrade-plan" className="mb-1.5 block text-[12.5px] font-medium">
+        원하는 요금제
+      </label>
+      <select
+        id="upgrade-plan"
+        value={planCode}
+        onChange={(event) => setPlanCode(event.target.value)}
+        className="w-full rounded-[7px] border border-line bg-card px-2.5 py-1.5 text-[13px]"
+      >
+        {(plans ?? []).map((plan) => (
+          <option key={plan.code} value={plan.code}>
+            {plan.name} · 월 {plan.monthlyFee.toLocaleString()}원
+          </option>
+        ))}
+      </select>
+
+      <label htmlFor="upgrade-note" className="mt-3 mb-1.5 block text-[12.5px] font-medium">
+        남길 말 (선택)
+      </label>
+      <textarea
+        id="upgrade-note"
+        rows={2}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        placeholder="연락 가능한 시간, 세금계산서 필요 여부 등"
+        className="w-full resize-y rounded-[7px] border border-line bg-card px-2.5 py-1.5 text-[13px]"
+      />
+
+      {request.isError ? (
+        <Notice tone="error" className="mt-3">
+          {request.error instanceof ApiError ? request.error.message : "신청하지 못했습니다"}
+        </Notice>
+      ) : null}
+
+      <div className="mt-3 flex gap-2">
+        <Button
+          variant="accent"
+          size="sm"
+          disabled={planCode.length === 0 || request.isPending}
+          onClick={() => request.mutate({ planCode, note: note.trim() || undefined })}
+        >
+          {request.isPending ? "보내는 중…" : "신청"}
+        </Button>
+        <Button size="sm" onClick={() => setOpen(false)}>
+          취소
+        </Button>
+      </div>
+      <p className="mt-2 text-[11px] text-slate-2">
+        신청만 접수됩니다. 결제는 담당자 안내 후 진행됩니다. (현재 요금제 id {currentPlanCode.slice(0, 8)})
+      </p>
+    </div>
+  );
+}
+
+interface PublicPlanOption {
+  code: string;
+  name: string;
+  monthlyFee: number;
+  negotiable: boolean;
 }
 
 function Meter({

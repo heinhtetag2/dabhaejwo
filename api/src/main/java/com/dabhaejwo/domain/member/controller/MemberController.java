@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.member.controller;
 
+import com.dabhaejwo.domain.billing.dto.request.UpgradeRequestBody;
 import com.dabhaejwo.domain.billing.dto.response.PlanOverviewResponse;
 import com.dabhaejwo.domain.billing.service.PlanOverviewService;
 import com.dabhaejwo.domain.impersonation.dto.response.ImpersonationHistoryResponse;
@@ -44,6 +45,13 @@ public class MemberController {
     @GetMapping("/plan")
     public PlanOverviewResponse plan() {
         return planOverviewService.overview();
+    }
+
+    /** 유료 전환 신청. PG 연동 전까지 문의로 접수된다 (tenant-public-plan.md §5.2). */
+    @PostMapping("/plan/upgrade-request")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void requestUpgrade(@Valid @RequestBody UpgradeRequestBody request) {
+        planOverviewService.requestUpgrade(request);
     }
 
     @GetMapping("/members")

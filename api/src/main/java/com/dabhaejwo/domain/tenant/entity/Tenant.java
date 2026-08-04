@@ -68,6 +68,30 @@ public class Tenant {
     protected Tenant() {
     }
 
+    /**
+     * 가입으로 만들어지는 업체. 무료 체험으로 시작한다.
+     *
+     * <p>{@code next_billing_date} 는 비워 둔다 — 체험 중에는 청구할 것이 없다.
+     * 유료 전환 시 운영팀이 채운다 (tenant-public-plan.md §5.2).
+     */
+    public static Tenant startTrial(String name,
+                                    String primaryDomain,
+                                    String publishableKey,
+                                    UUID planId,
+                                    int trialDays) {
+        Tenant tenant = new Tenant();
+        tenant.name = name;
+        tenant.primaryDomain = primaryDomain;
+        tenant.publishableKey = publishableKey;
+        tenant.planId = planId;
+        tenant.status = TenantStatus.TRIAL;
+        tenant.currency = "KRW";
+        tenant.trialEndsAt = OffsetDateTime.now().plusDays(trialDays);
+        tenant.createdAt = OffsetDateTime.now();
+        tenant.updatedAt = tenant.createdAt;
+        return tenant;
+    }
+
     public void changePlan(UUID newPlanId) {
         requireNotChurned();
         this.planId = newPlanId;

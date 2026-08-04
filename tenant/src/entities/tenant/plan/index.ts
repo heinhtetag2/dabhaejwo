@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { api } from "@/shared/api/http-client";
@@ -60,6 +60,19 @@ const planOverviewSchema = z.object({
 export const planKeys = {
   overview: ["plan", "detail", "overview"] as const,
 };
+
+/**
+ * 유료 전환 신청. PG 연동 전까지 문의로 접수된다 (tenant-public-plan.md §5.2).
+ * 결제가 일어나지 않으므로 성공해도 요금제가 바뀌지 않는다 — 화면이 그 사실을 알린다.
+ */
+export function useUpgradeRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { planCode: string; note?: string }) =>
+      api("/api/app/plan/upgrade-request", { method: "POST", body: input }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: planKeys.overview }),
+  });
+}
 
 export function usePlanOverviewQuery() {
   const accessToken = useAuthStore((state) => state.accessToken);

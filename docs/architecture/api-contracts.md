@@ -49,20 +49,45 @@ size 기본 20, **최대 100**. 무제한 조회 금지.
 | `COST_CAP_REACHED` | 503 | 일일 원가 상한 도달 — 챗봇 중단 |
 | `FEATURE_NOT_READY` | 503 | 외부 의존성 미연동 (크롤러·결제·메일 등). 조용히 성공시키지 않는다 |
 
-### 0-4. 인증 (3종 분리)
+### 0-4. 인증 (3종 분리 + 공개)
 
 | Prefix | 주체 | 헤더 |
 |---|---|---|
 | `/api/ops/**` | 운영자 | `Authorization: Bearer {opsAccessToken}` |
 | `/api/app/**` | 업체 담당자 **또는 대리 로그인 세션** | `Authorization: Bearer {appAccessToken}` |
 | `/api/widget/**` | 방문자(익명) | `X-Dabhaejwo-Key: pk_live_...` + `Origin` 검증 |
-| `/api/auth/**` | 공개 | — |
+| `/api/public/**` | **없음** — 누구나 읽는 정보. **GET 전용** | — |
+| `/api/auth/**` | 공개 — 인증을 만들어내는 행위 | — |
+
+`/api/public/**` 에 쓰기를 두지 않는다. 가입은 인증을 만들어내므로 `/api/auth/**` 에 있고
+레이트 리밋도 거기 붙는다 (`docs/plan/tenant-public-plan.md` §7.1).
 
 ```
 POST /api/auth/ops/login      → { accessToken, refreshToken, operator: {...} }
 POST /api/auth/app/login      → { accessToken, refreshToken, member: {...} }
+POST /api/auth/app/signup     → { accessToken, refreshToken, member: {...} }   ← login 과 같은 형태
 POST /api/auth/refresh        → { accessToken }
+GET  /api/public/plans        → [ PublicPlan ]
 ```
+
+`signup` 이 `login` 과 같은 형태인 이유는 가입 직후 로그인 상태여야 하고,
+클라이언트가 두 응답을 다르게 다룰 이유가 없기 때문이다.
+
+```json
+{ "email": "...", "password": "...", "tenantName": "노르드하임 가구",
+  "primaryDomain": "nordheim.co.kr", "termsAgreed": true }
+```
+
+가입은 **업체·담당자(OWNER)·챗봇 설정·허용 주소를 한 트랜잭션에서** 만든다.
+하나라도 실패하면 전부 되돌린다 — 반쯤 만들어진 계정은 아무것도 할 수 없고 본인은 이유를 모른다.
+
+```json
+{ "id": "p2...", "code": "BUSINESS", "name": "비즈니스", "monthlyFee": 89000,
+  "negotiable": false, "convLimit": 3000, "docLimit": 500 }
+```
+
+`PublicPlan` 은 §7 의 요금제와 **같은 리소스**이며 `tenantCount` 를 뺐을 뿐이다 —
+"몇 곳이 쓰는지"는 대외 공개 정보가 아니다. `sellable = false` 는 목록에 나오지 않는다.
 
 access token 은 **메모리에만** 보관한다 (`kickoff-prompt.md` §1.3). localStorage 금지.
 
@@ -463,6 +488,7 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 | GET · PUT | `/api/app/appearance` |
 | GET · POST · DELETE | `/api/app/allowed-origins` |
 | GET | `/api/app/plan` — 요금제·사용량·결제 내역 |
+| POST | `/api/app/plan/upgrade-request` — 유료 전환 신청 → `tickets` 적재. **OWNER 전용** |
 
 ### 9-4. 홈 요약 · 챗봇 설정
 

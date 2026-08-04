@@ -1,7 +1,11 @@
 package com.dabhaejwo.domain.billing.service;
 
+import com.dabhaejwo.domain.billing.dto.request.UpgradeRequestBody;
 import com.dabhaejwo.domain.billing.dto.response.PlanOverviewResponse;
+import com.dabhaejwo.domain.billing.entity.Ticket;
+import com.dabhaejwo.domain.billing.entity.TicketStatus;
 import com.dabhaejwo.domain.billing.repository.BillingRecordRepository;
+import com.dabhaejwo.domain.billing.repository.TicketRepository;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
 import com.dabhaejwo.domain.plan.entity.Plan;
 import com.dabhaejwo.domain.plan.repository.PlanRepository;
@@ -10,6 +14,7 @@ import com.dabhaejwo.domain.tenant.repository.TenantRepository;
 import com.dabhaejwo.domain.usage.repository.TenantDailyUsageRepository;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,17 +31,48 @@ public class PlanOverviewService {
     private final TenantDailyUsageRepository dailyUsageRepository;
     private final KnowledgeDocumentRepository documentRepository;
     private final BillingRecordRepository billingRepository;
+    private final TicketRepository ticketRepository;
 
     public PlanOverviewService(TenantRepository tenantRepository,
                                PlanRepository planRepository,
                                TenantDailyUsageRepository dailyUsageRepository,
                                KnowledgeDocumentRepository documentRepository,
-                               BillingRecordRepository billingRepository) {
+                               BillingRecordRepository billingRepository,
+                               TicketRepository ticketRepository) {
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
         this.dailyUsageRepository = dailyUsageRepository;
         this.documentRepository = documentRepository;
         this.billingRepository = billingRepository;
+        this.ticketRepository = ticketRepository;
+    }
+
+    /**
+     * 유료 전환 신청. PG 가 붙기 전까지 문의로 접수하고 운영팀이 수동 처리한다.
+     *
+     * <p>결제가 일어난 것처럼 {@code billing_records} 를 만들지 않는다 —
+     * 받지 않은 돈을 받은 것으로 적으면 정산이 틀어진다 (tenant-public-plan.md §5.2).
+     */
+    @Transactional
+    public void requestUpgrade(UpgradeRequestBody request) {
+        AuthPrincipal.TenantUser user = CurrentAuth.requireOwner();
+        Plan target = planRepository.findByCode(request.planCode().strip())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLAN_NOT_FOUND));
+        if (!target.isSellable()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "판매 중인 요금제가 아닙니다");
+        }
+
+        String subject = "유료 전환 신청 — " + target.getName();
+        if (ticketRepository.existsByTenantIdAndSubjectAndStatus(
+                user.tenantId(), subject, TicketStatus.OPEN)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "이미 접수된 신청이 있습니다. 곧 담당자가 연락드립니다");
+        }
+
+        String note = (request.note() == null || request.note().isBlank())
+                ? "(추가 요청 없음)" : request.note().strip();
+        ticketRepository.save(Ticket.open(user.tenantId(), subject,
+                "요금제 코드: " + target.getCode() + "\n요청: " + note));
     }
 
     @Transactional(readOnly = true)
