@@ -380,19 +380,25 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 ### 9-1. Faq (공통 질문 = 저장 답변)
 
 ```json
-{ "id": 3, "question": "소파 재질이 궁금해요",
+{ "id": "f3a1...", "question": "소파 재질이 궁금해요",
   "answer": "노르드 라인 소파는 북미산 화이트 오크...",
   "links": ["오크 3인 소파 — 노르드 라인", "원목 관리 방법"],
+  "followUpFaqIds": ["f9c2..."],
   "shown": true, "sortOrder": 3, "hitCount": 504 }
 ```
 
 `shown: false` 여도 방문자가 비슷한 내용을 직접 입력하면 이 답변이 쓰인다. 버튼 노출 여부일 뿐이다.
+**끄는 것과 지우는 것은 다르다** — 자주 묻지는 않지만 답이 정해진 질문(세금계산서, 경쟁사 비교)에 쓴다.
 
-| Method | Path |
-|---|---|
-| GET · POST | `/api/app/faqs` |
-| PATCH · DELETE | `/api/app/faqs/{id}` |
-| PATCH | `/api/app/faqs/order` |
+| Method | Path | 권한 |
+|---|---|---|
+| GET | `/api/app/faqs` | 전 역할 |
+| POST | `/api/app/faqs` | OWNER · EDITOR |
+| PATCH · DELETE | `/api/app/faqs/{id}` | OWNER · EDITOR |
+| PATCH | `/api/app/faqs/order` | OWNER · EDITOR |
+
+`PATCH /api/app/faqs/order` 는 `{ "faqIds": ["f3a1...", "f9c2..."] }` 를 받아 그 순서대로 `sortOrder` 를 다시 매긴다.
+개별 항목의 순서만 보내면 나머지와 충돌한다 — 전체 순서를 한 번에 보낸다.
 
 ### 9-2. 지식 소스
 

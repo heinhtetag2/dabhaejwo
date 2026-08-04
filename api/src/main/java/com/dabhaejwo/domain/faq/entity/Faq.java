@@ -45,6 +45,11 @@ public class Faq {
     @Column(columnDefinition = "jsonb", nullable = false)
     private List<String> links = new ArrayList<>();
 
+    /** 답변을 보여준 뒤 이어서 제안할 질문들. 표시용으로만 읽으므로 jsonb 다. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "follow_up_faq_ids", columnDefinition = "jsonb", nullable = false)
+    private List<UUID> followUpFaqIds = new ArrayList<>();
+
     @Column(nullable = false)
     private boolean shown;
 
@@ -65,22 +70,25 @@ public class Faq {
 
     public static Faq of(UUID tenantId, String question, String answer, List<String> links,
                          boolean shown, int sortOrder) {
+        return of(tenantId, question, answer, links, null, shown, sortOrder);
+    }
+
+    public static Faq of(UUID tenantId, String question, String answer, List<String> links,
+                         List<UUID> followUpFaqIds, boolean shown, int sortOrder) {
         Faq faq = new Faq();
         faq.tenantId = tenantId;
-        faq.question = question;
-        faq.answer = answer;
-        faq.links = links == null ? new ArrayList<>() : new ArrayList<>(links);
-        faq.shown = shown;
         faq.sortOrder = sortOrder;
         faq.createdAt = OffsetDateTime.now();
-        faq.updatedAt = faq.createdAt;
+        faq.edit(question, answer, links, followUpFaqIds, shown);
         return faq;
     }
 
-    public void edit(String question, String answer, List<String> links, boolean shown) {
+    public void edit(String question, String answer, List<String> links,
+                     List<UUID> followUpFaqIds, boolean shown) {
         this.question = question;
         this.answer = answer;
         this.links = links == null ? new ArrayList<>() : new ArrayList<>(links);
+        this.followUpFaqIds = followUpFaqIds == null ? new ArrayList<>() : new ArrayList<>(followUpFaqIds);
         this.shown = shown;
         touch();
     }
@@ -117,6 +125,10 @@ public class Faq {
 
     public List<String> getLinks() {
         return links;
+    }
+
+    public List<UUID> getFollowUpFaqIds() {
+        return followUpFaqIds;
     }
 
     public boolean isShown() {
