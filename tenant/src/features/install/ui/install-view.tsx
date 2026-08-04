@@ -1,0 +1,276 @@
+"use client";
+
+import { useState } from "react";
+
+import { useAppContextQuery } from "@/entities/auth/session";
+import { useBotSettingsQuery, useSaveBotSettings } from "@/entities/chatbot/bot-settings";
+import {
+  useAddAllowedOrigin,
+  useAllowedOriginsQuery,
+  useRemoveAllowedOrigin,
+} from "@/entities/tenant/allowed-origin";
+import { ApiError } from "@/shared/api/http-client";
+import { Button } from "@/shared/common/button";
+import { Card, CardBody, CardHeader } from "@/shared/common/card";
+import { ErrorState, LoadingState } from "@/shared/common/states";
+import { canEdit } from "@/shared/lib/auth-store";
+import { Notice } from "@/shared/ui/notice";
+import { StatusBadge } from "@/shared/ui/status-badge";
+
+/** 위젯 CDN. 배포되면 실제 주소로 바뀐다 — 코드 문자열의 단일 출처를 여기 하나로 둔다. */
+const WIDGET_SRC = "https://cdn.dabhaejwo.com/w.js";
+
+const PLATFORM_GUIDES = [
+  { name: "카페24", steps: "쇼핑몰 관리자 → 디자인 → HTML 편집 → 공통 레이아웃의 body 끝에 붙여넣습니다." },
+  { name: "아임웹", steps: "사이트 관리 → 고급 설정 → 외부 스크립트 → body 영역에 붙여넣습니다." },
+  { name: "워드프레스", steps: "테마의 footer.php 를 열거나, 스크립트 삽입 플러그인의 Footer 칸에 붙여넣습니다." },
+  { name: "그누보드", steps: "스킨의 tail.php 맨 아래, </body> 바로 위에 붙여넣습니다." },
+];
+
+/**
+ * 설치. <b>가입 후 가장 먼저 넘어야 할 관문이다</b> (tenant-plan.md §4.8).
+ *
+ * <p>코드를 붙였는데 안 뜨는 상황이 가장 흔한 이탈 지점이므로, 실제 호출이 들어왔는지를
+ * 주소별로 보여준다. 업체가 "됐는지 안 됐는지" 헤매지 않게 하는 것이 이 화면의 핵심이다.
+ */
+export function InstallView() {
+  const { data: context } = useAppContextQuery();
+  const origins = useAllowedOriginsQuery();
+  const settings = useBotSettingsQuery();
+  const saveSettings = useSaveBotSettings();
+
+  const addOrigin = useAddAllowedOrigin();
+  const removeOrigin = useRemoveAllowedOrigin();
+
+  const [newOrigin, setNewOrigin] = useState("");
+  const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const editable = canEdit(context?.member?.role);
+
+  if (origins.isPending || settings.isPending) {
+    return <LoadingState />;
+  }
+  if (origins.isError) {
+    return <ErrorState message="설치 정보를 불러오지 못했습니다" onRetry={() => void origins.refetch()} />;
+  }
+
+  const publishableKey = context?.tenant.publishableKey ?? "";
+  const snippet = `<!-- 답해줘 챗봇 -->
+<script>
+  window.dabhaejwo = { key: "${publishableKey}" };
+</script>
+<script src="${WIDGET_SRC}" async></script>`;
+
+  const connected = origins.data.some((origin) => origin.lastCalledAt !== null);
+
+  const run = (action: () => Promise<unknown>, successText?: string) => {
+    setNotice(null);
+    void action()
+      .then(() => successText && setNotice({ tone: "info", text: successText }))
+      .catch((cause: unknown) =>
+        setNotice({
+          tone: "error",
+          text: cause instanceof ApiError ? cause.message : "요청을 처리하지 못했습니다",
+        }),
+      );
+  };
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+      <div>
+        <Card className="mb-4">
+          <CardHeader
+            title="홈페이지에 붙일 코드"
+            aside={
+              connected ? (
+                <StatusBadge tone="ok" label="연결 확인됨" />
+              ) : (
+                <StatusBadge tone="idle" label="아직 호출 없음" />
+              )
+            }
+          />
+          <CardBody>
+            <p className="mb-3.5 text-[13px] text-slate">
+              아래 코드를 홈페이지의{" "}
+              <code className="rounded bg-paper px-1.5 py-0.5 font-mono text-[12px]">&lt;/body&gt;</code>{" "}
+              바로 위에 붙여넣으세요. 모든 페이지에 들어가야 합니다.
+            </p>
+
+            <div className="relative">
+              <pre className="overflow-x-auto rounded-lg bg-ink px-4 py-3.5 font-mono text-[12px] leading-relaxed text-[#c9d4dc]">
+                {snippet}
+              </pre>
+              <Button
+                size="sm"
+                className="absolute top-2.5 right-2.5"
+                onClick={() => {
+                  void navigator.clipboard.writeText(snippet).then(() => setCopied(true));
+                }}
+              >
+                {copied ? "복사됨" : "복사"}
+              </Button>
+            </div>
+
+            <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">
+              이 키는 공개돼도 괜찮습니다. 아래에 등록한 주소에서만 작동하기 때문입니다.
+            </p>
+          </CardBody>
+        </Card>
+
+        {notice ? (
+          <Notice tone={notice.tone} className="mb-4">
+            {notice.text}
+          </Notice>
+        ) : null}
+
+        <Card className="mb-4">
+          <CardHeader
+            title="허용할 주소"
+            aside={
+              editable ? (
+                <>
+                  <label className="sr-only" htmlFor="new-origin">
+                    추가할 주소
+                  </label>
+                  <input
+                    id="new-origin"
+                    value={newOrigin}
+                    onChange={(event) => setNewOrigin(event.target.value)}
+                    placeholder="shop.example.com"
+                    className="w-[190px] rounded-[7px] border border-line px-2.5 py-[5.5px] text-[12.5px] focus:border-ink-3 focus:outline-none"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={newOrigin.trim().length === 0 || addOrigin.isPending}
+                    onClick={() =>
+                      run(
+                        () =>
+                          addOrigin.mutateAsync(newOrigin.trim()).then(() => setNewOrigin("")),
+                        "주소를 추가했습니다.",
+                      )
+                    }
+                  >
+                    주소 추가
+                  </Button>
+                </>
+              ) : null
+            }
+          />
+          <ul>
+            {origins.data.map((origin) => (
+              <li
+                key={origin.id}
+                className="flex flex-wrap items-center gap-3 border-b border-line-2 px-3.5 py-3 last:border-b-0"
+              >
+                <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{origin.origin}</span>
+                {origin.lastCalledAt ? (
+                  <StatusBadge tone="ok" label="작동 중" />
+                ) : (
+                  <StatusBadge tone="idle" label="호출 없음" />
+                )}
+                <span className="w-[120px] text-[11.5px] text-slate-2">
+                  {origin.lastCalledAt
+                    ? `마지막 ${origin.lastCalledAt.slice(0, 10)}`
+                    : "—"}
+                </span>
+                {editable ? (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={removeOrigin.isPending}
+                    onClick={() => run(() => removeOrigin.mutateAsync(origin.id), "주소를 지웠습니다.")}
+                  >
+                    삭제
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card>
+          <CardHeader title="어디에 붙일지 모르겠다면" />
+          <CardBody className="space-y-3.5">
+            {PLATFORM_GUIDES.map((guide, index) => (
+              <div key={guide.name} className="flex gap-3">
+                <span className="tabular grid size-6 shrink-0 place-items-center rounded-full bg-paper text-[11.5px] font-semibold">
+                  {index + 1}
+                </span>
+                <p className="text-[13px]">
+                  <b className="font-semibold">{guide.name}</b>
+                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-slate">
+                    {guide.steps}
+                  </span>
+                </p>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="xl:sticky xl:top-6 xl:self-start">
+        <Card>
+          <CardHeader title="어디에 띄울까요" />
+          <CardBody className="space-y-4">
+            <div>
+              <label htmlFor="position" className="mb-1.5 block text-[12.5px] font-medium">
+                버블 위치
+              </label>
+              <select
+                id="position"
+                value={settings.data?.widgetPosition}
+                disabled={!editable || saveSettings.isPending}
+                onChange={(event) =>
+                  settings.data &&
+                  run(
+                    () =>
+                      saveSettings.mutateAsync({
+                        ...settings.data,
+                        widgetPosition: event.target.value as "BOTTOM_RIGHT" | "BOTTOM_LEFT",
+                      }),
+                    "저장했습니다.",
+                  )
+                }
+                className="w-full rounded-[7px] border border-line px-[11px] py-[8.5px] text-[13.5px]"
+              >
+                <option value="BOTTOM_RIGHT">오른쪽 아래</option>
+                <option value="BOTTOM_LEFT">왼쪽 아래</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="nudge" className="mb-1.5 block text-[12.5px] font-medium">
+                자동으로 말 걸기
+              </label>
+              <select
+                id="nudge"
+                value={String(settings.data?.nudgeDelaySeconds ?? 15)}
+                disabled={!editable || saveSettings.isPending}
+                onChange={(event) =>
+                  settings.data &&
+                  run(
+                    () =>
+                      saveSettings.mutateAsync({
+                        ...settings.data,
+                        nudgeDelaySeconds: Number(event.target.value),
+                      }),
+                    "저장했습니다.",
+                  )
+                }
+                className="w-full rounded-[7px] border border-line px-[11px] py-[8.5px] text-[13.5px]"
+              >
+                <option value="0">띄우지 않기</option>
+                <option value="5">5초 후</option>
+                <option value="15">15초 후</option>
+              </select>
+              <p className="mt-1.5 text-[11.5px] text-slate-2">
+                방문자가 먼저 묻지 않아도 인사말 말풍선을 띄웁니다.
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    </div>
+  );
+}

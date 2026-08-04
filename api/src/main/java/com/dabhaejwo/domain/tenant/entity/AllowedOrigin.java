@@ -50,7 +50,11 @@ public class AllowedOrigin {
         return allowed;
     }
 
-    static String normalizeHost(String raw) {
+    /**
+     * 스킴·포트·경로를 떼고 소문자 호스트만 남긴다.
+     * 저장 형태와 비교 형태가 어긋나면 위젯 호출이 전부 403 이 되므로 한 곳에서만 만든다.
+     */
+    public static String normalizeHost(String raw) {
         String value = raw == null ? "" : raw.strip().toLowerCase(java.util.Locale.ROOT);
         value = value.replaceFirst("^https?://", "");
         int slash = value.indexOf('/');

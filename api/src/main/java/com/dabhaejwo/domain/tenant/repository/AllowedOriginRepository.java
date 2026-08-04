@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface AllowedOriginRepository extends JpaRepository<AllowedOrigin, UUID> {
 
     List<AllowedOrigin> findAllByTenantId(UUID tenantId);
+
+    boolean existsByTenantIdAndOrigin(UUID tenantId, String origin);
 }
