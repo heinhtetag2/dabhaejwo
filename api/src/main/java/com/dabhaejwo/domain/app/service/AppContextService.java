@@ -1,6 +1,7 @@
 package com.dabhaejwo.domain.app.service;
 
 import com.dabhaejwo.domain.app.dto.response.AppContextResponse;
+import com.dabhaejwo.domain.impersonation.repository.ImpersonationSessionRepository;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
 import com.dabhaejwo.domain.member.dto.response.MemberResponse;
 import com.dabhaejwo.domain.member.entity.TenantMember;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -34,17 +36,20 @@ public class AppContextService {
     private final PlanRepository planRepository;
     private final TenantDailyUsageRepository dailyUsageRepository;
     private final KnowledgeDocumentRepository documentRepository;
+    private final ImpersonationSessionRepository sessionRepository;
 
     public AppContextService(TenantRepository tenantRepository,
                              TenantMemberRepository memberRepository,
                              PlanRepository planRepository,
                              TenantDailyUsageRepository dailyUsageRepository,
-                             KnowledgeDocumentRepository documentRepository) {
+                             KnowledgeDocumentRepository documentRepository,
+                             ImpersonationSessionRepository sessionRepository) {
         this.tenantRepository = tenantRepository;
         this.memberRepository = memberRepository;
         this.planRepository = planRepository;
         this.dailyUsageRepository = dailyUsageRepository;
         this.documentRepository = documentRepository;
+        this.sessionRepository = sessionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -71,8 +76,27 @@ public class AppContextService {
                         tenant.getStatus(),
                         new AppContextResponse.PlanRef(plan.getId(), plan.getName(), plan.getMonthlyFee())),
                 usage(user.tenantId(), plan),
-                // TODO(T7): 대리 접속 세션 정보 연결. 지금은 배너를 띄우지 않는다.
-                null);
+                impersonation(user));
+    }
+
+    /**
+     * 대리 접속 중이면 배너용 정보를 준다. 아니면 null 이다.
+     *
+     * <p>만료 시각이 지난 세션은 null 로 취급한다 — 배너가 남아 있으면 업체는 아직도
+     * 운영팀이 보고 있다고 오해한다.
+     */
+    private AppContextResponse.ImpersonationContext impersonation(AuthPrincipal.TenantUser user) {
+        if (!user.impersonating()) {
+            return null;
+        }
+        return sessionRepository
+                .findByIdAndTenantId(user.impersonationSessionId(), user.tenantId())
+                .filter(session -> session.active(OffsetDateTime.now()))
+                .map(session -> new AppContextResponse.ImpersonationContext(
+                        session.getId(),
+                        session.getReason(),
+                        session.getExpiresAt().toString()))
+                .orElse(null);
     }
 
     private AppContextResponse.Usage usage(UUID tenantId, Plan plan) {

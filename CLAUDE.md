@@ -85,6 +85,22 @@ dabhaejwo/
 
 <!-- 최신이 위. HARNESS.md 규칙대로 기록. -->
 
+- **M1 업체 대시보드 완료** (2026-08-04) — 10화면 전부 실 API 연동
+  - 기획서 `docs/plan/tenant-plan.md` 신규 확보. 기존 `tenant-plan.md` 는 운영 콘솔의
+    "업체" 메뉴 문서였고 `admin-console-tenant-plan.md` 로 개명했다
+  - 스키마 V2·V3 — `password_hash`, `bot_settings`, `answer_gaps`,
+    `faqs.follow_up_faq_ids`, `bot_settings.avatar_url`, `answer_gaps.question_embedding`,
+    `messages.latency_ms`
+  - `/api/app/**` 13개 엔드포인트. 인증(로그인·리프레시), 홈 집계, 공통 질문 CRUD·정렬,
+    지식 소스·문서, 답변 개선(승격/넘어가기), 대화 로그, 연락처(CSV), 챗봇 설정,
+    허용 주소, 요금제, 팀원, 운영팀 접속 이력
+  - 권한 3단계를 서버가 강제 — 조회는 전 역할 / 편집은 OWNER·EDITOR /
+    팀원·결제는 OWNER. 대리 접속 토큰은 VIEWER 로 발급돼 운영자가 설정을 못 바꾼다
+  - `tenant` 10화면 + 로그인. **lint/typecheck/build 그린**, api **build 그린(테스트 45개)**
+  - 실 DB 실호출로 전 엔드포인트 200 / 무토큰 403 확인
+  - **답변 파이프라인(RAG)이 없어 비어 있는 것** — 미리보기 자유 입력, `answer_gaps`
+    자동 적재, `messages.latency_ms`, 크롤러·임베딩 워커(`FEATURE_NOT_READY` 로 명시 거절)
+
 - **M0 부트스트랩 완료** (2026-08-03) — 4개 프로젝트 전부 검증 그린
   - 문서 정리·인테이크·하네스 조립·API 계약·DB 스키마(V1, 26개 테이블)
   - `api` — Spring Boot 4.1 / Java 21 / Gradle 9.5.1. `LlmGateway` + 원가 파이프라인,
