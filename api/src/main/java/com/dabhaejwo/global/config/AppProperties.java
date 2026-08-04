@@ -19,8 +19,19 @@ public record AppProperties(
         Llm llm,
         Storage storage,
         // `notify` 는 Object.notify() 와 충돌해 record 컴포넌트명으로 쓸 수 없다.
-        Notification notification
+        Notification notification,
+        Cors cors
 ) {
+
+    /**
+     * 콘솔·대시보드가 브라우저에서 API 를 부를 수 있게 허용할 출처.
+     *
+     * <p><b>위젯은 여기 없다.</b> 위젯은 남의 사이트 어디서든 호출되므로 출처를 미리 알 수 없고,
+     * 실제 차단은 {@code WidgetKeyAuthFilter} 가 테넌트의 등록 주소로 한다 — CORS 는
+     * 브라우저가 응답을 읽게 할지의 문제이지 보안 경계가 아니다.
+     */
+    public record Cors(@DefaultValue("") List<String> allowedOrigins) {
+    }
 
     public record Auth(
             String jwtSecret,

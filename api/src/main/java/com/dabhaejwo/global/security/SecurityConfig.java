@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -91,9 +92,16 @@ public class SecurityConfig {
                 .build();
     }
 
-    /** 세 체인 공통 — 상태 없는 토큰 인증이라 세션과 CSRF 토큰을 쓰지 않는다. */
+    /**
+     * 모든 체인 공통 — 상태 없는 토큰 인증이라 세션과 CSRF 토큰을 쓰지 않는다.
+     *
+     * <p>CORS 를 여기서 켠다. 프리플라이트(OPTIONS)는 토큰을 달고 오지 않으므로,
+     * 인증 필터보다 앞서는 {@code CorsFilter} 가 먼저 응답해야 한다.
+     * 규칙은 {@code CorsConfig} 의 {@code CorsConfigurationSource} 빈이 정한다.
+     */
     private HttpSecurity baseline(HttpSecurity http) throws Exception {
         return http
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
