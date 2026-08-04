@@ -11,7 +11,6 @@
 | 항목 | 위치 | 등록일 | 비고 |
 |------|------|--------|------|
 | 노출됐던 Gemini API 키 폐기·재발급 | 구 `ai-info.md` | 2026-08-03 | 문서에서는 제거했으나 **키 자체는 아직 유효하다.** Google AI Studio 에서 폐기 후 재발급 → `.env` 에만 보관. 사용자 조치 필요 |
-| **PostgreSQL 접속 정보 미확보** | `.env` | 2026-08-03 | MariaDB 에서 PostgreSQL 로 되돌렸다(사용자 결정). 사용자가 DB 를 생성해 접속 정보를 줄 예정이며, 그전까지는 앱을 띄울 수 없다. 받으면 `scripts/DbProbe.java` 로 pgvector 설치 여부를 먼저 확인한다. 사용자 조치 필요 |
 
 ## P1
 
@@ -22,9 +21,8 @@
 | 스택 모듈 선택 기준 중복 | `E:\_agent\stacks\` | 2026-08-03 | `[harness]` `admin-next-console.md` 와 `frontend-rules.md` 의 적용 조건이 겹쳐(둘 다 관리자 화면 있는 Next 앱) 판단이 어렵다. 전자는 "외부 UI 라이브러리 금지", 후자는 허용이라 결과가 크게 갈린다 |
 | widget 스택 모듈 팩토리 미저장 | `.claude/rules/widget-embed-script.md` | 2026-08-03 | `[harness]` 신규 작성했으나 아직 `E:\_agent\stacks\` 에 없다. `_guide.md` 규칙 2에 따라 환류 필요 |
 | **Docker 미설치 — 통합 테스트 불가 (확정)** | `api/` | 2026-08-03 | 로컬에 Docker 가 없어 Testcontainers 를 못 쓴다. 원가 계산은 순수 단위 테스트(`ModelPriceLookupTest`)로 커버했으나, **Flyway 마이그레이션·JPA 매핑·벡터 검색은 아직 한 번도 실행되지 않았다.** Docker 확보 후 `@SpringBootTest` + Testcontainers(`pgvector/pgvector:pg17`)로 검증할 것. **H2로 때우지 않는다** |
-| 앱 기동 미검증 (PostgreSQL) | `api/` | 2026-08-03 | `./gradlew build` 는 그린이지만 PostgreSQL 로는 아직 띄워본 적이 없다(`ddl-auto: validate` 가 DB를 요구). MariaDB 로는 한 번 기동해 27개 테이블·감사 트리거·seed 적재까지 확인했으나, 그 검증은 PG 로 이월되지 않는다. 접속 정보를 받는 즉시 기동 확인 |
-| **Hibernate ↔ DDL 타입 일치 미검증 (PostgreSQL)** | `api/` | 2026-08-03 | `uuid`·`jsonb`·`timestamptz` 가 Hibernate PostgreSQLDialect 의 기대와 맞는지 확인되지 않았다. `ddl-auto: validate` 라 첫 기동 시 드러난다 |
-| DB 노출 범위·계정 권한 확인 | 새 PostgreSQL 서버 | 2026-08-03 | 이전 MariaDB 서버는 공인 IP 에 열려 있고 계정에 호스트 제한이 없었다(`dabhaejwo@%`). 새 DB 를 받으면 같은 문제가 없는지 확인한다 — `pg_hba.conf` 범위, `listen_addresses`, 방화벽. **운영 개시 전 필수**. 운영 콘솔 IP allowlist(`dabhaejwo.ops.ip-allowlist`)와 함께 정리할 것 |
+| **DB 클러스터가 공유 자산이고 `pg_hba` 가 전면 개방** | DB 서버 `192.168.0.254:6001` | 2026-08-04 | `pg_hba.conf` 마지막 줄이 `host all all 0.0.0.0/0 md5` 다 — 포트만 닿으면 **어느 IP 에서든 아무 DB 에나** 인증을 시도할 수 있고, `md5` 는 구식이다. 같은 클러스터에 다른 프로젝트(`mbeauty`)가 있어 함부로 못 고친다. 지금은 6001 이 공유기에서 막혀 있어 실害가 없지만, **운영 개시 전 필수**: catch-all 을 걷어내고 `scram-sha-256` + 소스 IP 로 좁힌다. 먼저 `pg_stat_activity` 로 기존 접속 IP 를 확인할 것. `local all postgres` 를 `peer` 로 바꿔 둔 상태이며 원본은 `pg_hba.conf.bak` |
+| 임시로 바꾼 `pg_hba.conf` 원복 검토 | DB 서버 | 2026-08-04 | `postgres` 계정 접근을 위해 `local all postgres md5` → `peer` 로 바꿨다. `peer` 가 더 안전하므로 그대로 두어도 되지만, `mbeauty` 쪽 운영 스크립트가 비밀번호 접속에 의존한다면 깨진다. 확인 필요 |
 | SpringDoc OpenAPI 미도입 | `api/build.gradle.kts` | 2026-08-03 | 최신 `springdoc-openapi-starter-webmvc-ui` 2.8.6 은 Spring Boot 3.x 대상이라 Boot 4.1 호환이 불확실해 제외했다. 호환 버전 확인 후 추가 |
 | 프로토타입 HTML에 doctype·html·head·body 없음 | `docs/prototype/*.html` | 2026-08-03 | quirks mode 로 렌더될 수 있어 "UI 100% 동일" 판정의 기준이 흔들린다. 코드 전환은 표준 모드 기준으로 맞춘다 |
 

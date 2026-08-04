@@ -86,7 +86,7 @@ dabhaejwo/
 <!-- 최신이 위. HARNESS.md 규칙대로 기록. -->
 
 - **M0 부트스트랩 완료** (2026-08-03) — 4개 프로젝트 전부 검증 그린
-  - 문서 정리·인테이크·하네스 조립·API 계약·DB 스키마(V1, 27개 테이블)
+  - 문서 정리·인테이크·하네스 조립·API 계약·DB 스키마(V1, 26개 테이블)
   - `api` — Spring Boot 4.1 / Java 21 / Gradle 9.5.1. `LlmGateway` + 원가 파이프라인,
     인증 3종 분리, `@RequirePermission` AOP, 감사 기록, 업체 목록 엔드포인트.
     **`./gradlew build` 그린** (단위 테스트 21개)
@@ -96,6 +96,13 @@ dabhaejwo/
   - `widget` — Vite 8 IIFE + Preact + Shadow DOM. **typecheck/test(9)/build/size 그린**,
     gzip 8.86KB (예산 30KB)
   - 환경 제약 — Docker 없음(통합 테스트 불가, IMPROVEMENTS P1), Gradle 없음(Initializr 공식 래퍼 사용)
+  - **실 DB 로 기동 확인** (2026-08-04) — PostgreSQL 16.14 + pgvector 0.6.0.
+    Flyway `v1 init success=true`, 26개 테이블 + `flyway_schema_history`,
+    감사 불변 트리거 2개, `knowledge_chunks_embedding_idx`(HNSW) 생성.
+    seed 적재(plans 5 · model_prices 7 · plan_model_assignments 5 · cost_guards 1) 및 한글 정상.
+    **`ddl-auto: validate` 통과** — `uuid`/`jsonb`/`timestamptz` 매핑 확인.
+    `/actuator/health` UP, 인증 3종 경로 모두 미인증 403.
+    DB 서버는 개발 PC 와 같은 LAN 이라 `192.168.0.254:6001` 로 직접 붙는다 — 터널·포트포워딩 불필요
   - 다음 마일스톤 후보는 아래 "다음 마일스톤 제안" 참조
 
 ## 다음 마일스톤 제안
