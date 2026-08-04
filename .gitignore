@@ -36,3 +36,7 @@ Thumbs.db
 coverage/
 playwright-report/
 test-results/
+
+# 자격증명 메모. 이 프로젝트에서 두 번 커밋됐다 (ai-info.md, r2-info.md).
+# docs/ 는 커밋 대상이라 이런 파일이 git add -A 에 쓸려 들어간다.
+docs/*-info.md
