@@ -45,4 +45,23 @@ public class AuditLogService {
     public void record(UUID operatorId, AuditAction action, UUID tenantId, String reason) {
         record(operatorId, action, tenantId, reason, Map.of());
     }
+
+    /**
+     * 대리 접속 중인 운영자가 고객 대화를 열었다.
+     *
+     * <p>사유는 대리 접속을 시작할 때 이미 받았다. 대화를 열 때마다 다시 묻지 않고
+     * 그 세션을 가리키는 사실을 기록한다 — 세션 원문 사유는 {@code impersonation_sessions}
+     * 에 있고 감사 기록 화면에서 이어 볼 수 있다.
+     *
+     * <p>TODO(T7): 세션 엔티티가 생기면 원문 사유를 함께 적재해 조인 없이 읽히게 한다.
+     */
+    public void recordImpersonatedRead(UUID operatorId,
+                                       UUID tenantId,
+                                       UUID sessionId,
+                                       UUID conversationId) {
+        record(operatorId, AuditAction.VIEW_CONVERSATIONS, tenantId,
+                "대리 접속 세션 중 대화 열람",
+                Map.of("impersonationSessionId", String.valueOf(sessionId),
+                        "conversationId", String.valueOf(conversationId)));
+    }
 }

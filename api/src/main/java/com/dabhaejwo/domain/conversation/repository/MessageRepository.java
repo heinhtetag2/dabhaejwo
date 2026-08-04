@@ -64,6 +64,18 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             """)
     Double averageLatency(@Param("tenantId") UUID tenantId, @Param("from") OffsetDateTime from);
 
+    /**
+     * 답변 실패가 하나라도 있는 대화. 목록에 배지를 달아 개선으로 유도한다.
+     * 대화마다 메시지를 세면 N+1 이 되므로 한 번에 모은다.
+     */
+    @Query("""
+            SELECT DISTINCT m.conversationId FROM Message m
+            WHERE m.tenantId = :tenantId AND m.conversationId IN :conversationIds
+              AND m.answered = false
+            """)
+    List<UUID> findFailedConversationIds(@Param("tenantId") UUID tenantId,
+                                         @Param("conversationIds") List<UUID> conversationIds);
+
     interface TopQuestion {
         String getQuestion();
 
