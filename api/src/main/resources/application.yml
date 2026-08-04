@@ -28,6 +28,14 @@ spring:
           # 해석하지 않도록 UTC 를 고정한다.
           time_zone: UTC
 
+  servlet:
+    multipart:
+      # 서비스의 파일당 상한(dabhaejwo.storage.max-file-size-mb)과 같은 값이어야 한다.
+      # 여기가 더 작으면 서비스 검증에 닿기도 전에 톰캣이 잘라 우리 메시지가 안 나간다.
+      max-file-size: 20MB
+      # 멀티파트 전체. 파일 하나 + 필드 몇 개라 파일 상한보다 조금만 크면 된다.
+      max-request-size: 22MB
+
   flyway:
     enabled: true
     locations: classpath:db/migration

@@ -2,7 +2,9 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { api } from "@/shared/api/http-client";
+import { ApiError, api } from "@/shared/api/http-client";
+import { env } from "@/shared/config/env";
+import { currentAccessToken } from "@/shared/lib/auth-store";
 
 /**
  * 소스와 문서는 서로 영향을 준다(제외하면 소스의 문서 수가 바뀐다).
@@ -41,6 +43,49 @@ export function useRecrawlSource() {
   const invalidate = useInvalidateKnowledge();
   return useMutation({
     mutationFn: (id: string) => api(`/api/app/knowledge/sources/${id}/recrawl`, { method: "POST" }),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * 파일 업로드.
+ *
+ * <p>`api` 헬퍼는 JSON 전용이라 여기서는 fetch 를 직접 쓴다. multipart 는 브라우저가
+ * 경계 문자열을 만들어야 하므로 <b>Content-Type 을 우리가 정하면 안 된다.</b>
+ */
+export function useUploadDocument() {
+  const invalidate = useInvalidateKnowledge();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+
+      const response = await fetch(new URL("/api/app/knowledge/documents", env.apiBaseUrl), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${currentAccessToken() ?? ""}` },
+        body: form,
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { code?: string; message?: string }
+          | null;
+        throw new ApiError(response.status, {
+          code: body?.code ?? "UNKNOWN",
+          message: body?.message ?? "업로드하지 못했습니다",
+        });
+      }
+      return response.json();
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteDocument() {
+  const invalidate = useInvalidateKnowledge();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api(`/api/app/knowledge/documents/${id}`, { method: "DELETE" }),
     onSuccess: invalidate,
   });
 }

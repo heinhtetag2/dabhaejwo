@@ -63,6 +63,10 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
 
     List<KnowledgeDocument> findAllByTenantIdAndStatus(UUID tenantId, DocumentStatus status);
 
+    /** 같은 파일을 또 올렸는지. 해시가 같으면 내용이 같다. */
+    java.util.Optional<KnowledgeDocument> findFirstByTenantIdAndContentSha256(
+            UUID tenantId, String contentSha256);
+
     long countByTenantIdAndStatus(UUID tenantId, DocumentStatus status);
 
     interface SourceCount {

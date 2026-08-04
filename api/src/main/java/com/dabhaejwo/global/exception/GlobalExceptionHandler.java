@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -46,6 +47,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.status())
                 .body(ErrorResponse.of(ErrorCode.VALIDATION_FAILED,
                         "요청 본문을 읽지 못했습니다. JSON 형식과 UTF-8 인코딩을 확인하세요"));
+    }
+
+    /**
+     * 업로드 크기 초과.
+     *
+     * <p>톰캣이 서비스 레이어에 닿기 전에 잘라내므로 우리 검증 메시지가 나가지 못한다.
+     * 여기서 받지 않으면 <b>500</b> 이 되는데, 파일이 큰 것은 서버 장애가 아니라
+     * 사용자가 고칠 수 있는 입력 문제다.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException e) {
+        log.info("업로드 크기 초과: {}", e.getMessage());
+        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.status())
+                .body(ErrorResponse.of(ErrorCode.VALIDATION_FAILED,
+                        "파일이 너무 큽니다. 20MB 까지 올릴 수 있습니다"));
     }
 
     /**

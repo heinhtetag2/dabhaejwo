@@ -70,6 +70,19 @@ POST /api/auth/refresh        → { accessToken }
 GET  /api/public/plans        → [ PublicPlan ]
 ```
 
+`/api/auth/refresh` 는 **하나뿐이다.** 리프레시 토큰의 `scope`(`ops` | `app`)를 서버가 읽어
+원래 주체 종류로만 액세스 토큰을 다시 만든다. 운영자 리프레시 토큰으로 업체 액세스 토큰을
+받아내는 경로는 없다.
+
+```json
+{ "email": "ops@dabhaejwo.com", "password": "..." }
+```
+
+운영자 로그인은 **로컬 계정 + BCrypt** 다. 기획서 §8 은 SSO + 2FA 를 요구하지만
+`operators.totp_secret` 자리만 있고 미구현이다 (CLAUDE.md Stub 목록).
+실패 사유를 구분해 응답하지 않는다 — 없는 이메일인지 비밀번호가 틀렸는지
+비활성 계정인지 알려주면 계정 존재 여부를 확인하는 수단이 된다.
+
 `signup` 이 `login` 과 같은 형태인 이유는 가입 직후 로그인 상태여야 하고,
 클라이언트가 두 응답을 다르게 다룰 이유가 없기 때문이다.
 
@@ -197,6 +210,36 @@ CHURNED → (종착)
 
 **사유 필수** — `status` 를 `SUSPENDED`/`CHURNED` 로 바꾸거나 `plan` 을 변경할 때 `reason` 이 없으면 `REASON_REQUIRED`.
 
+### 2-5. 필터 건수 · 활동 이력 · 요청 본문
+
+```json
+{ "all": 42, "trial": 6, "paymentFailed": 1, "costExceeded": 3,
+  "inactive7d": 4, "suspended": 2, "churned": 0 }
+```
+
+`GET /api/ops/tenants/filters`. 건수가 0인 칩도 내려준다 — 화면은 흐리게 처리하되 숨기지 않는다
+(admin-console-tenant-plan.md §4.1.1). 키는 필터 파라미터 값의 camelCase 형이며 **같은 집합**을 가리킨다.
+
+```json
+{ "id": 512, "type": "CHANGE_PLAN", "at": "2026-08-02T05:15:00Z",
+  "summary": "스타터 → 비즈니스", "reason": "기업 요금제 계약 반영",
+  "operator": { "id": "...", "name": "정OO" } }
+```
+
+`GET /api/ops/tenants/{id}/activities` — `type`: `CHANGE_PLAN` · `GRANT_QUOTA` · `SUSPEND` · `CHURN`
+· `EXTEND_TRIAL` · `IMPERSONATE` · `PAYMENT` · `NOTE`. 감사 기록·결제 기록·메모를 시각 역순으로 합친
+**읽기 전용 합성 뷰**다. 별도 테이블을 두지 않는다 — 같은 사실을 두 곳에 쓰면 언젠가 갈라진다.
+`operator` 는 시스템이 만든 항목(결제)에서 `null`.
+
+```json
+{ "status": "SUSPENDED", "reason": "결제 3회 실패 — 영업 확인 완료" }
+{ "planId": "p2...", "reason": "기업 요금제 계약 반영" }
+{ "days": 7, "reason": "도입 검토 연장 요청" }
+```
+
+`PATCH /status` · `PATCH /plan` · `POST /trial-extension` 의 본문이다.
+체험 연장은 `TRIAL` 상태에서만 허용되며 그 외에는 `INVALID_STATE_TRANSITION`.
+
 ---
 
 ## 3. 대리 로그인 (Impersonation)
@@ -276,6 +319,20 @@ CHURNED → (종착)
 
 `GET /api/ops/today` — 전 역할.
 
+**`system` 의 미측정 필드는 `null` 이다.** 답변 파이프라인·크롤러 워커·APM 이 아직 없어
+`chatApiP95Ms` · `crawlerWorkers` · `vectorDbUsagePercent` · `todayError5xxCount` 는 잴 곳이 없다.
+0 으로 채우면 "응답 0ms, 오류 0건"이라는 **거짓**이 되고, 운영자는 정상이라고 읽는다.
+`null` 로 내리고 화면은 "집계 없음"으로 표시한다. 측정 지점이 생기면 값이 채워진다.
+`embedQueueDepth` 는 `jobs` 테이블에서 실제로 세므로 지금도 실값(현재 0)이다.
+
+```json
+{ "aggregatedAt": "2026-08-04T05:00:00Z" }
+```
+
+`stats` 와 `headline` 은 `tenant_daily_usage` 를 읽는다. 당일분은 마지막 집계 시각을
+함께 내려 화면이 "몇 시 기준"인지 밝힌다 (admin-console-plan §6.1). 한 번도 집계되지
+않았으면 `null`.
+
 ---
 
 ## 6. 수익성 · AI 사용량
@@ -304,6 +361,34 @@ CHURNED → (종착)
 조회 대상 테이블은 화면마다 다르다 (admin-console-plan §6.1):
 오늘·업체 목록·수익성 → `tenant_daily_usage` / 모델별 표 → `ai_usage` 월 단위 캐시 5분 / 업체 상세 → `ai_usage` 실시간 단일 테넌트.
 
+`GET /api/ops/profitability` 는 지표와 목록을 함께 준다 — 두 번 부를 이유가 없다.
+
+```json
+{ "stats": { "revenueKrw": 3182000, "costKrw": 1411300, "avgCostRatioPercent": 44,
+             "savedAnswerPercent": 39, "costExceededCount": 3,
+             "costRatioWarnPercent": 70 },
+  "content": [ /* 위 항목 */ ], "page": { } }
+```
+
+`costRatioWarnPercent` 를 응답에 싣는 이유는 경고선이 `cost_guards` 설정값이기 때문이다 —
+프론트가 70을 상수로 갖고 있으면 설정을 바꿔도 색이 안 바뀐다.
+
+```json
+{ "todayTokensIn": 41600000, "todayTokensOut": 6600000, "todayCostKrw": 142700,
+  "costPerConvKrw": 7.8, "monthCostKrw": 1411300, "monthProjectedCostKrw": 1890000 }
+```
+```json
+{ "day": "2026-08-03", "answerKrw": 96412.5, "embedDocKrw": 30100, "embedQueryKrw": 11200, "etcKrw": 4987.5 }
+```
+```json
+{ "tenant": { "id": "...", "name": "한빛물산" }, "planName": "비즈니스",
+  "tokens": 312000000, "costKrw": 104800, "costPerConvKrw": 11.8 }
+```
+
+`monthProjectedCostKrw` 는 **경과일 평균 × 그 달의 일수**다. 추정치이며 화면이 그렇게 밝힌다.
+`daily` 의 용도별 키를 배열이 아니라 고정 필드로 둔 이유는 `purpose` 가 4종으로 닫혀 있고
+누적 막대의 층 순서가 화면 계약이기 때문이다.
+
 ---
 
 ## 7. 요금제 · 모델 단가 · 안전장치
@@ -313,14 +398,22 @@ CHURNED → (종착)
   "convLimit": 3000, "docLimit": 500, "tenantCount": 19, "sellable": true }
 ```
 ```json
-{ "id": 12, "provider": "GOOGLE", "model": "gemini-2.5-flash",
-  "inputPer1m": 1100, "outputPer1m": 5500, "effectiveFrom": "2026-08-01T00:00:00Z" }
+{ "id": 12, "provider": "GOOGLE", "model": "gemini-3.5-flash", "purposeKind": "GENERATE",
+  "inputPer1m": 2100, "outputPer1m": 12600, "effectiveFrom": "2026-08-01T00:00:00Z",
+  "note": "$1.50/$9.00", "current": true }
 ```
 ```json
 { "tenantDailyCapKrw": 20000, "globalDailyCapKrw": 400000,
   "ipQuestionsPerMin": 10, "bulkUploadLimit": 100,
   "costRatioWarnPercent": 70, "answerFailSimilarity": 0.72,
-  "slackAlertEnabled": true }
+  "defaultChunkCount": 8, "answerMaxLength": 400, "churnPurgeGraceDays": 30,
+  "quotaExceededBehavior": "STOP_AND_NOTICE", "slackAlertEnabled": true,
+  "commonPrompt": "주어진 문서 조각만을 근거로 답한다...",
+  "updatedAt": "2026-08-04T05:00:00Z" }
+```
+```json
+{ "plan": { "id": "p2...", "name": "비즈니스" }, "provider": "GOOGLE",
+  "model": "gemini-3.5-flash", "chunkCount": 8, "estimatedCostPerConvKrw": 8.4 }
 ```
 
 | Method | Path | 권한 |
@@ -328,11 +421,23 @@ CHURNED → (종착)
 | GET · POST | `/api/ops/plans` | `PLAN_READ` / `PLAN_WRITE` |
 | PATCH | `/api/ops/plans/{id}` | `PLAN_WRITE` |
 | GET · POST | `/api/ops/model-prices` | `MODEL_PRICE_READ` / `MODEL_PRICE_WRITE` |
+| GET · PUT | `/api/ops/plan-model-assignments` | `PLAN_READ` / `MODEL_PRICE_WRITE` |
 | GET · PUT | `/api/ops/cost-guards` | `COST_GUARD_READ` / `COST_GUARD_WRITE` |
 
-- **요금제는 삭제하지 않는다.** `sellable: false` 로 판매 중단만. 기존 계약 업체가 남아 있다
-- **모델 단가는 이력이다.** `POST /model-prices` 는 새 행을 추가하며 기존 행을 수정하지 않는다. 과거 `ai_usage.costKrw` 는 소급되지 않는다
-- 단가·안전장치 쓰기는 `OPS_ADMIN` 전용
+- **요금제는 삭제하지 않는다.** `sellable: false` 로 판매 중단만. 기존 계약 업체가 남아 있다.
+  `DELETE` 엔드포인트가 존재하지 않는다
+- **모델 단가는 이력이다.** `POST /model-prices` 는 새 행을 추가하며 **기존 행을 수정하지 않는다.**
+  `PATCH`·`DELETE` 가 존재하지 않는다. 과거 `ai_usage.costKrw` 는 소급되지 않는다
+- `current: true` 는 그 `(provider, model)` 조합에서 **지금 시각 기준으로 적용 중인 행**이라는 표시다.
+  서버가 계산해 내려준다 — 프론트가 `effectiveFrom` 을 비교하다 보면 경계에서 어긋난다
+- `quotaExceededBehavior`: `STOP_AND_NOTICE` · `OVERAGE_BILLING` · `NOTIFY_ONLY`
+- `estimatedCostPerConvKrw` 는 조각 수 × 조각당 토큰 추정 × 현재 단가로 **서버가 계산한 추정치**다.
+  저장하지 않는다 — 단가가 바뀌면 따라 움직여야 한다
+- 단가·안전장치·모델 배정 쓰기는 `OPS_ADMIN` 전용
+
+> **화면 주의** — 프로토타입(`chatbot-admin-console.html`)은 모델 단가를 표 안 `<input>` 으로
+> 직접 고치는 형태다. 그대로 옮기면 소급 변경이 된다. 화면은 **"새 단가 등록 + 적용 시점 지정"**
+> 이어야 하고, 기존 행은 읽기 전용 이력으로만 보여준다.
 
 ---
 
@@ -361,12 +466,35 @@ CHURNED → (종착)
 | Method | Path | 권한 |
 |---|---|---|
 | GET | `/api/ops/jobs?status=FAILED` | `JOB_READ` |
+| GET | `/api/ops/jobs/stats` | `JOB_READ` |
 | POST | `/api/ops/jobs/{id}/retry` · `/api/ops/jobs/retry-all` | `JOB_RETRY` |
-| GET · PATCH | `/api/ops/feature-flags` | `FLAG_READ` / `FLAG_WRITE` |
-| GET · PATCH | `/api/ops/tickets` | `TICKET_READ` / `TICKET_WRITE` |
+| GET · PATCH | `/api/ops/feature-flags` · `/api/ops/feature-flags/{key}` | `FLAG_READ` / `FLAG_WRITE` |
+| GET · PATCH | `/api/ops/tickets` · `/api/ops/tickets/{id}` | `TICKET_READ` / `TICKET_WRITE` |
 | GET | `/api/ops/audit-logs` | `AUDIT_READ` |
 
+```json
+{ "queuedCount": 412, "runningCount": 18, "doneTodayCount": 6204,
+  "successPercent": 99.1, "failedCount": 7 }
+```
+```json
+{ "id": 441, "tenant": { "id": "...", "name": "한빛물산" },
+  "subject": "PDF를 올렸는데 계속 실패로 뜹니다", "body": "...",
+  "status": "OPEN", "elapsedMinutes": 1140,
+  "answeredBy": { "id": "...", "name": "정OO" }, "answeredAt": null,
+  "createdAt": "2026-08-02T10:41:00Z" }
+```
+
+- **`POST /jobs/{id}/retry` 와 `/retry-all` 은 지금 `FEATURE_NOT_READY`(503) 로 거절한다.**
+  임베딩 워커·크롤러가 없어 큐에 다시 넣어도 아무도 집어가지 않는다. 상태만 `QUEUED` 로
+  돌려놓으면 운영자는 복구된 줄 알고 기다린다 — 조용한 성공 처리 금지 (`workflow-rules.md`).
+  `/api/app/knowledge/**` 의 `recrawl`·`retry` 와 같은 정책이다
+- 문의 정렬은 **경과 시간 내림차순 고정**이다. 오래된 것이 위로 온다 (admin-console-plan §4.9).
+  `PATCH /tickets/{id}` 는 `{ status }` 만 받는다 — 답변 본문은 이메일로 나가고 여기엔 남기지 않는다
+- 기능 플래그 `PATCH` 본문은 `{ scope, targetTenantIds, targetPlanId, enabled }`. `key` 는 불변이다
+- 감사 기록 조회 파라미터: `tenantId` · `operatorId` · `action` · `from` · `to`
+
 **감사 기록에 쓰기/삭제 엔드포인트는 존재하지 않는다.** 적재는 서버 내부에서만 일어난다.
+DB 트리거가 `UPDATE`/`DELETE` 자체를 막고 있다 — 앱이 뚫려도 기록은 못 고친다.
 오류 코드는 운영자용이므로 원문(`pdf_parse_timeout`)을 그대로 주고, 한글 설명은 프론트가 매핑한다.
 
 ---
@@ -449,12 +577,31 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 | PATCH | `/api/app/knowledge/sources/{id}` | OWNER · EDITOR — `{ autoRefresh }` |
 | POST | `/api/app/knowledge/sources/{id}/recrawl` | OWNER · EDITOR |
 | GET | `/api/app/knowledge/documents?sourceId=&q=&status=&page=&size=` | 전 역할 |
+| POST | `/api/app/knowledge/documents` | OWNER · EDITOR — **multipart** `file` |
+| DELETE | `/api/app/knowledge/documents/{id}` | OWNER · EDITOR. 대리 접속 중 금지 |
 | PATCH | `/api/app/knowledge/documents/{id}` | OWNER · EDITOR — `{ excluded }` |
 | POST | `/api/app/knowledge/documents/{id}/retry` · `/retry-failed?sourceId=` | OWNER · EDITOR |
 
 `recrawl` 과 `retry` 는 **크롤러·임베딩 워커가 붙어야 실제로 동작한다.** 지금은
 `FEATURE_NOT_READY`(503) 를 돌려준다 — 상태만 바꾸고 아무 일도 일어나지 않으면
 업체는 학습된 줄 알고 기다린다. 조용한 성공 처리 금지 (`workflow-rules.md`).
+
+**업로드** — 원본은 오브젝트 저장소(S3 호환)에 두고 문서 행이 키로 가리킨다.
+
+| 규칙 | 값 |
+|---|---|
+| 허용 확장자 | `pdf` `docx` `xlsx` `txt` `md` `csv` — **화이트리스트** |
+| 파일당 크기 | 20MB. 넘으면 `VALIDATION_FAILED`(400) |
+| MIME | 서버가 **확장자로 정한다.** 클라이언트가 보낸 값은 대조에만 쓰고, 어긋나면 거절 |
+| 중복 | 내용 SHA-256 이 같으면 거절. 문서가 두 벌 생기고 한도만 깎인다 |
+| 한도 | 올리기 **전에** 요금제 문서 한도를 본다. 넘으면 `QUOTA_EXCEEDED`(429) |
+| 저장소 미설정 | `FEATURE_NOT_READY`(503). **로컬 디스크로 대체하지 않는다** |
+
+업로드 응답의 `status` 는 `PENDING` 이다. **저장은 됐지만 학습은 시작되지 않는다** —
+글자를 뽑아 임베딩하는 워커가 아직 없다. 화면이 이 사실을 그대로 표시한다.
+
+`storageKey` 는 업로드 문서만 값이 있다. 웹페이지 문서는 원본 파일이 없어 `null` 이며,
+화면은 이 값으로 삭제 버튼 노출을 정한다.
 
 ### 9-3. 답변 개선 · 대화 · 리드
 

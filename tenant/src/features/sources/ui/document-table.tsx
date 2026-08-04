@@ -22,11 +22,14 @@ export function DocumentTable({
   editable,
   pendingId,
   onToggleExcluded,
+  onDelete,
 }: {
   documents: KnowledgeDocument[];
   editable: boolean;
   pendingId: string | null;
   onToggleExcluded: (document: KnowledgeDocument) => void;
+  /** 업로드 문서만 지울 수 있다. 없으면 삭제 버튼을 그리지 않는다. */
+  onDelete?: (document: KnowledgeDocument) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -36,7 +39,7 @@ export function DocumentTable({
             <Th>제목 · 주소</Th>
             <Th className="w-[130px]">상태</Th>
             <Th className="w-[110px]">학습 시각</Th>
-            <Th className="w-[90px]" />
+            <Th className="w-[150px]" />
           </tr>
         </thead>
         <tbody>
@@ -64,15 +67,28 @@ export function DocumentTable({
               <td className="border-b border-line-2 px-3.5 py-3 font-mono text-[11.5px] text-slate-2">
                 {document.indexedAt ? document.indexedAt.slice(0, 10) : "—"}
               </td>
-              <td className="border-b border-line-2 px-3.5 py-3 text-right">
+              <td className="border-b border-line-2 px-3.5 py-3">
                 {editable ? (
-                  <Button
-                    size="sm"
-                    disabled={pendingId === document.id}
-                    onClick={() => onToggleExcluded(document)}
-                  >
-                    {document.status === "EXCLUDED" ? "다시 포함" : "제외"}
-                  </Button>
+                  <span className="flex justify-end gap-1.5">
+                    <Button
+                      size="sm"
+                      disabled={pendingId === document.id}
+                      onClick={() => onToggleExcluded(document)}
+                    >
+                      {document.status === "EXCLUDED" ? "다시 포함" : "제외"}
+                    </Button>
+                    {/* 원본 파일이 있는 문서만 지운다. 웹페이지는 소스를 다시 읽으면 살아난다 */}
+                    {onDelete && document.storageKey ? (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={pendingId === document.id}
+                        onClick={() => onDelete(document)}
+                      >
+                        삭제
+                      </Button>
+                    ) : null}
+                  </span>
                 ) : null}
               </td>
             </tr>

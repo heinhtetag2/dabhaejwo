@@ -32,6 +32,12 @@ dependencies {
 	// pgvector 타입 매핑 (knowledge_chunks.embedding)
 	implementation("com.pgvector:pgvector:0.1.6")
 
+	// 파일 저장소. Cloudflare R2 는 S3 호환이라 AWS SDK 를 그대로 쓴다.
+	// apache-client 를 명시하는 이유는 기본 HTTP 클라이언트를 SDK 가 런타임에 찾는데,
+	// 없으면 기동은 되고 첫 업로드에서 터진다.
+	implementation("software.amazon.awssdk:s3:2.50.3")
+	implementation("software.amazon.awssdk:apache-client:2.50.3")
+
 	// JWT — 운영자 / 업체 담당자 / 대리 로그인 토큰
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")

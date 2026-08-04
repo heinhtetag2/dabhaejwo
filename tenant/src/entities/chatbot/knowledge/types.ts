@@ -28,6 +28,9 @@ export interface KnowledgeDocument {
   chunkCount: number;
   sizeBytes: number | null;
   indexedAt: string | null;
+  /** 업로드한 원본이 있는 문서만 값이 있다. 웹페이지 문서는 null. */
+  storageKey: string | null;
+  originalFilename: string | null;
 }
 
 /** 업체는 크롤링·임베딩·청크라는 말을 모른다 (tenant-plan.md §1.3). */

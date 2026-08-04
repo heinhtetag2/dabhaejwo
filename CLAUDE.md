@@ -155,7 +155,7 @@ dabhaejwo/
 | PG 결제 | `PaymentGateway` 인터페이스 + 로그 stub | 유료 전환 전 |
 | 슬랙 알림 `#ops-alert` | `Notifier` 인터페이스 + 로그 stub | 운영 개시 전 |
 | 이메일 (한도 안내·초대·결제 실패) | `Mailer` 인터페이스 + 로그 stub | 운영 개시 전 |
-| 파일 저장소 (S3 호환) | `FileStorage` 인터페이스 + 로컬 디스크 구현 | 문서 업로드 정식 오픈 전 |
+| ~~파일 저장소~~ | **연동 완료** — Cloudflare R2(S3 호환). `FileStorage` + `S3FileStorage`. 미설정 시 `FEATURE_NOT_READY` 로 거절하며 로컬 디스크로 대체하지 않는다 | — |
 | SSO + 2FA (운영 콘솔) | 로컬 계정 + TOTP 자리만 | 운영자 3명 초과 시 |
 | 세금계산서 발행 | 미구현. 문의 티켓으로 우회 | 사업자 고객 유입 시 |
 | 웹 크롤러 | 미구현. `/knowledge/sources/{id}/recrawl` 이 `FEATURE_NOT_READY`(503) 로 **명시적으로 거절**한다 — 상태만 바꾸면 업체가 학습된 줄 알고 기다린다. robots.txt 준수·동시성 상한 필수 | 자동 재크롤링 오픈 전 |

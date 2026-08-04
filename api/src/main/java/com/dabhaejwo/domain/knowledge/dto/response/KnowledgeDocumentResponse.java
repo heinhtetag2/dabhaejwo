@@ -21,7 +21,10 @@ public record KnowledgeDocumentResponse(
         String errorCode,
         int chunkCount,
         Long sizeBytes,
-        OffsetDateTime indexedAt) {
+        OffsetDateTime indexedAt,
+        /** 업로드한 원본이 있는 문서만 값이 있다. 화면은 이 값으로 삭제 버튼 노출을 정한다. */
+        String storageKey,
+        String originalFilename) {
 
     public static KnowledgeDocumentResponse from(KnowledgeDocument document) {
         return new KnowledgeDocumentResponse(
@@ -33,6 +36,8 @@ public record KnowledgeDocumentResponse(
                 document.getErrorCode(),
                 document.getChunkCount(),
                 document.getSizeBytes(),
-                document.getIndexedAt());
+                document.getIndexedAt(),
+                document.getStorageKey(),
+                document.getOriginalFilename());
     }
 }

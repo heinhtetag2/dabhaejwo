@@ -61,10 +61,30 @@ public record AppProperties(
         }
     }
 
+    /**
+     * 파일 저장소 (S3 호환 — Cloudflare R2).
+     *
+     * <p>비어 있으면 업로드를 명시적으로 거절한다. 로컬 디스크로 대체하지 않는다 —
+     * 개발 PC 에서만 되는 기능을 만들면 실패를 배포 시점으로 미루는 것뿐이다.
+     *
+     * @param endpoint R2 계정 엔드포인트. {@code https://{accountId}.r2.cloudflarestorage.com}
+     */
     public record Storage(
-            // TODO(stub): S3 호환 저장소 미연동. 로컬 디스크로 대체.
-            @DefaultValue("./var/uploads") String localPath
+            @DefaultValue("") String bucket,
+            @DefaultValue("") String endpoint,
+            @DefaultValue("") String accessKeyId,
+            @DefaultValue("") String secretAccessKey,
+            /** 업로드 파일당 최대 크기(MB). tenant-plan.md §4.5 는 20MB 로 정했다. */
+            @DefaultValue("20") int maxFileSizeMb
     ) {
+        public boolean configured() {
+            return !bucket.isBlank() && !endpoint.isBlank()
+                    && !accessKeyId.isBlank() && !secretAccessKey.isBlank();
+        }
+
+        public long maxFileSizeBytes() {
+            return (long) maxFileSizeMb * 1024 * 1024;
+        }
     }
 
     public record Notification(

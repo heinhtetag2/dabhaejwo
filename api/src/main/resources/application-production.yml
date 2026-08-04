@@ -18,6 +18,12 @@ spring:
       maximum-pool-size: ${DB_POOL_SIZE:10}
 
 dabhaejwo:
+  storage:
+    bucket: ${R2_BUCKET}
+    endpoint: ${R2_ENDPOINT}
+    access-key-id: ${R2_ACCESS_KEY_ID}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY}
+    max-file-size-mb: ${MAX_FILE_SIZE_MB:20}
   cors:
     # 기본값을 주지 않는다. 운영에서 localhost 가 열려 있으면 안 된다.
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
@@ -36,9 +42,6 @@ dabhaejwo:
       api-key: ${ANTHROPIC_API_KEY:}
     openai:
       api-key: ${OPENAI_API_KEY:}
-  storage:
-    # TODO(stub): S3 호환 저장소 미연동. 운영 전에 교체할 것.
-    local-path: ${FILE_STORAGE_PATH:/var/lib/dabhaejwo/uploads}
   notification:
     # TODO(stub): 슬랙 미연동. 상한 도달 알림이 안 나간다.
     slack-webhook-url: ${SLACK_OPS_WEBHOOK_URL:}

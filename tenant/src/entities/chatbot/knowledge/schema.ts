@@ -30,6 +30,8 @@ export const knowledgeDocumentSchema = z.object({
   chunkCount: z.number(),
   sizeBytes: z.number().nullable(),
   indexedAt: z.string().nullable(),
+  storageKey: z.string().nullable(),
+  originalFilename: z.string().nullable(),
 });
 
 export const knowledgeDocumentPageSchema = z.object({

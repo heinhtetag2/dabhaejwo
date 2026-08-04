@@ -9,6 +9,7 @@ import {
   useChangeExcluded,
   useKnowledgeDocumentsQuery,
   useKnowledgeSourcesQuery,
+  useDeleteDocument,
   useRecrawlSource,
   useRetryFailed,
   type DocumentStatus,
@@ -24,6 +25,7 @@ import { Notice } from "@/shared/ui/notice";
 import { Pagination } from "@/shared/ui/pagination";
 
 import { DocumentTable } from "./document-table";
+import { FileUpload } from "./file-upload";
 
 const STATUS_FILTERS: Array<{ value: DocumentStatus | "ALL"; label: string }> = [
   { value: "ALL", label: "전체" },
@@ -66,6 +68,7 @@ export function SourcesView() {
   const excluded = useChangeExcluded();
   const recrawl = useRecrawlSource();
   const retry = useRetryFailed();
+  const removeDocument = useDeleteDocument();
 
   if (isPending) {
     return <LoadingState />;
@@ -150,7 +153,7 @@ export function SourcesView() {
             </label>
           ) : null}
 
-          {editable ? (
+          {editable && selected.type === "WEBSITE" ? (
             <Button
               size="sm"
               disabled={recrawl.isPending}
@@ -161,6 +164,12 @@ export function SourcesView() {
           ) : null}
         </CardBody>
       </Card>
+
+      {editable && selected.type === "FILE" ? (
+        <div className="mb-4">
+          <FileUpload onUploaded={() => setPage(0)} />
+        </div>
+      ) : null}
 
       {notice ? (
         <Notice tone="warn" className="mb-4">
@@ -265,8 +274,19 @@ export function SourcesView() {
             <DocumentTable
               documents={documents.data.content}
               editable={editable}
-              pendingId={excluded.isPending ? excluded.variables?.id ?? null : null}
+              pendingId={
+                excluded.isPending
+                  ? excluded.variables?.id ?? null
+                  : removeDocument.isPending
+                    ? removeDocument.variables ?? null
+                    : null
+              }
               onToggleExcluded={handleToggleExcluded}
+              onDelete={
+                editable
+                  ? (document) => runStub(() => removeDocument.mutateAsync(document.id))
+                  : undefined
+              }
             />
             <Pagination
               page={documents.data.page.number}

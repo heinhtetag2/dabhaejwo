@@ -51,6 +51,22 @@ public class KnowledgeDocument {
     @Column(name = "size_bytes")
     private Long sizeBytes;
 
+    /** 오브젝트 저장소 안의 키. 웹페이지 문서는 원본 파일이 없으므로 null 이다. */
+    @Column(name = "storage_key")
+    private String storageKey;
+
+    /** 서버가 확장자로 판정한 MIME. 클라이언트가 보낸 값을 그대로 적지 않는다. */
+    @Column(name = "content_type")
+    private String contentType;
+
+    /** 사용자가 올린 원래 파일명. 화면 표시용이며 저장소 키로는 쓰지 않는다. */
+    @Column(name = "original_filename")
+    private String originalFilename;
+
+    /** 같은 파일 재업로드 판별용. */
+    @Column(name = "content_sha256")
+    private String contentSha256;
+
     @Column(name = "indexed_at")
     private OffsetDateTime indexedAt;
 
@@ -76,6 +92,21 @@ public class KnowledgeDocument {
             document.indexedAt = document.createdAt;
         }
         return document;
+    }
+
+    /**
+     * 업로드한 원본을 문서에 연결한다.
+     *
+     * <p>저장소에 올린 <b>뒤에</b> 부른다. 반대로 하면 DB 에는 키가 있는데 파일이 없는
+     * 상태가 만들어지고, 나중에 읽으려다 실패한다.
+     */
+    public void attachFile(String storageKey, String contentType, String originalFilename,
+                           long sizeBytes, String contentSha256) {
+        this.storageKey = storageKey;
+        this.contentType = contentType;
+        this.originalFilename = originalFilename;
+        this.sizeBytes = sizeBytes;
+        this.contentSha256 = contentSha256;
     }
 
     public void markIndexed(int chunks) {
@@ -145,5 +176,17 @@ public class KnowledgeDocument {
 
     public OffsetDateTime getIndexedAt() {
         return indexedAt;
+    }
+
+    public String getStorageKey() {
+        return storageKey;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public String getOriginalFilename() {
+        return originalFilename;
     }
 }
