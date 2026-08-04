@@ -130,4 +130,6 @@ dabhaejwo/
 | 파일 저장소 (S3 호환) | `FileStorage` 인터페이스 + 로컬 디스크 구현 | 문서 업로드 정식 오픈 전 |
 | SSO + 2FA (운영 콘솔) | 로컬 계정 + TOTP 자리만 | 운영자 3명 초과 시 |
 | 세금계산서 발행 | 미구현. 문의 티켓으로 우회 | 사업자 고객 유입 시 |
-| 웹 크롤러 | 실 구현하되 초기엔 수동 트리거만. robots.txt 준수·동시성 상한 필수 | 자동 재크롤링 오픈 전 |
+| 웹 크롤러 | 미구현. `/knowledge/sources/{id}/recrawl` 이 `FEATURE_NOT_READY`(503) 로 **명시적으로 거절**한다 — 상태만 바꾸면 업체가 학습된 줄 알고 기다린다. robots.txt 준수·동시성 상한 필수 | 자동 재크롤링 오픈 전 |
+| 임베딩 워커 | 미구현. `/knowledge/documents/retry-failed` 도 `FEATURE_NOT_READY` 로 거절 | 챗봇 답변 기능(M1) |
+| 답변 파이프라인 (RAG) | 미구현. 그래서 `messages.latency_ms`·`answer_gaps` 자동 적재·미리보기 자유 입력이 비어 있다 | M1 |

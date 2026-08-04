@@ -47,6 +47,7 @@ size 기본 20, **최대 100**. 무제한 조회 금지.
 | `QUOTA_EXCEEDED` | 429 | 대화·문서 한도 초과 |
 | `RATE_LIMITED` | 429 | IP 분당 질문 수 초과 |
 | `COST_CAP_REACHED` | 503 | 일일 원가 상한 도달 — 챗봇 중단 |
+| `FEATURE_NOT_READY` | 503 | 외부 의존성 미연동 (크롤러·결제·메일 등). 조용히 성공시키지 않는다 |
 
 ### 0-4. 인증 (3종 분리)
 
@@ -413,6 +414,22 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 
 `KnowledgeSource.type`: `WEBSITE` · `FILE` · `MANUAL`
 `KnowledgeDocument.status`: `PENDING` `PROCESSING` `INDEXED` `FAILED` `EXCLUDED`
+
+`EXCLUDED` 는 업체가 "이 페이지는 학습하지 않겠다"고 뺀 것이다 — **실패가 아니다.**
+요금제 한도(`docCount`)에도 잡히지 않고 홈의 3분류(완료/처리중/실패)에도 들어가지 않는다.
+
+| Method | Path | 권한 |
+|---|---|---|
+| GET | `/api/app/knowledge/sources` | 전 역할 |
+| PATCH | `/api/app/knowledge/sources/{id}` | OWNER · EDITOR — `{ autoRefresh }` |
+| POST | `/api/app/knowledge/sources/{id}/recrawl` | OWNER · EDITOR |
+| GET | `/api/app/knowledge/documents?sourceId=&q=&status=&page=&size=` | 전 역할 |
+| PATCH | `/api/app/knowledge/documents/{id}` | OWNER · EDITOR — `{ excluded }` |
+| POST | `/api/app/knowledge/documents/{id}/retry` · `/retry-failed?sourceId=` | OWNER · EDITOR |
+
+`recrawl` 과 `retry` 는 **크롤러·임베딩 워커가 붙어야 실제로 동작한다.** 지금은
+`FEATURE_NOT_READY`(503) 를 돌려준다 — 상태만 바꾸고 아무 일도 일어나지 않으면
+업체는 학습된 줄 알고 기다린다. 조용한 성공 처리 금지 (`workflow-rules.md`).
 
 ### 9-3. 답변 개선 · 대화 · 리드
 

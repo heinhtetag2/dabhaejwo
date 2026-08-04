@@ -96,6 +96,17 @@ public class KnowledgeDocument {
         this.errorCode = null;
     }
 
+    /**
+     * 학습에서 제외한다. <b>삭제가 아니다</b> — 목록에는 남고 학습 대상에서만 빠지며
+     * 요금제 한도에도 잡히지 않는다. 채용 공고나 이용약관처럼 챗봇이 답할 필요 없는
+     * 페이지를 빼는 데 쓴다 (tenant-plan.md §4.5).
+     */
+    public void exclude() {
+        this.status = DocumentStatus.EXCLUDED;
+        this.errorCode = null;
+        this.chunkCount = 0;
+    }
+
     public UUID getId() {
         return id;
     }

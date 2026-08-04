@@ -24,6 +24,12 @@ public enum ErrorCode {
     OPERATOR_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 운영자를 찾을 수 없습니다"),
     MODEL_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 모델의 단가가 등록되어 있지 않습니다"),
     IMPERSONATION_NOT_FOUND(HttpStatus.NOT_FOUND, "대리 접속 세션을 찾을 수 없습니다"),
+    SOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 지식 소스를 찾을 수 없습니다"),
+    DOCUMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 문서를 찾을 수 없습니다"),
+    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 팀원을 찾을 수 없습니다"),
+    LEAD_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 연락처를 찾을 수 없습니다"),
+    CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 대화를 찾을 수 없습니다"),
+    ANSWER_GAP_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 질문을 찾을 수 없습니다"),
 
     INVALID_STATE_TRANSITION(HttpStatus.CONFLICT, "허용되지 않은 상태 변경입니다"),
     CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "다른 사용자가 먼저 수정했습니다"),
@@ -32,6 +38,11 @@ public enum ErrorCode {
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 잦습니다"),
 
     COST_CAP_REACHED(HttpStatus.SERVICE_UNAVAILABLE, "일일 원가 상한에 도달했습니다"),
+    /**
+     * 외부 의존성이 아직 연결되지 않았다. 상태만 바꾸고 아무 일도 일어나지 않으면
+     * 사용자는 처리된 줄 알고 기다린다 — 조용한 성공 처리 금지 (workflow-rules).
+     */
+    FEATURE_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "아직 연결되지 않은 기능입니다"),
     LLM_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI 공급사에 연결할 수 없습니다");
 
     private final HttpStatus status;
