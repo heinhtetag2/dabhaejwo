@@ -35,6 +35,9 @@ docker run -d --name dabhaejwo-db -p 5432:5432 \
 
 ### DB 준비
 
+> 새 서버에 DB 를 처음 올리는 절차는 [docs/postgre-db-guide.md](docs/postgre-db-guide.md) 에 따로 있다.
+> 설치·계정 생성·접속 경로(SSH 터널/포트 개방)와 실제로 걸렸던 문제들까지 적어 두었다.
+
 `V1__init.sql` 은 `CREATE EXTENSION IF NOT EXISTS vector` 로 시작한다.
 서버에 pgvector 패키지가 없거나 계정에 확장 생성 권한이 없으면 거기서 멈춘다.
 PostgreSQL 은 DDL 이 트랜잭션이라 실패해도 깨끗하게 롤백되지만, 원인을 찾는 시간이 아깝다.
@@ -124,6 +127,7 @@ api/src/main/resources/
 |---|---|
 | 프로젝트 정책·핵심 결정·마일스톤 | [CLAUDE.md](CLAUDE.md) |
 | 기획서 분석과 스택 선택 근거 | [docs/intake.md](docs/intake.md) |
+| DB 설치·생성 (서버 이전 시) | [docs/postgre-db-guide.md](docs/postgre-db-guide.md) |
 | API 계약 (서버·클라이언트 단일 기준) | [docs/architecture/api-contracts.md](docs/architecture/api-contracts.md) |
 | 기획서 | [docs/plan/](docs/plan/) |
 | 개선 백로그 | [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) |
