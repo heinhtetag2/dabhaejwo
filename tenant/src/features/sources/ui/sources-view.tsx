@@ -77,9 +77,32 @@ export function SourcesView() {
   if (isError) {
     return <ErrorState message="지식 소스를 불러오지 못했습니다" onRetry={() => void refetch()} />;
   }
+  /*
+   * 소스가 하나도 없을 때도 **업로드는 열어둔다.**
+   *
+   * 예전에는 안내 문구만 보여주고 끝냈는데, 업로드 패널이 그 아래 분기에 있어 화면에
+   * 닿지 않았다 — "파일을 등록하면 학습합니다"라고 적어두고 등록할 방법을 주지 않은 셈이라,
+   * 갓 가입한 업체는 여기서 막혔다. 소스는 서버가 첫 업로드 때 만들어 준다
+   * (`DocumentUploadService#fileSource`).
+   *
+   * 문구에서 "사이트 주소"를 뺀 이유 — 크롤러가 아직 없어 지금 등록할 수 있는 것은 파일뿐이다.
+   */
   if (sources.length === 0) {
+    if (!editable) {
+      return <EmptyState message="등록된 지식 소스가 없습니다. 편집 권한이 있는 담당자가 파일을 올리면 챗봇이 학습합니다." />;
+    }
     return (
-      <EmptyState message="등록된 지식 소스가 없습니다. 사이트 주소나 파일을 등록하면 챗봇이 학습합니다." />
+      <>
+        <Card className="mb-4">
+          <CardBody>
+            <p className="text-[13px] leading-relaxed text-slate">
+              아직 등록된 지식 소스가 없습니다. <b className="font-semibold text-ink">파일을 올리면</b>{" "}
+              챗봇이 그 내용으로 답하기 시작합니다.
+            </p>
+          </CardBody>
+        </Card>
+        <FileUpload onUploaded={() => setPage(0)} />
+      </>
     );
   }
 
