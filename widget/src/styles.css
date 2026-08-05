@@ -14,11 +14,25 @@
   --dw-z: 2147480000;
 
   all: initial;
+  /*
+   * 한글이 있는 폰트를 환경별로 하나씩 짚어 준다.
+   *
+   * 전에는 `Malgun Gothic`(윈도우) 하나뿐이라 macOS·안드로이드에서는 뒤의 `sans-serif` 로
+   * 떨어졌다 — 호스트 사이트가 무엇을 기본 산세리프로 잡아뒀느냐에 따라 글꼴이 달라진다.
+   *
+   * **웹폰트로 내려받지는 않는다.** `@font-face` 로 Noto Sans 를 로드하면 방문자에게
+   * 수백 KB 다운로드를 강제하고 호스트 사이트의 LCP 를 망친다 (widget-embed-script.md).
+   * 여기 적힌 이름들은 <b>이미 깔려 있으면 쓴다</b>는 뜻이고, 비용은 0 이다.
+   * 안드로이드·크롬OS 에는 Noto Sans KR 이 기본 탑재라 대부분의 환경이 여기서 걸린다.
+   */
   font-family:
     system-ui,
     -apple-system,
     "Segoe UI",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
     "Malgun Gothic",
+    "Noto Sans",
     sans-serif;
   font-size: 14px;
   line-height: 1.6;

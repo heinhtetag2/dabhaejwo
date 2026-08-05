@@ -61,11 +61,21 @@ export function InstallView() {
   }
 
   const publishableKey = context?.tenant.publishableKey ?? "";
+  /*
+   * `charset="utf-8"` 을 붙인다.
+   *
+   * 스크립트에 charset 이 없으면 브라우저는 <b>호스트 페이지의 인코딩</b>으로 w.js 를
+   * 해석한다. 업체 사이트가 EUC-KR 이면 위젯 안의 한글이 그 사이트에서만 깨진다 —
+   * 우리 쪽에서는 멀쩡히 보이므로 원인을 찾기 어렵다.
+   *
+   * 서버도 `charset=utf-8` 을 붙여 보내지만(deploy/apache/dabhaejwo-cdn.conf), 업체가
+   * 자체 CDN·프록시를 앞에 두면 헤더가 사라질 수 있다. 여기가 그 마지막 방어선이다.
+   */
   const snippet = `<!-- 답해줘 챗봇 -->
 <script>
   window.dabhaejwo = { key: "${publishableKey}" };
 </script>
-<script src="${WIDGET_SRC}" async></script>`;
+<script src="${WIDGET_SRC}" charset="utf-8" async></script>`;
 
   const connected = origins.data.some((origin) => origin.lastCalledAt !== null);
 

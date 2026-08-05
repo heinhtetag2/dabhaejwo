@@ -133,18 +133,33 @@ describe("readConfig", () => {
 
     expect(readConfig()).toMatchObject({
       key: "pk_live_test",
-      position: "right",
       debug: false,
     });
   });
 
-  it("알 수 없는 position 은 기본값으로 떨어진다", () => {
+  it("position 을 안 적으면 undefined 다 — 업체가 대시보드에서 정한 위치를 써야 한다", () => {
+    (window as unknown as Record<string, unknown>).dabhaejwo = { key: "pk_live_test" };
+
+    // 여기서 "right" 로 채워버리면 대시보드 설정이 영영 반영되지 않는다.
+    expect(readConfig()!.position).toBeUndefined();
+  });
+
+  it("알 수 없는 position 도 미지정으로 다룬다", () => {
     (window as unknown as Record<string, unknown>).dabhaejwo = {
       key: "pk_live_test",
       position: "middle",
     };
 
-    expect(readConfig()!.position).toBe("right");
+    expect(readConfig()!.position).toBeUndefined();
+  });
+
+  it("호스트가 적은 값은 그대로 살린다 — 다른 위젯과 겹칠 때 피할 수단이다", () => {
+    (window as unknown as Record<string, unknown>).dabhaejwo = {
+      key: "pk_live_test",
+      position: "left",
+    };
+
+    expect(readConfig()!.position).toBe("left");
   });
 
   it("nudgeDelayMs 0 은 존중한다 — 자동 인사말을 끄는 설정이다", () => {

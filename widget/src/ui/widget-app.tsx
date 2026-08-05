@@ -16,6 +16,13 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
    */
   const [visible, setVisible] = useState<boolean | null>(null);
   const [nudgeDelayMs, setNudgeDelayMs] = useState(config.nudgeDelayMs);
+  /**
+   * 업체가 대시보드에서 정한 위치. 호스트가 지정하지 않았을 때만 쓴다.
+   *
+   * 판정이 오기 전에는 {@code null} 이지만, 그동안은 {@code visible} 이 아직 null 이라
+   * 아무것도 그리지 않으므로 위치가 바뀌며 튀는 일은 없다.
+   */
+  const [remotePosition, setRemotePosition] = useState<"left" | "right" | null>(null);
 
   const [open, setOpen] = useState(false);
   const [nudging, setNudging] = useState(false);
@@ -43,9 +50,11 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
       .then((remote) => {
         if (cancelled) return;
         setVisible(remote.enabled);
-        // 서버 설정이 호스트 페이지의 값을 이긴다 — 업체가 콘솔에서 바꾸면
-        // 남의 사이트 코드를 고치지 않고도 반영돼야 한다.
+        // 말 거는 시점은 서버가 이긴다 — 업체가 콘솔에서 바꾸면 남의 사이트 코드를
+        // 고치지 않고도 반영돼야 한다.
         setNudgeDelayMs(remote.nudgeDelayMs);
+        // 위치는 반대다. 호스트가 적었으면 그쪽을 존중한다(아래 position 참조).
+        setRemotePosition(remote.widgetPosition === "BOTTOM_LEFT" ? "left" : "right");
       })
       .catch(() => {
         // 키가 틀렸거나 등록되지 않은 주소다. **조용히 사라진다** —
@@ -189,8 +198,20 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
     return null;
   }
 
+  /*
+   * 호스트가 적었으면 그 값, 아니면 업체가 대시보드에서 정한 값.
+   *
+   * 호스트를 앞에 두는 이유는 <b>호스트만 아는 사정</b>이 있기 때문이다 —
+   * 다른 상담 위젯이 이미 오른쪽 아래를 점유했는지는 대시보드가 알 수 없고,
+   * 겹치면 두 버블이 서로를 가린다.
+   *
+   * 서버 응답이 아직 없으면 오른쪽으로 둔다. 여기까지 왔다는 건 판정이 끝났다는 뜻이라
+   * 실제로는 도달하지 않지만, 타입을 좁히려면 값이 있어야 한다.
+   */
+  const position = config.position ?? remotePosition ?? "right";
+
   return (
-    <div class="root" data-position={config.position}>
+    <div class="root" data-position={position}>
       {open ? (
         <div class="panel" role="dialog" aria-label="챗봇 상담">
           <div class="head">

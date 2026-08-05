@@ -3,7 +3,14 @@ export interface WidgetConfig {
   /** pk_live_... 남의 사이트 소스에 노출돼도 무방하다. 서버가 Origin 을 검증한다. */
   key: string;
   apiBaseUrl: string;
-  position: "right" | "left";
+  /**
+   * 버블 위치. <b>미지정({@code undefined})이 의미를 갖는다</b> —
+   * 그때는 업체가 대시보드에서 정한 값을 쓴다.
+   *
+   * 호스트가 적으면 그 값이 이긴다. 호스트만 아는 사정이 있기 때문이다 —
+   * 다른 상담 위젯이 이미 한쪽 구석을 점유했는지는 대시보드가 알 수 없다.
+   */
+  position?: "right" | "left";
   /** 인사말을 자동으로 띄우기까지의 시간(ms). 0이면 띄우지 않는다. */
   nudgeDelayMs: number;
   debug: boolean;

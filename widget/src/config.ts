@@ -17,7 +17,6 @@ const DEFAULT_API_BASE_URL =
 
 const DEFAULTS = {
   apiBaseUrl: DEFAULT_API_BASE_URL,
-  position: "right",
   nudgeDelayMs: 15_000,
   debug: false,
 } as const;
@@ -42,7 +41,9 @@ export function readConfig(scope: Window = window): WidgetConfig | null {
   return {
     key: input.key.trim(),
     apiBaseUrl: input.apiBaseUrl ?? DEFAULTS.apiBaseUrl,
-    position: input.position === "left" ? "left" : DEFAULTS.position,
+    // 여기서 기본값을 채우지 않는다. **미지정을 미지정 그대로 남겨야**
+    // 업체가 대시보드에서 정한 위치를 쓸 수 있다.
+    position: input.position === "left" || input.position === "right" ? input.position : undefined,
     nudgeDelayMs:
       typeof input.nudgeDelayMs === "number" && input.nudgeDelayMs >= 0
         ? input.nudgeDelayMs
