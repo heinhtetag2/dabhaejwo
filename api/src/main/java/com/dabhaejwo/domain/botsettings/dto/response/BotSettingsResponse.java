@@ -21,7 +21,8 @@ public record BotSettingsResponse(
         WidgetPosition widgetPosition,
         PageScope pageScope,
         List<String> pagePatterns,
-        int nudgeDelaySeconds) {
+        int nudgeDelaySeconds,
+        boolean widgetEnabled) {
 
     public static BotSettingsResponse from(BotSettings settings) {
         return new BotSettingsResponse(
@@ -38,6 +39,7 @@ public record BotSettingsResponse(
                 settings.getWidgetPosition(),
                 settings.getPageScope(),
                 settings.getPagePatterns(),
-                settings.getNudgeDelaySeconds());
+                settings.getNudgeDelaySeconds(),
+                settings.isWidgetEnabled());
     }
 }

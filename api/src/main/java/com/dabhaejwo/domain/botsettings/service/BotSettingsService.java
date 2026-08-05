@@ -52,7 +52,8 @@ public class BotSettingsService {
         settings.editFallback(request.leadCaptureEnabled(), blankToNull(request.supportPhone()),
                 request.agentHandoffEnabled(), blankToNull(request.agentHours()));
         settings.editPlacement(request.widgetPosition(), request.pageScope(),
-                clean(request.pagePatterns()), request.nudgeDelaySeconds());
+                clean(request.pagePatterns()), request.nudgeDelaySeconds(),
+                request.widgetEnabled());
 
         return BotSettingsResponse.from(settings);
     }

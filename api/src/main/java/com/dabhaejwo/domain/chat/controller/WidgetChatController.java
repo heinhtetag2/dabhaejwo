@@ -6,6 +6,7 @@ import com.dabhaejwo.domain.chat.dto.request.FeedbackRequest;
 import com.dabhaejwo.domain.chat.dto.request.LeadRequest;
 import com.dabhaejwo.domain.chat.dto.request.SessionStartRequest;
 import com.dabhaejwo.domain.chat.dto.response.AnswerResponse;
+import com.dabhaejwo.domain.chat.dto.response.WidgetConfigResponse;
 import com.dabhaejwo.domain.chat.dto.response.WidgetSessionResponse;
 import com.dabhaejwo.domain.chat.service.WidgetChatService;
 import com.dabhaejwo.global.security.CurrentAuth;
@@ -13,7 +14,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,6 +43,17 @@ public class WidgetChatController {
 
     public WidgetChatController(WidgetChatService chatService) {
         this.chatService = chatService;
+    }
+
+    /**
+     * 위젯이 뜨기 전에 부르는 유일한 호출. <b>대화를 만들지 않는다.</b>
+     *
+     * <p>GET 인 이유 — 아무것도 바꾸지 않고, 프록시·브라우저가 캐시할 여지를 남겨 둔다.
+     * 위젯이 붙은 사이트의 <b>모든 페이지뷰</b>마다 한 번씩 오는 호출이다.
+     */
+    @GetMapping("/config")
+    public WidgetConfigResponse config(@RequestParam(required = false) String path) {
+        return chatService.config(tenantId(), path);
     }
 
     @PostMapping("/session")

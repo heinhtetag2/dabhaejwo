@@ -27,6 +27,8 @@ export interface BotSettings {
   pagePatterns: string[];
   /** 0 이면 자동으로 말 걸지 않는다. */
   nudgeDelaySeconds: number;
+  /** 끄면 방문자에게 위젯이 아예 뜨지 않는다. 오류를 그리지도 않는다. */
+  widgetEnabled: boolean;
 }
 
 const botSettingsSchema = z.object({
@@ -44,6 +46,7 @@ const botSettingsSchema = z.object({
   pageScope: z.enum(["ALL", "INCLUDE", "EXCLUDE"]),
   pagePatterns: z.array(z.string()),
   nudgeDelaySeconds: z.number(),
+  widgetEnabled: z.boolean(),
 });
 
 export const botSettingsKeys = {

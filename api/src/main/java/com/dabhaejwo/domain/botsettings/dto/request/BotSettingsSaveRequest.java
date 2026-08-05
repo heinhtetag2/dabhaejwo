@@ -18,6 +18,7 @@ import java.util.List;
  * @param brandColor        {@code #RRGGBB}. 위젯이 그대로 스타일에 넣으므로 형식을 서버에서 막는다 —
  *                          임의 문자열이 들어가면 남의 사이트에서 CSS 주입이 된다
  * @param nudgeDelaySeconds 0 이면 자동으로 말 걸지 않는다
+ * @param widgetEnabled     끄면 방문자에게 위젯이 아예 뜨지 않는다(오류를 그리지 않는다)
  */
 public record BotSettingsSaveRequest(
         @NotBlank @Size(max = 40) String botName,
@@ -34,5 +35,6 @@ public record BotSettingsSaveRequest(
         @NotNull WidgetPosition widgetPosition,
         @NotNull PageScope pageScope,
         List<@Size(max = 200) String> pagePatterns,
-        @Min(0) @Max(600) int nudgeDelaySeconds) {
+        @Min(0) @Max(600) int nudgeDelaySeconds,
+        boolean widgetEnabled) {
 }

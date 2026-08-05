@@ -1,11 +1,13 @@
 package com.dabhaejwo.domain.chat.service;
 
 import com.dabhaejwo.domain.botsettings.entity.BotSettings;
+import com.dabhaejwo.domain.botsettings.entity.PagePatternMatcher;
 import com.dabhaejwo.domain.botsettings.repository.BotSettingsRepository;
 import com.dabhaejwo.domain.chat.dto.request.AskRequest;
 import com.dabhaejwo.domain.chat.dto.request.FeedbackRequest;
 import com.dabhaejwo.domain.chat.dto.request.LeadRequest;
 import com.dabhaejwo.domain.chat.dto.response.AnswerResponse;
+import com.dabhaejwo.domain.chat.dto.response.WidgetConfigResponse;
 import com.dabhaejwo.domain.chat.dto.response.WidgetSessionResponse;
 import com.dabhaejwo.domain.conversation.entity.Conversation;
 import com.dabhaejwo.domain.conversation.entity.Message;
@@ -87,6 +89,32 @@ public class WidgetChatService {
         this.answerService = answerService;
         this.guard = guard;
         this.notificationEvents = notificationEvents;
+    }
+
+    /**
+     * 위젯이 뜨기 <b>전에</b> 묻는다. 버블을 띄울지만 정한다.
+     *
+     * <p><b>대화를 만들지 않는다.</b> 이걸 세션 시작에 얹었다면 페이지를 열기만 한 방문자가
+     * 전부 대화로 잡혀 통계가 오염되고 월 한도까지 깎였을 것이다.
+     *
+     * <p>노출 범위 판정도 여기서 한다 — 패턴 목록을 위젯에 내려주면 업체가 어떤 페이지를
+     * 감추고 싶어 하는지가 남의 사이트 소스에 드러난다. 위젯은 결론만 받는다.
+     *
+     * <p>정지·해지된 업체는 {@code activeTenant} 가 거절하므로 여기까지 오지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public WidgetConfigResponse config(UUID tenantId, String path) {
+        Tenant tenant = activeTenant(tenantId);
+        BotSettings settings = settings(tenantId, tenant.getName());
+
+        boolean visible = settings.isWidgetEnabled()
+                && PagePatternMatcher.matches(
+                        settings.getPageScope(), settings.getPagePatterns(), path);
+
+        return new WidgetConfigResponse(
+                visible,
+                settings.getWidgetPosition(),
+                settings.getNudgeDelaySeconds() * 1000);
     }
 
     /**

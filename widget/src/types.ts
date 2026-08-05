@@ -40,3 +40,15 @@ export interface AskResponse {
 export type Message =
   | { role: "visitor"; text: string }
   | { role: "bot"; text: string; saved: boolean; links: string[]; messageId: string | null };
+
+/**
+ * 서버가 정하는 노출 규칙. 위젯이 뜨기 전에 받는다.
+ *
+ * `enabled` 는 **결론만** 담는다 — 업체가 껐는지, 이 경로가 노출 범위 밖인지는
+ * 알려주지 않는다. 어떤 페이지를 감추고 싶어 하는지가 남의 사이트 소스에 드러나면 안 된다.
+ */
+export interface RemoteConfig {
+  enabled: boolean;
+  widgetPosition: "BOTTOM_RIGHT" | "BOTTOM_LEFT";
+  nudgeDelayMs: number;
+}

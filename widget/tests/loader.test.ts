@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readConfig } from "../src/config";
 import { mount } from "../src/loader";
@@ -9,10 +9,37 @@ import { mount } from "../src/loader";
  * Shadow Root 안에서 쿼리해 검증한다 — document 로 찾아진다면 격리가 깨진 것이므로
  * 그 자체가 실패 케이스다 (widget-embed-script.md).
  */
+/**
+ * 위젯은 뜨기 전에 서버에 "띄워도 되나"를 묻는다. 그 답이 오기 전에는 아무것도 그리지
+ * 않으므로, UI 를 보는 테스트는 응답을 흉내 내고 한 틱 기다려야 한다.
+ */
+function stubConfig(enabled: boolean) {
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ enabled, widgetPosition: "BOTTOM_RIGHT", nudgeDelayMs: 0 }),
+  }) as unknown as typeof fetch;
+}
+
+/**
+ * 마운트 직후의 fetch 프라미스가 처리되고 preact 가 다시 그릴 때까지.
+ * fetch → json() → setState → 렌더로 마이크로태스크가 여러 번 도므로 한 틱으로는 모자란다.
+ */
+const settle = async () => {
+  for (let i = 0; i < 5; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+};
+
 describe("loader", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     delete (window as unknown as Record<string, unknown>).dabhaejwo;
+    stubConfig(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("설정이 없으면 조용히 포기하고 DOM 을 건드리지 않는다", () => {
@@ -40,14 +67,40 @@ describe("loader", () => {
     expect(host!.shadowRoot).not.toBeNull();
   });
 
-  it("UI 는 Shadow Root 안에만 있고 document 로는 찾아지지 않는다", () => {
+  it("UI 는 Shadow Root 안에만 있고 document 로는 찾아지지 않는다", async () => {
     (window as unknown as Record<string, unknown>).dabhaejwo = { key: "pk_live_test" };
 
     const host = mount();
+    await settle();
 
     expect(host!.shadowRoot!.querySelector(".root")).not.toBeNull();
     // 격리가 깨졌다면 여기서 잡힌다
     expect(document.querySelector(".root")).toBeNull();
+  });
+
+  it("서버가 끄면 아무것도 그리지 않는다 — 오류 말풍선도 남기지 않는다", async () => {
+    // 끄기는 "정상 응답 + 안 보임"이어야 한다. 남의 사이트에 우리 오류를 그리면
+    // 업체 사이트가 고장 난 것처럼 보인다.
+    stubConfig(false);
+    (window as unknown as Record<string, unknown>).dabhaejwo = { key: "pk_live_test" };
+
+    const host = mount();
+    await settle();
+
+    expect(host).not.toBeNull();
+    expect(host!.shadowRoot!.querySelector(".root")).toBeNull();
+    expect(host!.shadowRoot!.querySelector(".bubble")).toBeNull();
+  });
+
+  it("설정 조회가 실패해도 조용히 사라진다", async () => {
+    // 키가 틀렸거나 등록되지 않은 주소다. 방문자에게 보일 이유가 없다.
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network")) as unknown as typeof fetch;
+    (window as unknown as Record<string, unknown>).dabhaejwo = { key: "pk_live_test" };
+
+    const host = mount();
+    await settle();
+
+    expect(host!.shadowRoot!.querySelector(".bubble")).toBeNull();
   });
 
   it("전역 스타일시트를 추가하지 않는다", () => {

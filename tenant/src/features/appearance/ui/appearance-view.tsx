@@ -69,6 +69,29 @@ export function AppearanceView() {
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
       <div>
+        {/*
+          노출 카드를 맨 앞에 둔다. 급히 챗봇을 내려야 하는 상황에서 스크롤을 내려가며
+          찾게 만들면 안 된다 — 학습이 덜 된 채로 공개됐거나 답변이 이상할 때 쓰는 스위치다.
+        */}
+        <Card className="mb-4">
+          <CardHeader title="노출" />
+          <CardBody className="space-y-3">
+            <Toggle
+              label="홈페이지에 챗봇 띄우기"
+              hint="끄면 방문자에게 챗봇이 보이지 않습니다. 홈페이지에 붙인 코드는 그대로 두셔도 됩니다."
+              checked={draft.widgetEnabled}
+              disabled={!editable}
+              onChange={(widgetEnabled) => patch({ widgetEnabled })}
+            />
+            {draft.widgetEnabled ? null : (
+              <Notice tone="warn">
+                지금은 방문자에게 챗봇이 보이지 않습니다. 설치 코드는 그대로 두셔도 됩니다 —
+                다시 켜면 바로 나타납니다.
+              </Notice>
+            )}
+          </CardBody>
+        </Card>
+
         <Card className="mb-4">
           <CardHeader title="모양" />
           <CardBody>

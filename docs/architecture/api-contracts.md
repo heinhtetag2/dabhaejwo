@@ -838,6 +838,7 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 인증은 `X-Dabhaejwo-Key` + `Origin`. 시크릿을 받지 않는다.
 
 ```
+GET  /api/widget/config?path=…  → { enabled, widgetPosition, nudgeDelayMs }
 POST /api/widget/session      { path }
                               → { sessionId, botName, greeting, brandColor, widgetPosition,
                                   leadCaptureEnabled, faqs: [ { id, question } ] }
@@ -847,6 +848,18 @@ POST /api/widget/faq/{id}     { sessionId } → { answered, saved, answer, links
 POST /api/widget/feedback     { messageId, helpful } → 204
 POST /api/widget/lead         { sessionId, name, contact, memo } → 201 { id }
 ```
+
+### 10-0. `config` — 위젯이 뜨기 전에 묻는 것
+
+**대화를 만들지 않는다.** 이것이 `session` 과 나눈 이유다 — 버블을 띄울지 판단하려고 매
+페이지뷰마다 대화를 만들면 "열어보지도 않은 방문"이 전부 통계에 잡히고 월 대화 한도까지 깎는다.
+그래서 이 응답에는 인사말·공통 질문이 없다. 그것들은 방문자가 패널을 열었을 때 온다.
+
+- `enabled` 는 **결론만** 담는다. 업체가 껐는지, 이 경로가 노출 범위 밖인지는 알려주지 않는다 — 어떤 페이지를 감추고 싶어 하는지가 남의 사이트 소스에 드러나면 안 된다
+- 노출 범위 판정은 **서버가** 한다(`PagePatternMatcher`). 패턴은 `*` 하나만 알고, 정규식 특수문자는 글자 그대로 본다. 쿼리·해시는 떼고 비교한다
+- `false` 면 위젯은 **아무것도 그리지 않는다.** 오류 말풍선도 남기지 않는다 — 끄기는 "정상 응답 + 안 보임"이어야 한다. 허용 주소를 지워 막던 우회로는 방문자에게 고장으로 보였다
+- 키가 틀리거나 등록되지 않은 주소면 403 이고, 이때도 위젯은 조용히 사라진다
+- 위젯이 붙은 사이트의 **모든 페이지뷰마다 한 번씩** 오는 호출이라 GET 이다
 
 `widgetPosition` 은 대시보드 API(`/api/app/bot-settings`)와 **같은 이름·같은 값**이다
 (`BOTTOM_RIGHT` · `BOTTOM_LEFT`). 같은 것을 두 이름으로 부르면 코드에서 계속 번역하게 된다.

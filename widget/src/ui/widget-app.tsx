@@ -8,6 +8,15 @@ import type { Faq, Message, WidgetConfig } from "../types";
  * DOM 부착은 loader.ts 의 책임이다.
  */
 export function WidgetApp({ config, path }: { config: WidgetConfig; path: string }) {
+  /**
+   * 서버가 "띄워도 되나"를 답해줄 때까지 아무것도 그리지 않는다.
+   *
+   * null 은 <b>아직 모른다</b>는 뜻이다. 이걸 false 와 뭉뚱그리면 판정이 오기 전 한 순간
+   * 버블이 떴다가 사라져 깜빡임으로 보이고, true 로 두면 업체가 꺼둔 사이트에도 잠깐 뜬다.
+   */
+  const [visible, setVisible] = useState<boolean | null>(null);
+  const [nudgeDelayMs, setNudgeDelayMs] = useState(config.nudgeDelayMs);
+
   const [open, setOpen] = useState(false);
   const [nudging, setNudging] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -28,10 +37,31 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (config.nudgeDelayMs === 0) return;
-    const timer = setTimeout(() => setNudging(true), config.nudgeDelayMs);
+    let cancelled = false;
+    void api
+      .fetchConfig(path)
+      .then((remote) => {
+        if (cancelled) return;
+        setVisible(remote.enabled);
+        // 서버 설정이 호스트 페이지의 값을 이긴다 — 업체가 콘솔에서 바꾸면
+        // 남의 사이트 코드를 고치지 않고도 반영돼야 한다.
+        setNudgeDelayMs(remote.nudgeDelayMs);
+      })
+      .catch(() => {
+        // 키가 틀렸거나 등록되지 않은 주소다. **조용히 사라진다** —
+        // 남의 사이트에 우리 오류를 그리지 않는다.
+        if (!cancelled) setVisible(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, path]);
+
+  useEffect(() => {
+    if (!visible || nudgeDelayMs === 0) return;
+    const timer = setTimeout(() => setNudging(true), nudgeDelayMs);
     return () => clearTimeout(timer);
-  }, [config.nudgeDelayMs]);
+  }, [visible, nudgeDelayMs]);
 
   useEffect(() => {
     if (!open || sessionId) return;
@@ -147,6 +177,16 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
         setMessages((prev) => [...prev, botMessage("연락처를 남기지 못했습니다. 잠시 후 다시 시도해 주세요.")]);
       })
       .finally(() => setBusy(false));
+  }
+
+  /*
+   * 업체가 껐거나, 이 페이지가 노출 범위 밖이거나, 아직 판정을 못 받았다.
+   *
+   * **아무것도 그리지 않는다.** 끄기는 "정상 응답 + 안 보임"이어야 한다 — 오류 말풍선을
+   * 남기면 업체 사이트가 고장 난 것처럼 보인다(허용 주소를 지워 막던 우회로가 그랬다).
+   */
+  if (!visible) {
+    return null;
   }
 
   return (

@@ -75,6 +75,16 @@ public class BotSettings {
     @Column(name = "nudge_delay_seconds", nullable = false)
     private int nudgeDelaySeconds;
 
+    /**
+     * 방문자에게 위젯을 띄울지.
+     *
+     * <p>끄면 위젯이 <b>마운트 자체를 포기한다</b> — 오류를 그리지 않는다. 허용 주소를 지워
+     * 막던 우회로와 다른 점이 이것이다. 그쪽은 방문자에게 "답변을 드리기 어렵습니다"가 떠서
+     * 꺼진 게 아니라 고장 난 것처럼 보인다.
+     */
+    @Column(name = "widget_enabled", nullable = false)
+    private boolean widgetEnabled;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
@@ -92,6 +102,7 @@ public class BotSettings {
         settings.fallbackMessage = "제가 확인하기 어려운 내용이네요. 상담원에게 연결해 드릴까요?";
         settings.leadCaptureEnabled = true;
         settings.agentHandoffEnabled = false;
+        settings.widgetEnabled = true;
         settings.widgetPosition = WidgetPosition.BOTTOM_RIGHT;
         settings.pageScope = PageScope.ALL;
         settings.nudgeDelaySeconds = 15;
@@ -127,10 +138,12 @@ public class BotSettings {
     public void editPlacement(WidgetPosition position,
                               PageScope scope,
                               List<String> patterns,
-                              int nudgeDelaySeconds) {
+                              int nudgeDelaySeconds,
+                              boolean widgetEnabled) {
         if (nudgeDelaySeconds < 0) {
             throw new IllegalArgumentException("nudgeDelaySeconds must be >= 0");
         }
+        this.widgetEnabled = widgetEnabled;
         this.widgetPosition = position;
         this.pageScope = scope;
         this.pagePatterns = patterns == null ? new ArrayList<>() : new ArrayList<>(patterns);
@@ -200,5 +213,9 @@ public class BotSettings {
 
     public int getNudgeDelaySeconds() {
         return nudgeDelaySeconds;
+    }
+
+    public boolean isWidgetEnabled() {
+        return widgetEnabled;
     }
 }

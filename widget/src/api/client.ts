@@ -1,4 +1,4 @@
-import type { AskResponse, SessionResponse, WidgetConfig } from "../types";
+import type { AskResponse, RemoteConfig, SessionResponse, WidgetConfig } from "../types";
 
 const KEY_HEADER = "X-Dabhaejwo-Key";
 
@@ -8,6 +8,16 @@ const KEY_HEADER = "X-Dabhaejwo-Key";
  */
 export class WidgetApi {
   constructor(private readonly config: WidgetConfig) {}
+
+  /**
+   * 위젯이 뜨기 전에 묻는다. <b>대화를 만들지 않는다</b> — 페이지를 열기만 한 방문자가
+   * 대화로 잡히면 업체 통계가 오염되고 월 한도까지 깎인다.
+   */
+  fetchConfig(path: string): Promise<RemoteConfig> {
+    const url = new URL("/api/widget/config", this.config.apiBaseUrl);
+    url.searchParams.set("path", path);
+    return this.get<RemoteConfig>(url);
+  }
 
   /**
    * @param path 방문자가 있던 페이지. 업체가 "어느 페이지에서 물었나"를 보고 그 페이지를 고친다.
@@ -31,6 +41,16 @@ export class WidgetApi {
 
   submitLead(sessionId: string, name: string, contact: string): Promise<void> {
     return this.post<void>("/api/widget/lead", { sessionId, name, contact });
+  }
+
+  private async get<T>(url: URL): Promise<T> {
+    const response = await fetch(url, {
+      headers: { [KEY_HEADER]: this.config.key },
+    });
+    if (!response.ok) {
+      throw new WidgetApiError(response.status);
+    }
+    return (await response.json()) as T;
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {
