@@ -23,6 +23,12 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
    * 아무것도 그리지 않으므로 위치가 바뀌며 튀는 일은 없다.
    */
   const [remotePosition, setRemotePosition] = useState<"left" | "right" | null>(null);
+  /**
+   * 업체가 정한 버블 색. 스타일에 그대로 들어가는 값이라 <b>형식이 맞을 때만</b> 쓴다 —
+   * 서버가 저장할 때 막고 있지만, 여기서도 보는 이유는 이 값이 남의 사이트의
+   * style 속성으로 들어가기 때문이다. 한 겹으로 막는 걸 믿지 않는다.
+   */
+  const [brandColor, setBrandColor] = useState<string | null>(null);
 
   const [open, setOpen] = useState(false);
   const [nudging, setNudging] = useState(false);
@@ -55,6 +61,7 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
         setNudgeDelayMs(remote.nudgeDelayMs);
         // 위치는 반대다. 호스트가 적었으면 그쪽을 존중한다(아래 position 참조).
         setRemotePosition(remote.widgetPosition === "BOTTOM_LEFT" ? "left" : "right");
+        setBrandColor(HEX_COLOR.test(remote.brandColor) ? remote.brandColor : null);
       })
       .catch(() => {
         // 키가 틀렸거나 등록되지 않은 주소다. **조용히 사라진다** —
@@ -210,8 +217,14 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
    */
   const position = config.position ?? remotePosition ?? "right";
 
+  /*
+   * 색은 CSS 변수 하나만 덮는다. 개별 규칙을 인라인으로 넣으면 스타일시트와 두 벌이 되고,
+   * 어느 쪽이 이기는지가 규칙마다 달라진다.
+   */
+  const rootStyle = brandColor ? { "--dw-brand": brandColor } : undefined;
+
   return (
-    <div class="root" data-position={position}>
+    <div class="root" data-position={position} style={rootStyle}>
       {open ? (
         <div class="panel" role="dialog" aria-label="챗봇 상담">
           <div class="head">
@@ -330,18 +343,39 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
   );
 }
 
+/** `#RRGGBB` 만 통과시킨다. 서버가 이미 막지만 여기가 남의 사이트에 값을 넣는 지점이다. */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
 function botMessage(text: string): Message {
   return { role: "bot", text, saved: false, links: [], messageId: null };
 }
 
+/**
+ * 방문자에게 보일 문구.
+ *
+ * <p><b>사유마다 다르게 말한다.</b> 전부 한 문구로 뭉치면 방문자는 "기다리면 되는 것"과
+ * "기다려도 안 되는 것"을 구분할 수 없고, 업체는 로그를 열기 전까지 원인을 모른다.
+ *
+ * <p>다만 <b>우리 쪽 사정은 드러내지 않는다</b> — 공급사 이름이나 설정 상태를 남의 사이트
+ * 방문자에게 알릴 이유가 없다. 구분은 "다시 오면 되는가"를 기준으로만 한다.
+ */
 function errorText(error: unknown): string {
-  if (error instanceof WidgetApiError) {
-    if (error.costCapped) {
-      return "오늘은 상담이 어렵습니다. 잠시 후 다시 시도해 주세요.";
-    }
-    if (error.rateLimited) {
-      return "질문이 너무 빠릅니다. 잠시 후 다시 시도해 주세요.";
-    }
+  if (!(error instanceof WidgetApiError)) {
+    return "지금은 답변을 드리기 어렵습니다.";
   }
-  return "지금은 답변을 드리기 어렵습니다.";
+  switch (error.code) {
+    case "RATE_LIMITED":
+      return "질문이 너무 빠릅니다. 잠시 후 다시 물어봐 주세요.";
+    case "COST_CAP_REACHED":
+    case "QUOTA_EXCEEDED":
+      // 오늘·이번 달은 안 된다. 잠시 뒤에 다시 오라고 하면 헛걸음이다.
+      return "지금은 상담을 이용할 수 없습니다. 문의는 담당자에게 남겨 주세요.";
+    case "LLM_RESPONSE_BLOCKED":
+      return "이 질문에는 답변을 드리기 어렵습니다. 다르게 물어봐 주시겠어요?";
+    case "TENANT_INACTIVE":
+      return "현재 상담을 이용할 수 없습니다.";
+    default:
+      // 공급사 미설정·호출 실패 등 우리 쪽 문제. 방문자에게는 일시적 오류로만 말한다.
+      return "일시적인 문제로 답변하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  }
 }

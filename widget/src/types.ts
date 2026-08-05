@@ -57,5 +57,7 @@ export type Message =
 export interface RemoteConfig {
   enabled: boolean;
   widgetPosition: "BOTTOM_RIGHT" | "BOTTOM_LEFT";
+  /** `#RRGGBB`. 스타일에 그대로 들어가므로 쓰기 전에 형식을 한 번 더 본다. */
+  brandColor: string;
   nudgeDelayMs: number;
 }

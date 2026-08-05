@@ -48,7 +48,7 @@ export class WidgetApi {
       headers: { [KEY_HEADER]: this.config.key },
     });
     if (!response.ok) {
-      throw new WidgetApiError(response.status);
+      throw await widgetError(response);
     }
     return (await response.json()) as T;
   }
@@ -64,7 +64,7 @@ export class WidgetApi {
     });
 
     if (!response.ok) {
-      throw new WidgetApiError(response.status);
+      throw await widgetError(response);
     }
 
     if (response.status === 204) {
@@ -74,18 +74,32 @@ export class WidgetApi {
   }
 }
 
+/**
+ * 서버가 주는 {@code code} 를 함께 담는다.
+ *
+ * <p>처음엔 status 만 봤는데, <b>503 하나에 원인이 일곱 가지</b>였다(원가 상한·공급사 미설정·
+ * 공급사 호출 실패·안전 정책 차단·자격증명 복호화 실패…). 전부 "오늘은 상담이 어렵습니다"로
+ * 나가니 방문자는 한도가 찬 줄 알고, 업체는 로그를 열기 전까지 원인을 모른다.
+ */
+async function widgetError(response: Response): Promise<WidgetApiError> {
+  let code = "UNKNOWN";
+  try {
+    const body = (await response.json()) as { code?: string };
+    if (typeof body?.code === "string") {
+      code = body.code;
+    }
+  } catch {
+    // 본문이 JSON 이 아니다(프록시가 만든 502 등). status 만으로 판단한다.
+  }
+  return new WidgetApiError(response.status, code);
+}
+
 export class WidgetApiError extends Error {
-  constructor(readonly status: number) {
-    super(`widget api ${status}`);
+  constructor(
+    readonly status: number,
+    readonly code: string = "UNKNOWN",
+  ) {
+    super(`widget api ${status} ${code}`);
     this.name = "WidgetApiError";
-  }
-
-  /** 일일 원가 상한 도달. 챗봇은 안내 메시지만 띄우고 멈춘다. */
-  get costCapped(): boolean {
-    return this.status === 503;
-  }
-
-  get rateLimited(): boolean {
-    return this.status === 429;
   }
 }

@@ -88,7 +88,7 @@ export function FaqView() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_336px]">
-      <div>
+      <div className="min-w-0">
         <Card className="mb-4">
           <CardBody className="text-[13px] leading-relaxed text-slate">
             채팅창을 열면 여기 등록한 질문이 버튼으로 보입니다. 방문자가 버튼을 누르면{" "}

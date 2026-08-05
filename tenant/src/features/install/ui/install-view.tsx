@@ -93,7 +93,8 @@ export function InstallView() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <div>
+      {/* min-w-0 — 코드 블록의 긴 줄이 이 열을 벌려 오른쪽 칸을 화면 밖으로 밀어냈다. */}
+      <div className="min-w-0">
         <Card className="mb-4">
           <CardHeader
             title="홈페이지에 붙일 코드"
@@ -113,7 +114,7 @@ export function InstallView() {
             </p>
 
             <div className="relative">
-              <pre className="overflow-x-auto rounded-lg bg-ink px-4 py-3.5 font-mono text-[12px] leading-relaxed text-[#c9d4dc]">
+              <pre className="overflow-x-auto rounded-lg bg-ink px-4 py-3.5 font-mono text-[12px] leading-relaxed text-code">
                 {snippet}
               </pre>
               <Button

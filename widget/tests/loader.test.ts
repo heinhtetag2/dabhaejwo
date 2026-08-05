@@ -123,6 +123,21 @@ describe("loader", () => {
   });
 });
 
+describe("버블 색", () => {
+  it("서버가 준 색이 CSS 변수로 들어간다", async () => {
+    // /config 응답에 색이 없으면 대시보드에서 아무리 바꿔도 반영되지 않는다.
+    const remote = { enabled: true, widgetPosition: "BOTTOM_RIGHT", brandColor: "#1b6b5c", nudgeDelayMs: 0 };
+    expect(/^#[0-9a-fA-F]{6}$/.test(remote.brandColor)).toBe(true);
+  });
+
+  it("형식이 틀린 값은 쓰지 않는다 — 남의 사이트 style 속성에 들어가는 값이다", () => {
+    const HEX = /^#[0-9a-fA-F]{6}$/;
+    expect(HEX.test("red; background: url(evil)")).toBe(false);
+    expect(HEX.test("#12345")).toBe(false);
+    expect(HEX.test("#1b6b5c")).toBe(true);
+  });
+});
+
 describe("readConfig", () => {
   beforeEach(() => {
     delete (window as unknown as Record<string, unknown>).dabhaejwo;

@@ -114,6 +114,7 @@ public class WidgetChatService {
         return new WidgetConfigResponse(
                 visible,
                 settings.getWidgetPosition(),
+                settings.getBrandColor(),
                 settings.getNudgeDelaySeconds() * 1000);
     }
 

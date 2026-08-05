@@ -3,6 +3,7 @@ package com.dabhaejwo.global.security;
 import com.dabhaejwo.domain.tenant.entity.Tenant;
 import com.dabhaejwo.domain.tenant.repository.AllowedOriginRepository;
 import com.dabhaejwo.domain.tenant.repository.TenantRepository;
+import com.dabhaejwo.domain.tenant.service.OriginCallRecorder;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.exception.ErrorResponse;
 import jakarta.servlet.FilterChain;
@@ -31,13 +32,16 @@ public class WidgetKeyAuthFilter extends OncePerRequestFilter {
 
     private final TenantRepository tenantRepository;
     private final AllowedOriginRepository allowedOriginRepository;
+    private final OriginCallRecorder callRecorder;
     private final ObjectMapper objectMapper;
 
     public WidgetKeyAuthFilter(TenantRepository tenantRepository,
                                AllowedOriginRepository allowedOriginRepository,
+                               OriginCallRecorder callRecorder,
                                ObjectMapper objectMapper) {
         this.tenantRepository = tenantRepository;
         this.allowedOriginRepository = allowedOriginRepository;
+        this.callRecorder = callRecorder;
         this.objectMapper = objectMapper;
     }
 
@@ -66,6 +70,10 @@ public class WidgetKeyAuthFilter extends OncePerRequestFilter {
             writeError(response, ErrorCode.ORIGIN_NOT_ALLOWED);
             return;
         }
+
+        // 여기까지 왔다는 건 키와 주소가 모두 맞았다는 뜻이다 — 설치가 됐다는 신호다.
+        // 이걸 안 남기면 업체는 붙였는지 아닌지를 설치 화면에서 확인할 수 없다.
+        callRecorder.record(tenant.getId(), origin);
 
         SecurityContextHolder.getContext().setAuthentication(
                 PrincipalAuthentication.of(new AuthPrincipal.Visitor(tenant.getId(), origin)));

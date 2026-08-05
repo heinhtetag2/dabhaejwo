@@ -68,7 +68,7 @@ export function AppearanceView() {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
-      <div>
+      <div className="min-w-0">
         {/*
           노출 카드를 맨 앞에 둔다. 급히 챗봇을 내려야 하는 상황에서 스크롤을 내려가며
           찾게 만들면 안 된다 — 학습이 덜 된 채로 공개됐거나 답변이 이상할 때 쓰는 스위치다.

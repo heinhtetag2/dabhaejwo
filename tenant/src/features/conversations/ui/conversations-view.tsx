@@ -35,6 +35,7 @@ export function ConversationsView() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      {/* 두 번째 열도 min-w-0 이 필요하다 — 긴 메시지가 열을 벌린다 */}
       <Card className="self-start">
         <CardHeader
           title={
@@ -128,7 +129,7 @@ export function ConversationsView() {
         )}
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         {effectiveId === null ? (
           <EmptyState message="왼쪽에서 대화를 고르세요." />
         ) : detail.isPending ? (

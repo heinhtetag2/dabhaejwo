@@ -14,10 +14,14 @@ import com.dabhaejwo.domain.botsettings.entity.WidgetPosition;
  * @param enabled        띄울지 말지의 <b>최종 결론</b>. 업체가 껐거나, 이 경로가 노출 범위
  *                       밖이면 false 다. 위젯은 이유를 알 필요가 없고 알아서도 안 된다 —
  *                       어떤 페이지를 감추고 싶어 하는지가 남의 사이트 소스에 드러난다
+ * @param brandColor     버블·버튼 색({@code #RRGGBB}). <b>여기서 줘야 한다</b> —
+ *                       버블은 패널을 열기 전에 그려지므로 세션 응답으로는 늦다.
+ *                       저장할 때 형식을 막아 두었다({@code BotSettingsSaveRequest})
  * @param nudgeDelayMs   자동으로 말 거는 시점. 0 이면 말 걸지 않는다
  */
 public record WidgetConfigResponse(
         boolean enabled,
         WidgetPosition widgetPosition,
+        String brandColor,
         int nudgeDelayMs) {
 }
