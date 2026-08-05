@@ -1,5 +1,6 @@
 package com.dabhaejwo.global.security;
 
+import com.dabhaejwo.domain.auth.entity.AuthScope;
 import com.dabhaejwo.global.config.AppProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,7 +36,17 @@ import java.util.Optional;
 @Component
 public class RefreshTokenCookie {
 
-    public static final String NAME = "dabhaejwo_refresh";
+    /**
+     * <b>주체별로 이름이 다르다.</b>
+     *
+     * <p>운영 콘솔과 업체 대시보드는 같은 API 호스트를 보므로 이름이 하나면 쿠키가 하나뿐이다 —
+     * 한 브라우저에서 둘 다 로그인하면 <b>나중 로그인이 앞의 세션을 덮어쓴다.</b> 운영자가
+     * 업체 대시보드를 한 번 열어보는 것만으로 운영 콘솔 세션이 날아간다.
+     *
+     * <p>권한이 새는 것은 아니다(토큰 안의 scope 가 진실이다). 다만 로그인이 조용히 풀리는데
+     * 이유를 알 수 없어 "가끔 로그아웃된다"로만 겪게 된다.
+     */
+    private static final String NAME_PREFIX = "dabhaejwo_refresh_";
 
     /** 재발급과 로그아웃에만 필요하다. 다른 요청에는 실리지 않는다. */
     private static final String PATH = "/api/auth";
@@ -46,9 +57,13 @@ public class RefreshTokenCookie {
         this.auth = properties.auth();
     }
 
+    public static String nameOf(AuthScope scope) {
+        return NAME_PREFIX + scope.name().toLowerCase();
+    }
+
     /** 로그인·가입·재발급 성공 시. 수명은 리프레시 토큰 자체의 만료와 같게 맞춘다. */
-    public void issue(HttpServletResponse response, String refreshToken) {
-        response.addHeader("Set-Cookie", build(refreshToken,
+    public void issue(HttpServletResponse response, AuthScope scope, String refreshToken) {
+        response.addHeader("Set-Cookie", build(scope, refreshToken,
                 Duration.ofDays(auth.refreshTtlDays())).toString());
     }
 
@@ -58,25 +73,26 @@ public class RefreshTokenCookie {
      * <p>지우지 않으면 화면에서 로그아웃해도 새로고침 한 번에 <b>다시 로그인된 상태로 돌아온다</b> —
      * 쿠키가 살아 있으니 부트스트랩이 조용히 재발급을 받아낸다. 공용 PC 에서는 사고다.
      */
-    public void clear(HttpServletResponse response) {
-        response.addHeader("Set-Cookie", build("", Duration.ZERO).toString());
+    public void clear(HttpServletResponse response, AuthScope scope) {
+        response.addHeader("Set-Cookie", build(scope, "", Duration.ZERO).toString());
     }
 
     /** 요청에 실려 온 리프레시 토큰. 없으면 비어 있다. */
-    public Optional<String> read(HttpServletRequest request) {
+    public Optional<String> read(HttpServletRequest request, AuthScope scope) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
             return Optional.empty();
         }
+        String name = nameOf(scope);
         return Arrays.stream(cookies)
-                .filter(cookie -> NAME.equals(cookie.getName()))
+                .filter(cookie -> name.equals(cookie.getName()))
                 .map(Cookie::getValue)
                 .filter(value -> value != null && !value.isBlank())
                 .findFirst();
     }
 
-    private ResponseCookie build(String value, Duration maxAge) {
-        return ResponseCookie.from(NAME, value)
+    private ResponseCookie build(AuthScope scope, String value, Duration maxAge) {
+        return ResponseCookie.from(nameOf(scope), value)
                 // 자바스크립트가 못 읽는다 — XSS 로도 값을 빼갈 수 없다.
                 .httpOnly(true)
                 .secure(auth.cookieSecure())

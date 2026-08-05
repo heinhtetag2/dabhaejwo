@@ -68,7 +68,9 @@ POST /api/auth/ops/login/otp  { challengeId, code }    → { accessToken, refres
 POST /api/auth/app/login      { email, password }      → { challengeId, maskedEmail, ttlMinutes }
 POST /api/auth/app/login/otp  { challengeId, code }    → { accessToken, refreshToken, member }
 POST /api/auth/app/signup     → { accessToken, refreshToken, member: {...} }
-POST /api/auth/refresh        → { accessToken }
+POST /api/auth/refresh?scope={APP|OPS}  → { accessToken }     본문 없이 쿠키만으로 동작
+POST /api/auth/logout?scope={APP|OPS}   → 204                  리프레시 쿠키를 지운다
+GET  /api/ops/me              → Operator                        새로고침 뒤 "내가 누구인지"
 
 POST /api/auth/{app|ops}/password/forgot  { email }                              → 204
 POST /api/auth/{app|ops}/password/reset   { email, temporaryPassword, newPassword } → 204
@@ -108,6 +110,24 @@ GET  /api/public/plans        → [ PublicPlan ]
 | 초대 링크 | 32바이트 난수. **원문은 메일에만** 있고 DB 에는 SHA-256 해시만 남는다 |
 | 초대 유효기간 | 7일, **한 번만** 쓸 수 있다. 다시 보내면 이전 링크는 무효 |
 | 이미 수락한 팀원 재발송 | 거부(400). 허용하면 소유자가 남의 계정을 가로챌 수 있는 통로가 된다 |
+
+### 0-6. 세션 유지 — 리프레시 토큰은 httpOnly 쿠키다
+
+액세스 토큰은 **메모리에만** 둔다(`localStorage` 금지). 그러면 새로고침할 때마다
+로그아웃되므로, 리프레시 토큰만 브라우저가 들고 있되 **자바스크립트가 못 읽는 곳**에 둔다.
+
+| 항목 | 값 |
+|---|---|
+| 이름 | `dabhaejwo_refresh_app` · `dabhaejwo_refresh_ops` |
+| 속성 | `HttpOnly` · `SameSite=Lax` · `Secure`(운영) · `Path=/api/auth` |
+| 수명 | 리프레시 토큰과 같음(14일). 재발급할 때마다 갱신된다 |
+
+- **주체별로 이름이 다르다.** 두 콘솔이 같은 API 호스트를 보므로 이름이 하나면 한 브라우저에서 둘 다 로그인했을 때 나중 로그인이 앞의 세션을 덮어쓴다 — 운영자가 업체 대시보드를 한 번 열어보는 것만으로 콘솔 세션이 날아간다
+- **`Path=/api/auth`.** 재발급·로그아웃 말고는 필요 없다. `/` 로 두면 모든 API 호출에 리프레시 토큰이 따라붙어 로그·프록시에 남을 자리만 늘어난다
+- **`scope` 는 어느 쿠키를 꺼낼지만 고른다.** 권한은 쿠키 안 토큰의 `scope` 가 정한다 — `scope=OPS` 로 요청해도 ops 쿠키가 없으면 401 이고, 있다면 그것을 만든 것은 실제 운영자 로그인이다
+- **CORS `allowCredentials: true`** 가 필요하고, 그래서 허용 출처에 와일드카드를 쓸 수 없다. 클라이언트도 `credentials: "include"` 여야 한다 — **둘 중 하나만 켜면 조용히 실패한다**
+- 액세스 토큰이 만료되면(30분) 클라이언트가 **한 번만** 조용히 재발급받아 원래 요청을 재시도한다. 없으면 세션이 화면 한복판에서 끊긴다
+- **로그아웃은 서버를 반드시 부른다.** 쿠키는 자바스크립트가 지울 수 없어, 메모리만 비우면 새로고침 한 번에 다시 로그인된 상태로 돌아온다
 
 `/api/auth/refresh` 는 **하나뿐이다.** 리프레시 토큰의 `scope`(`ops` | `app`)를 서버가 읽어
 원래 주체 종류로만 액세스 토큰을 다시 만든다. 운영자 리프레시 토큰으로 업체 액세스 토큰을

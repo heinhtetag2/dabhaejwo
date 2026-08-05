@@ -58,6 +58,9 @@ sudo certbot --apache
 
 ## 3. GitLab CI/CD Variables
 
+> **전체 목록과 "없으면 무슨 일이 나는지"는 [`ci-variables.md`](ci-variables.md) 에 있다.**
+> 서버를 준비할 때는 그쪽을 체크리스트로 쓴다. 아래는 요약이다.
+
 Settings → CI/CD → Variables. **Masked + Protected** 권장.
 
 ### 없으면 기동에 실패하는 것

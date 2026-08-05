@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { ROUTES } from "@/shared/config/routes";
-import { useAuthStore } from "@/shared/lib/auth-store";
+
+import { useSessionRestore } from "./use-session-restore";
 
 /**
  * 인증 가드.
@@ -13,20 +14,29 @@ import { useAuthStore } from "@/shared/lib/auth-store";
  * `@RequirePermission` 으로 다시 검증한다. 여기서 하는 일은 토큰이 없는 사람에게
  * 빈 화면 대신 로그인을 보여주는 것뿐이다.
  *
- * 토큰을 메모리에만 두므로 새로고침하면 로그인으로 돌아온다 — 지속 세션은
- * 서버가 리프레시 토큰을 httpOnly 쿠키로 내려줘야 안전해진다 (docs/IMPROVEMENTS.md).
+ * 상태가 셋인 이유 — 새로고침 직후에는 메모리가 비어 있어도 리프레시 쿠키로
+ * **세션이 되살아날 수 있다.** "토큰 없음 = 로그아웃"으로 단정하면 복원해 보기도 전에
+ * 로그인으로 튕긴다(실제로 그랬다). 판정이 끝날 때까지 기다린다.
  */
 export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const accessToken = useAuthStore((state) => state.accessToken);
+  const status = useSessionRestore();
 
   useEffect(() => {
-    if (!accessToken) {
+    if (status === "anonymous") {
       router.replace(ROUTES.login);
     }
-  }, [accessToken, router]);
+  }, [status, router]);
 
-  if (!accessToken) {
+  if (status === "unknown") {
+    return (
+      <div className="flex min-h-dvh items-center justify-center text-[13px] text-slate-2">
+        세션을 확인하는 중…
+      </div>
+    );
+  }
+
+  if (status === "anonymous") {
     // 리다이렉트가 끝나기 전 한 프레임 동안 보호 화면이 그려지지 않게 막는다.
     return null;
   }

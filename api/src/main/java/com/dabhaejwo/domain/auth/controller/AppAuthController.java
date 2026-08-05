@@ -80,7 +80,7 @@ public class AppAuthController {
     public AppLoginResponse verifyOtp(@Valid @RequestBody OtpVerifyRequest request,
                                       HttpServletResponse response) {
         AppLoginResponse login = appAuthService.verifyOtp(request);
-        refreshCookie.issue(response, login.refreshToken());
+        refreshCookie.issue(response, AuthScope.APP, login.refreshToken());
         return login;
     }
 
@@ -129,7 +129,7 @@ public class AppAuthController {
                     "가입 시도가 너무 잦습니다. 잠시 후 다시 시도해 주세요");
         }
         AppLoginResponse login = signupService.signup(request);
-        refreshCookie.issue(response, login.refreshToken());
+        refreshCookie.issue(response, AuthScope.APP, login.refreshToken());
         return login;
     }
 

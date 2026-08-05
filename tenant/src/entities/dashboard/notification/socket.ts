@@ -15,6 +15,9 @@ import type { AppNotification } from "./types";
 /** 끊겼을 때 다시 붙기까지. 늘려가며 시도해 서버가 죽어 있을 때 두드리지 않는다. */
 const RETRY_MS = [1_000, 3_000, 10_000, 30_000] as const;
 
+/** 서버가 첫 프레임 인증을 거절할 때 쓰는 종료 코드(CloseStatus.NOT_ACCEPTABLE). */
+const AUTH_REJECTED = 1003;
+
 function socketUrl(): string {
   const base = new URL("/ws/notifications", env.apiBaseUrl);
   base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
@@ -63,7 +66,9 @@ export function useNotificationSocket(onArrive?: (notification: AppNotification)
       }
 
       socket.onopen = () => {
-        attempt = 0;
+        // **여기서 attempt 를 되돌리지 않는다.** 핸드셰이크는 토큰이 틀려도 성공한다
+        // (인증은 그다음 프레임에서 한다). 열렸다고 성공으로 세면 백오프가 영원히
+        // 1초에 머물러 서버를 2초마다 두드리게 된다 — 실제로 그렇게 났다.
         socket?.send(JSON.stringify({ type: "AUTH", token: accessToken }));
       };
 
@@ -72,6 +77,11 @@ export function useNotificationSocket(onArrive?: (notification: AppNotification)
         try {
           frame = JSON.parse(String(event.data)) as typeof frame;
         } catch {
+          return;
+        }
+        // 인증까지 통과한 이 시점이 진짜 성공이다. 다음 끊김은 처음부터 다시 센다.
+        if (frame.type === "READY") {
+          attempt = 0;
           return;
         }
         if (frame.type !== "NOTIFICATION" || !frame.notification) {
@@ -83,8 +93,16 @@ export function useNotificationSocket(onArrive?: (notification: AppNotification)
         arriveRef.current?.(frame.notification);
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (closed) return;
+
+        // 서버가 인증을 거절했다(1003). 같은 토큰으로 다시 붙어도 결과가 같으므로
+        // **재시도하지 않는다.** 토큰이 새로 발급되면 effect 가 다시 돌며 연결한다.
+        // 이 분기가 없으면 만료된 토큰을 든 탭이 서버를 무한히 두드린다.
+        if (event.code === AUTH_REJECTED) {
+          return;
+        }
+
         const delay = RETRY_MS[Math.min(attempt, RETRY_MS.length - 1)];
         attempt += 1;
         retryTimer = setTimeout(connect, delay);

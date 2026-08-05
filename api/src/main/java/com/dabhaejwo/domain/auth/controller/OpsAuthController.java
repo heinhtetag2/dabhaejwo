@@ -23,6 +23,7 @@ import com.dabhaejwo.global.exception.ErrorCode;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,7 +64,7 @@ public class OpsAuthController {
     public OpsLoginResponse verifyOtp(@Valid @RequestBody OtpVerifyRequest request,
                                       HttpServletResponse response) {
         OpsLoginResponse login = opsAuthService.verifyOtp(request);
-        refreshCookie.issue(response, login.refreshToken());
+        refreshCookie.issue(response, AuthScope.OPS, login.refreshToken());
         return login;
     }
 
@@ -90,18 +91,21 @@ public class OpsAuthController {
      * 14일째에 갑자기 로그아웃된다.
      */
     @PostMapping("/refresh")
-    public TokenResponse refresh(@RequestBody(required = false) RefreshRequest request,
+    public TokenResponse refresh(@RequestParam(defaultValue = "APP") AuthScope scope,
+                                 @RequestBody(required = false) RefreshRequest request,
                                  HttpServletRequest http,
                                  HttpServletResponse response) {
-        String token = refreshCookie.read(http)
-                .filter(value -> !value.isBlank())
+        String token = refreshCookie.read(http, scope)
                 .orElseGet(() -> request == null ? null : request.refreshToken());
         if (token == null || token.isBlank()) {
             throw new BusinessException(ErrorCode.UNAUTHENTICATED);
         }
 
+        // 권한은 여기서 정해지지 않는다 — 토큰 안의 scope 가 정한다. `scope` 는 **어느 쿠키를
+        // 꺼낼지**만 고른다. ops 를 달라고 해도 ops 쿠키가 없으면 401 이고, 있다 해도
+        // 그 쿠키를 만든 것은 실제 운영자 로그인이다.
         TokenResponse refreshed = tokenRefreshService.refresh(token);
-        refreshCookie.issue(response, token);
+        refreshCookie.issue(response, scope, token);
         return refreshed;
     }
 
@@ -116,7 +120,8 @@ public class OpsAuthController {
      */
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletResponse response) {
-        refreshCookie.clear(response);
+    public void logout(@RequestParam(defaultValue = "APP") AuthScope scope,
+                       HttpServletResponse response) {
+        refreshCookie.clear(response, scope);
     }
 }

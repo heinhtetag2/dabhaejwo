@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { LogoutButton } from "@/features/auth/logout";
 import { Eyebrow } from "@/shared/common/card";
 import { NAV_GROUPS } from "@/shared/config/routes";
 import { can, useAuthStore } from "@/shared/lib/auth-store";
@@ -71,11 +72,14 @@ export function OpsSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-white/8 p-3 text-xs text-[#8fa3b0]">
-        <b className="block text-[12.5px] font-medium text-white">
-          {operator?.name ?? "—"}
-        </b>
-        {operator ? ROLE_LABEL[operator.role] : "로그인이 필요합니다"}
+      <div className="flex items-center gap-2 border-t border-white/8 p-3 text-xs text-[#8fa3b0]">
+        <div className="min-w-0 flex-1">
+          <b className="block truncate text-[12.5px] font-medium text-white">
+            {operator?.name ?? "—"}
+          </b>
+          {operator ? ROLE_LABEL[operator.role] : "로그인이 필요합니다"}
+        </div>
+        <LogoutButton className="shrink-0" />
       </div>
     </aside>
   );

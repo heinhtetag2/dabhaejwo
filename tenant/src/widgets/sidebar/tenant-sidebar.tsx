@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAppContextQuery } from "@/entities/auth/session";
+import { LogoutButton } from "@/features/auth/logout";
 import { NAV_GROUPS, ROUTES } from "@/shared/config/routes";
 import { cn } from "@/shared/lib/cn";
 
@@ -83,6 +84,11 @@ export function TenantSidebar() {
             </span>
             <span>{usage ? `${usedPercent}%` : ""}</span>
           </div>
+        </div>
+
+        <div className="mt-2.5 flex items-center gap-2 px-1 text-[11.5px] text-[#7e8f9c]">
+          <span className="min-w-0 flex-1 truncate">{data?.member?.email ?? "—"}</span>
+          <LogoutButton className="shrink-0" />
         </div>
       </div>
     </aside>
