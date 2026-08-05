@@ -88,6 +88,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                         .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
+                        // 알림 소켓의 핸드셰이크. 여기서는 인증하지 않는다 —
+                        // 브라우저가 헤더를 못 붙여 토큰을 URL 에 실어야 하는데,
+                        // 그러면 액세스 토큰이 접근 로그에 남는다. 인증은 연결 뒤 첫 프레임에서 한다
+                        // (NotificationWebSocketHandler). 인증 전에는 어떤 알림도 나가지 않는다.
+                        .requestMatchers("/ws/notifications").permitAll()
                         .anyRequest().denyAll())
                 .build();
     }

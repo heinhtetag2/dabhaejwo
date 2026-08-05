@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { Eyebrow } from "@/shared/common/card";
 import { NAV_GROUPS } from "@/shared/config/routes";
-import { useAuthStore } from "@/shared/lib/auth-store";
+import { can, useAuthStore } from "@/shared/lib/auth-store";
 import { cn } from "@/shared/lib/cn";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -34,31 +34,41 @@ export function OpsSidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3.5">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="mb-[18px]">
-            <Eyebrow className="block px-2 pb-[7px] text-[10px] text-[#6c7d8b]">
-              {group.label}
-            </Eyebrow>
-            {group.items.map((item) => {
-              const active = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "mb-px flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13.5px] transition-colors",
-                    active
-                      ? "bg-seal/30 font-medium text-white"
-                      : "text-[#b9c6cf] hover:bg-white/7 hover:text-white",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+        {NAV_GROUPS.map((group) => {
+          // 권한 없는 항목은 숨긴다. 그룹이 통째로 비면 제목도 내린다 —
+          // 빈 제목만 남으면 "뭔가 있는데 안 보인다"로 읽힌다.
+          const visible = group.items.filter(
+            (item) => !item.permission || can(operator, item.permission),
+          );
+          if (visible.length === 0) {
+            return null;
+          }
+          return (
+            <div key={group.label} className="mb-[18px]">
+              <Eyebrow className="block px-2 pb-[7px] text-[10px] text-[#6c7d8b]">
+                {group.label}
+              </Eyebrow>
+              {visible.map((item) => {
+                const active = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "mb-px flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13.5px] transition-colors",
+                      active
+                        ? "bg-seal/30 font-medium text-white"
+                        : "text-[#b9c6cf] hover:bg-white/7 hover:text-white",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="border-t border-white/8 p-3 text-xs text-[#8fa3b0]">

@@ -34,9 +34,9 @@ export function useChangeExcluded() {
 }
 
 /**
- * 사이트 다시 읽기 / 다시 학습.
+ * 사이트 다시 읽기.
  *
- * 크롤러·임베딩 워커가 붙기 전까지 서버가 FEATURE_NOT_READY 를 돌려준다.
+ * 크롤러가 붙기 전까지 서버가 FEATURE_NOT_READY 를 돌려준다.
  * 성공한 척하지 않으므로 화면은 그 메시지를 그대로 보여주면 된다.
  */
 export function useRecrawlSource() {
@@ -90,11 +90,18 @@ export function useDeleteDocument() {
   });
 }
 
+/**
+ * 실패분 다시 학습. 서버가 되돌린 건수를 돌려주므로 화면이 그대로 보여준다.
+ * 되돌릴 문서가 없으면 400 이다 — 눌렀는데 아무 일도 없는 상태를 만들지 않는다.
+ */
 export function useRetryFailed() {
   const invalidate = useInvalidateKnowledge();
   return useMutation({
     mutationFn: (sourceId?: string) =>
-      api("/api/app/knowledge/documents/retry-failed", { method: "POST", query: { sourceId } }),
+      api<{ requeued: number }>("/api/app/knowledge/documents/retry-failed", {
+        method: "POST",
+        query: { sourceId },
+      }),
     onSuccess: invalidate,
   });
 }

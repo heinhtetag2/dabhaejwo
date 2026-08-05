@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { faqFormSchema, type Faq, type FaqFormValues, type FaqSaveInput } from "@/entities/chatbot/faq";
 import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
+import { controlClass } from "@/shared/common/control";
 
 /**
  * 질문 등록·수정 폼.
@@ -72,7 +73,7 @@ export function FaqEditor({
             <input
               id="faq-question"
               disabled={!editable}
-              className="w-full rounded-[7px] border border-line bg-card px-[11px] py-[8.5px] text-[13.5px] focus:border-ink-3 focus:outline-none disabled:bg-paper"
+              className={controlClass("md")}
               {...register("question")}
             />
           </Field>
@@ -87,7 +88,7 @@ export function FaqEditor({
               id="faq-answer"
               rows={5}
               disabled={!editable}
-              className="w-full resize-y rounded-[7px] border border-line bg-card px-[11px] py-[8.5px] text-[13.5px] leading-relaxed focus:border-ink-3 focus:outline-none disabled:bg-paper"
+              className={controlClass("md", "resize-y leading-relaxed")}
               {...register("answer")}
             />
           </Field>
@@ -101,7 +102,7 @@ export function FaqEditor({
               id="faq-links"
               disabled={!editable}
               placeholder="배송 및 반품 안내, 원목 관리 방법"
-              className="w-full rounded-[7px] border border-line bg-card px-[11px] py-[8.5px] text-[13.5px] focus:border-ink-3 focus:outline-none disabled:bg-paper"
+              className={controlClass("md")}
               {...register("linksText")}
             />
           </Field>

@@ -120,10 +120,11 @@ export function FileUpload({ onUploaded }: { onUploaded?: () => void }) {
         </Notice>
       ) : null}
 
-      {/* 조용한 성공 처리 금지 — 저장은 됐지만 학습은 아직이다. */}
+      {/* 업로드 응답 시점에는 아직 "대기 중"이다. 즉시 학습됐다고 오해하게 두지 않는다. */}
       <Notice tone="info" className="mt-3">
-        올린 파일은 저장되지만 <b className="font-semibold text-ink">학습은 아직 시작되지 않습니다.</b>{" "}
-        글자를 뽑아 학습하는 기능이 준비 중이라 상태가 &quot;대기 중&quot;으로 남습니다.
+        올린 파일은 <b className="font-semibold text-ink">잠시 뒤 자동으로 학습됩니다.</b> 그동안
+        상태가 &quot;대기 중&quot;·&quot;처리 중&quot;으로 표시되며, 끝나면 &quot;학습 완료&quot;로
+        바뀝니다. 글자가 없는 스캔 문서는 실패로 표시되니 그때는 글자가 든 파일로 다시 올려주세요.
       </Notice>
     </div>
   );

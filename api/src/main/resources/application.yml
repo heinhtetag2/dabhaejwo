@@ -36,6 +36,23 @@ spring:
       # 멀티파트 전체. 파일 하나 + 필드 몇 개라 파일 상한보다 조금만 크면 된다.
       max-request-size: 22MB
 
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          # 메일 서버가 느려도 요청이 묶이지 않게 한다. 로그인 한 번에 5초씩 세 번을
+          # 기다리면 사용자는 로그인이 고장 난 줄 안다.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -54,9 +71,48 @@ management:
         include: health,info
 
 dabhaejwo:
+  security:
+    # 공급사 API 키를 DB 에 암호화해 저장할 때 쓰는 마스터 키.
+    # **이 키만은 환경변수에 남는다** — 마스터 키까지 DB 에 있으면 자물쇠 옆에 열쇠를 두는 셈이다.
+    # 비어 있으면 자격증명 등록이 거부된다(조용히 평문으로 떨어지지 않는다).
+    # 이 값을 바꾸면 저장된 키를 복호화할 수 없어 전부 다시 등록해야 한다.
+    encryption-key: ${ENCRYPTION_KEY:}
   auth:
     access-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:30}
     refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:14}
     # 대리 로그인 세션 만료. tenant-plan.md FR-05 — 프로파일별로 다르게 두지 않는다.
     # 운영에서만 늘리는 식이면 개발에서 만료 동작을 검증할 수 없다.
     impersonation-ttl-minutes: 30
+
+  mail:
+    # 보내는 사람. 계정과 다를 수 있어 따로 둔다.
+    from: ${MAIL_FROM:}
+    from-name: ${MAIL_FROM_NAME:답해줘}
+    # 초대·비밀번호 재설정 링크가 가리킬 곳. 메일 본문에 절대 경로가 필요하다.
+    app-base-url: ${APP_BASE_URL:http://localhost:4312}
+    ops-base-url: ${OPS_BASE_URL:http://localhost:4311}
+
+  otp:
+    # 로그인 2단계 인증. 짧을수록 안전하지만 메일이 늦게 오면 못 쓴다.
+    ttl-minutes: 5
+    # 개발 우회. 여기서는 항상 꺼둔다 — 로컬 프로파일에서만 환경변수로 켤 수 있다.
+    dev-accept-any-code: false
+    # 틀릴 수 있는 횟수. 넘으면 코드가 폐기되고 다시 받아야 한다.
+    max-attempts: 5
+    # 한 계정이 이 분 안에 새로 받을 수 있는 횟수. 메일 폭탄을 막는다.
+    resend-per-hour: 10
+
+  invite:
+    # 초대 링크 유효 기간. 길면 메일함에 남은 링크가 계속 살아 있다.
+    ttl-hours: 168
+    # 임시 비밀번호 유효 기간.
+    temp-password-ttl-hours: 24
+
+  # 학습 워커. AppProperties 에 두지 않은 이유는 @Scheduled 가 바인딩된 record 가 아니라
+  # 프로퍼티 플레이스홀더만 읽기 때문이다 — 두 벌로 두면 어긋난다.
+  indexing:
+    # 대기열 확인 주기. fixedDelay 라 이전 처리가 끝난 뒤부터 센다.
+    poll-interval-ms: 10000
+    # 기동 직후는 Flyway·커넥션풀이 자리를 잡는 중이다. 그때 임베딩을 시작하면
+    # 첫 실패가 애플리케이션 문제인지 문서 문제인지 구분되지 않는다.
+    initial-delay-ms: 15000

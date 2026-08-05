@@ -18,19 +18,26 @@ export function LegalPlaceholder({
   summary: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-[720px] px-5 pt-14 pb-10">
-      <h1 className="text-[26px] font-semibold tracking-[-0.03em]">{title}</h1>
+    <div className="mx-auto max-w-[720px] px-5 pt-16 pb-24 sm:pt-24">
+      <h1 className="text-[30px] leading-[1.3] font-bold tracking-[-0.04em] sm:text-[36px]">
+        {title}
+      </h1>
 
-      <Notice tone="warn" className="mt-5">
+      <Notice tone="warn" size="md" className="mt-7">
         정식 문서를 준비하고 있습니다. 서비스 정식 공개 전에 이 자리에 게시되며, 게시 전에
         가입하신 분께는 변경 내용을 알려드립니다.
       </Notice>
 
-      <div className="mt-7 text-[13.5px] leading-relaxed text-slate">{summary}</div>
+      <div className="mt-10 rounded-panel bg-fill p-7 text-[15px] leading-[1.8] text-slate sm:p-8">
+        {summary}
+      </div>
 
-      <p className="mt-8 border-t border-line-2 pt-5 text-[12.5px] text-slate-2">
+      <p className="mt-10 text-[14px] text-slate-2">
         문의{" "}
-        <a href={`mailto:${COMPANY.contactEmail}`} className="underline">
+        <a
+          href={`mailto:${COMPANY.contactEmail}`}
+          className="font-medium text-slate underline underline-offset-2 hover:text-ink"
+        >
           {COMPANY.contactEmail}
         </a>
       </p>

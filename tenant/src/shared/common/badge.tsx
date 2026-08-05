@@ -9,7 +9,7 @@ export type BadgeTone = "ok" | "warn" | "error" | "idle" | "info";
 
 const TONE: Record<BadgeTone, string> = {
   ok: "bg-seal-soft text-seal",
-  warn: "bg-mark-soft text-[#8a6a00]",
+  warn: "bg-mark-soft text-mark-ink",
   error: "bg-brick-soft text-brick",
   idle: "bg-line-2 text-slate",
   info: "bg-plum-soft text-plum",

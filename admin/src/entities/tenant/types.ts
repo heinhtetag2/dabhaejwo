@@ -23,6 +23,11 @@ export interface PlanRef {
   name: string;
 }
 
+export interface OperatorRef {
+  id: string;
+  name: string;
+}
+
 /** 목록 항목. Detail 의 부분집합이며 겹치는 필드는 이름·타입이 동일하다. */
 export interface TenantSummary {
   id: string;
@@ -58,4 +63,69 @@ export interface TenantListParams {
   sort?: TenantSort;
   page?: number;
   size?: number;
+}
+
+/** 필터 칩별 건수. 0인 칩도 내려온다 — 흐리게 처리하되 숨기지 않는다. */
+export interface TenantFilterCounts {
+  all: number;
+  trial: number;
+  paymentFailed: number;
+  costExceeded: number;
+  inactive7d: number;
+  suspended: number;
+  churned: number;
+}
+
+export type TenantActivityType =
+  | "CHANGE_PLAN"
+  | "GRANT_QUOTA"
+  | "SUSPEND"
+  | "CHURN"
+  | "EXTEND_TRIAL"
+  | "IMPERSONATE"
+  | "VIEW_CONVERSATIONS"
+  | "MODEL_PRICE_WRITE"
+  | "COST_GUARD_WRITE"
+  | "PAYMENT"
+  | "NOTE";
+
+export interface TenantActivity {
+  id: string;
+  type: TenantActivityType;
+  at: string;
+  summary: string;
+  reason: string | null;
+  /** 시스템이 만든 항목(결제)은 행위자가 없다. */
+  operator: OperatorRef | null;
+}
+
+/** 내부 메모. 누적이며 수정·삭제 경로가 없다. */
+export interface TenantNote {
+  id: number;
+  body: string;
+  operator: OperatorRef | null;
+  createdAt: string;
+}
+
+export interface QuotaOverride {
+  id: number;
+  periodMonth: string;
+  convDelta: number;
+  docDelta: number;
+  reason: string;
+  operator: OperatorRef | null;
+  createdAt: string;
+}
+
+export type ImpersonationStatus = "ACTIVE" | "ENDED" | "EXPIRED" | "REVOKED";
+
+export interface ImpersonationSession {
+  sessionId: string;
+  tenant: { id: string; name: string };
+  reason: string;
+  /** 종료 응답에는 토큰이 없다 — 그대로 다시 쓰면 끝난 세션으로 접속하게 된다. */
+  accessToken: string | null;
+  startedAt: string;
+  expiresAt: string;
+  status: ImpersonationStatus;
 }

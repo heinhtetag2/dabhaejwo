@@ -7,7 +7,7 @@ import type { ButtonHTMLAttributes, ComponentProps } from "react";
 import { cn } from "@/shared/lib/cn";
 
 type Variant = "default" | "primary" | "accent" | "danger" | "ghost";
-type Size = "md" | "sm";
+type Size = "lg" | "md" | "sm";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -23,6 +23,8 @@ const VARIANT: Record<Variant, string> = {
 };
 
 const SIZE: Record<Size, string> = {
+  /** 공개 영역의 주요 행동. 손가락으로 누르는 크기이고, 화면에서 다음 할 일이 분명해야 한다. */
+  lg: "px-6 py-[14px] text-[15.5px] rounded-btn font-semibold",
   md: "px-3.5 py-[7.5px] text-[13.5px] rounded-[7px]",
   sm: "px-2.5 py-[4.5px] text-[12.5px] rounded-md",
 };

@@ -5,11 +5,13 @@ import com.dabhaejwo.domain.knowledge.dto.response.KnowledgeSourceResponse;
 import com.dabhaejwo.domain.knowledge.entity.DocumentStatus;
 import com.dabhaejwo.domain.knowledge.entity.KnowledgeDocument;
 import com.dabhaejwo.domain.knowledge.entity.KnowledgeSource;
+import com.dabhaejwo.domain.knowledge.indexing.DocumentIndexer;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeSourceRepository;
 import com.dabhaejwo.global.common.PageResponse;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import com.dabhaejwo.global.llm.LlmProviderName;
 import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.slf4j.Logger;
@@ -38,11 +40,14 @@ public class KnowledgeService {
 
     private final KnowledgeSourceRepository sourceRepository;
     private final KnowledgeDocumentRepository documentRepository;
+    private final DocumentIndexer indexer;
 
     public KnowledgeService(KnowledgeSourceRepository sourceRepository,
-                            KnowledgeDocumentRepository documentRepository) {
+                            KnowledgeDocumentRepository documentRepository,
+                            DocumentIndexer indexer) {
         this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
+        this.indexer = indexer;
     }
 
     @Transactional(readOnly = true)
@@ -127,17 +132,62 @@ public class KnowledgeService {
     /**
      * 실패 문서 다시 학습.
      *
-     * <p>TODO(stub): 임베딩 워커가 아직 없다. {@link #recrawl} 과 같은 이유로 거절한다.
+     * <p>{@code PENDING} 으로 되돌리기만 한다 — 실제 처리는 워커가 한다. 여기서 바로
+     * 돌리면 실패 문서가 100건일 때 요청 하나가 몇 분을 잡는다.
+     *
+     * <p>되돌릴 게 없으면 <b>조용히 성공시키지 않는다.</b> "다시 학습을 눌렀는데 아무 일도
+     * 없었다"는 상태를 업체가 알 수 있어야 한다.
      */
-    @Transactional(readOnly = true)
-    public void retryFailed(UUID sourceId) {
+    @Transactional
+    public int retryFailed(UUID sourceId) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        long failed = documentRepository.countByTenantIdAndStatus(user.tenantId(), DocumentStatus.FAILED);
 
-        log.warn("다시 학습 요청을 받았으나 임베딩 워커가 연결되어 있지 않습니다 (tenant={}, failed={})",
-                user.tenantId(), failed);
-        throw new BusinessException(ErrorCode.FEATURE_NOT_READY,
-                "다시 학습은 아직 연결되지 않았습니다. 준비되면 안내드리겠습니다");
+        List<KnowledgeDocument> targets = relearnTargets(user.tenantId(), sourceId);
+
+        if (targets.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "다시 학습할 문서가 없습니다");
+        }
+        for (KnowledgeDocument document : targets) {
+            indexer.requeue(user.tenantId(), document.getId());
+        }
+
+        log.info("{}건을 다시 학습 대기로 되돌렸습니다 (tenant={})", targets.size(), user.tenantId());
+        return targets.size();
+    }
+
+    /**
+     * 다시 학습해야 하는 문서.
+     *
+     * <p>실패한 것만이 아니다. <b>운영팀이 임베딩 공급사를 바꾸면 이미 학습된 문서도
+     * 대상이 된다</b> — 다른 모델이 만든 벡터끼리는 거리를 비교할 수 없어, 그대로 두면
+     * 검색이 조용히 엉뚱한 결과를 낸다. 실패보다 알아채기 어려운 고장이다.
+     *
+     * <p>공급사 설정을 읽지 못하면(단가 미등록 등) 실패분만 대상으로 삼는다 —
+     * 설정 문제로 업체의 "다시 학습"이 통째로 막히면 안 된다.
+     */
+    private List<KnowledgeDocument> relearnTargets(UUID tenantId, UUID sourceId) {
+        List<KnowledgeDocument> failed =
+                documentRepository.findAllByTenantIdAndStatus(tenantId, DocumentStatus.FAILED).stream()
+                        .filter(document -> sourceId == null || sourceId.equals(document.getSourceId()))
+                        .toList();
+
+        List<KnowledgeDocument> stale;
+        try {
+            LlmProviderName provider = indexer.embeddingProvider();
+            String model = indexer.embeddingModel(provider);
+            stale = documentRepository
+                    .findAllByTenantIdAndStatus(tenantId, DocumentStatus.INDEXED).stream()
+                    .filter(document -> sourceId == null || sourceId.equals(document.getSourceId()))
+                    .filter(document -> document.staleEmbedding(provider.name(), model))
+                    .toList();
+        } catch (RuntimeException e) {
+            log.warn("임베딩 설정을 읽지 못해 실패분만 다시 학습합니다 (tenant={})", tenantId, e);
+            stale = List.of();
+        }
+
+        List<KnowledgeDocument> targets = new java.util.ArrayList<>(failed);
+        targets.addAll(stale);
+        return targets;
     }
 
     private KnowledgeDocument find(UUID documentId, UUID tenantId) {

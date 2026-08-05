@@ -7,6 +7,7 @@ import com.dabhaejwo.domain.billing.entity.TicketStatus;
 import com.dabhaejwo.domain.billing.repository.BillingRecordRepository;
 import com.dabhaejwo.domain.billing.repository.TicketRepository;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
+import com.dabhaejwo.domain.notification.service.NotificationEvents;
 import com.dabhaejwo.domain.plan.entity.Plan;
 import com.dabhaejwo.domain.plan.repository.PlanRepository;
 import com.dabhaejwo.domain.tenant.entity.Tenant;
@@ -32,19 +33,22 @@ public class PlanOverviewService {
     private final KnowledgeDocumentRepository documentRepository;
     private final BillingRecordRepository billingRepository;
     private final TicketRepository ticketRepository;
+    private final NotificationEvents notificationEvents;
 
     public PlanOverviewService(TenantRepository tenantRepository,
                                PlanRepository planRepository,
                                TenantDailyUsageRepository dailyUsageRepository,
                                KnowledgeDocumentRepository documentRepository,
                                BillingRecordRepository billingRepository,
-                               TicketRepository ticketRepository) {
+                               TicketRepository ticketRepository,
+                               NotificationEvents notificationEvents) {
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
         this.dailyUsageRepository = dailyUsageRepository;
         this.documentRepository = documentRepository;
         this.billingRepository = billingRepository;
         this.ticketRepository = ticketRepository;
+        this.notificationEvents = notificationEvents;
     }
 
     /**
@@ -71,8 +75,16 @@ public class PlanOverviewService {
 
         String note = (request.note() == null || request.note().isBlank())
                 ? "(추가 요청 없음)" : request.note().strip();
-        ticketRepository.save(Ticket.open(user.tenantId(), subject,
+        Ticket ticket = ticketRepository.save(Ticket.open(user.tenantId(), subject,
                 "요금제 코드: " + target.getCode() + "\n요청: " + note));
+
+        // PG 가 붙기 전까지 "돈 내겠다"는 신호가 이 티켓 하나뿐이다. 놓치면 매출을 놓친다.
+        notificationEvents.ticketOpened(user.tenantId(), tenantName(user.tenantId()),
+                ticket.getId(), subject);
+    }
+
+    private String tenantName(UUID tenantId) {
+        return tenantRepository.findById(tenantId).map(Tenant::getName).orElse(tenantId.toString());
     }
 
     @Transactional(readOnly = true)

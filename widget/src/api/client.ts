@@ -9,12 +9,16 @@ const KEY_HEADER = "X-Dabhaejwo-Key";
 export class WidgetApi {
   constructor(private readonly config: WidgetConfig) {}
 
-  createSession(): Promise<SessionResponse> {
-    return this.post<SessionResponse>("/api/widget/session", {});
+  /**
+   * @param path 방문자가 있던 페이지. 업체가 "어느 페이지에서 물었나"를 보고 그 페이지를 고친다.
+   *             전체 URL 이 아니라 경로만 보낸다 — 쿼리스트링에 개인정보가 실려 있을 수 있다.
+   */
+  createSession(path: string): Promise<SessionResponse> {
+    return this.post<SessionResponse>("/api/widget/session", { path });
   }
 
-  ask(sessionId: string, question: string): Promise<AskResponse> {
-    return this.post<AskResponse>("/api/widget/ask", { sessionId, question });
+  ask(sessionId: string, question: string, path: string): Promise<AskResponse> {
+    return this.post<AskResponse>("/api/widget/ask", { sessionId, question, path });
   }
 
   askFaq(sessionId: string, faqId: string): Promise<AskResponse> {

@@ -15,6 +15,8 @@ export const ROUTES = {
   pricing: "/pricing",
   signup: "/signup",
   login: "/login",
+  forgotPassword: "/forgot-password",
+  invite: "/invite",
   terms: "/terms",
   privacy: "/privacy",
 

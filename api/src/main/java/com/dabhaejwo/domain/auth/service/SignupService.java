@@ -7,6 +7,7 @@ import com.dabhaejwo.domain.botsettings.repository.BotSettingsRepository;
 import com.dabhaejwo.domain.member.dto.response.MemberResponse;
 import com.dabhaejwo.domain.member.entity.TenantMember;
 import com.dabhaejwo.domain.member.repository.TenantMemberRepository;
+import com.dabhaejwo.domain.notification.service.NotificationEvents;
 import com.dabhaejwo.domain.plan.entity.Plan;
 import com.dabhaejwo.domain.plan.repository.PlanRepository;
 import com.dabhaejwo.domain.tenant.entity.AllowedOrigin;
@@ -51,6 +52,7 @@ public class SignupService {
     private final AllowedOriginRepository originRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final NotificationEvents notificationEvents;
 
     public SignupService(TenantRepository tenantRepository,
                          TenantMemberRepository memberRepository,
@@ -58,7 +60,8 @@ public class SignupService {
                          BotSettingsRepository botSettingsRepository,
                          AllowedOriginRepository originRepository,
                          PasswordEncoder passwordEncoder,
-                         JwtProvider jwtProvider) {
+                         JwtProvider jwtProvider,
+                         NotificationEvents notificationEvents) {
         this.tenantRepository = tenantRepository;
         this.memberRepository = memberRepository;
         this.planRepository = planRepository;
@@ -66,6 +69,7 @@ public class SignupService {
         this.originRepository = originRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
+        this.notificationEvents = notificationEvents;
     }
 
     @Transactional
@@ -97,6 +101,10 @@ public class SignupService {
 
         botSettingsRepository.save(BotSettings.defaults(tenant.getId(), tenant.getName()));
         originRepository.save(AllowedOrigin.of(tenant.getId(), host));
+
+        // 가입은 영업이 가장 먼저 알아야 할 사건이다. 같은 트랜잭션에 둔다 —
+        // 가입이 실패해 되감기면 알림도 남아서는 안 된다.
+        notificationEvents.tenantSignedUp(tenant.getId(), tenant.getName(), trial.getName());
 
         // 가입 직후 로그인 상태로 대시보드에 도착한다. 다시 로그인시키지 않는다.
         return new AppLoginResponse(

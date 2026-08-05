@@ -70,6 +70,18 @@ public class KnowledgeDocument {
     @Column(name = "indexed_at")
     private OffsetDateTime indexedAt;
 
+    /**
+     * 이 문서의 조각을 만든 공급사·모델.
+     *
+     * <p>nullable 이다 — 이 컬럼이 생기기 전에 학습된 문서는 출처를 모른다.
+     * 모르는 것은 "지금 설정과 다르다"로 취급해 다시 학습 대상에 넣는다.
+     */
+    @Column(name = "embedding_provider")
+    private String embeddingProvider;
+
+    @Column(name = "embedding_model")
+    private String embeddingModel;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -109,11 +121,49 @@ public class KnowledgeDocument {
         this.contentSha256 = contentSha256;
     }
 
-    public void markIndexed(int chunks) {
+    /**
+     * 인덱싱을 시작했다. 워커가 집어간 문서를 다른 워커가 또 집어가지 않도록 표시한다.
+     * 옛 실패 코드를 지운다 — 다시 시도하는 중인데 지난 오류가 화면에 남아 있으면 안 된다.
+     */
+    public void markProcessing() {
+        this.status = DocumentStatus.PROCESSING;
+        this.errorCode = null;
+    }
+
+    /**
+     * 학습 완료. <b>무엇으로 임베딩했는지 함께 남긴다.</b>
+     *
+     * <p>이 기록이 없으면 공급사·모델을 바꿨을 때 무엇을 다시 학습해야 하는지 알 수 없어
+     * 전부 지우고 처음부터 하는 수밖에 없다. 다른 모델이 만든 벡터끼리는 거리를 비교할 수 없다.
+     */
+    public void markIndexed(int chunks, String provider, String model) {
         this.status = DocumentStatus.INDEXED;
         this.chunkCount = chunks;
         this.errorCode = null;
         this.indexedAt = OffsetDateTime.now();
+        this.embeddingProvider = provider;
+        this.embeddingModel = model;
+    }
+
+    /**
+     * 지금 설정으로 다시 학습해야 하는가.
+     *
+     * <p>출처를 모르는 문서(이 컬럼이 생기기 전에 학습된 것)는 <b>다르다고 본다</b> —
+     * 해시 임베딩 시절 조각이라 실제로 다시 해야 한다.
+     */
+    public boolean staleEmbedding(String currentProvider, String currentModel) {
+        if (status != DocumentStatus.INDEXED) {
+            return false;
+        }
+        return !currentProvider.equals(embeddingProvider) || !currentModel.equals(embeddingModel);
+    }
+
+    public String getEmbeddingProvider() {
+        return embeddingProvider;
+    }
+
+    public String getEmbeddingModel() {
+        return embeddingModel;
     }
 
     public void markFailed(String code) {

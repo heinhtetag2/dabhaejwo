@@ -8,6 +8,7 @@ import {
   useChangeMemberRole,
   useImpersonationHistoryQuery,
   useInviteMember,
+  useResendInvite,
   useMembersQuery,
   useRemoveMember,
   type TenantMemberRole,
@@ -18,6 +19,7 @@ import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
 import { ErrorState, LoadingState } from "@/shared/common/states";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge } from "@/shared/ui/status-badge";
+import { controlClass } from "@/shared/common/control";
 
 /**
  * 팀원 · 운영팀 접속 이력.
@@ -31,10 +33,11 @@ export function TeamView() {
   const history = useImpersonationHistoryQuery();
 
   const invite = useInviteMember();
+  const resend = useResendInvite();
   const changeRole = useChangeMemberRole();
   const remove = useRemoveMember();
 
-  const [email, setEmail] = useState("");
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [role, setRole] = useState<TenantMemberRole>("EDITOR");
   const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
 
@@ -55,22 +58,54 @@ export function TeamView() {
   return (
     <>
       <Card className="mb-4">
-        <CardHeader
-          title="팀원"
-          aside={
-            isOwner ? (
-              <>
-                <label className="sr-only" htmlFor="invite-email">
-                  초대할 이메일
-                </label>
-                <input
-                  id="invite-email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@example.com"
-                  className="w-[200px] rounded-[7px] border border-line px-2.5 py-[5.5px] text-[12.5px] focus:border-ink-3 focus:outline-none"
-                />
+        <CardHeader title="팀원" />
+
+        {isOwner ? (
+          <form
+            className="border-b border-line-2 px-4.5 py-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              run(
+                () =>
+                  invite
+                    .mutateAsync({
+                      name: form.name.trim(),
+                      email: form.email.trim(),
+                      role,
+                      phone: form.phone.trim() || undefined,
+                    })
+                    .then(() => setForm({ name: "", email: "", phone: "" })),
+                // 서버는 메일이 나가야 성공한다. 그래서 성공 = 링크가 갔다는 뜻이다.
+                "초대 메일을 보냈습니다. 상대가 링크에서 비밀번호를 정하면 바로 쓸 수 있습니다.",
+              );
+            }}
+          >
+            <div className="grid items-start gap-2.5 sm:grid-cols-[1fr_1.4fr_1fr_auto_auto]">
+              <InviteInput
+                id="invite-name"
+                label="이름"
+                value={form.name}
+                onChange={(value) => setForm((prev) => ({ ...prev, name: value }))}
+                placeholder="이름"
+                required
+              />
+              <InviteInput
+                id="invite-email"
+                label="이메일"
+                type="email"
+                value={form.email}
+                onChange={(value) => setForm((prev) => ({ ...prev, email: value }))}
+                placeholder="name@example.com"
+                required
+              />
+              <InviteInput
+                id="invite-phone"
+                label="전화번호"
+                value={form.phone}
+                onChange={(value) => setForm((prev) => ({ ...prev, phone: value }))}
+                placeholder="010-0000-0000 (선택)"
+              />
+              <div>
                 <label className="sr-only" htmlFor="invite-role">
                   권한
                 </label>
@@ -78,31 +113,30 @@ export function TeamView() {
                   id="invite-role"
                   value={role}
                   onChange={(event) => setRole(event.target.value as TenantMemberRole)}
-                  className="rounded-[7px] border border-line px-2 py-[5.5px] text-[12.5px]"
+                  className={controlClass("md")}
                 >
                   <option value="EDITOR">편집</option>
                   <option value="VIEWER">보기만</option>
                 </select>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={email.trim().length === 0 || invite.isPending}
-                  onClick={() =>
-                    run(
-                      () =>
-                        invite
-                          .mutateAsync({ email: email.trim(), role })
-                          .then(() => setEmail("")),
-                      "초대를 등록했습니다. 다만 초대 메일은 아직 발송되지 않습니다.",
-                    )
-                  }
-                >
-                  팀원 초대
-                </Button>
-              </>
-            ) : null
-          }
-        />
+              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={
+                  form.name.trim().length === 0 ||
+                  form.email.trim().length === 0 ||
+                  invite.isPending
+                }
+              >
+                {invite.isPending ? "보내는 중…" : "초대 메일 보내기"}
+              </Button>
+            </div>
+            <p className="mt-2.5 text-[11.5px] leading-relaxed text-slate-2">
+              초대받은 분은 메일의 링크에서 비밀번호를 정합니다. 링크는 7일 동안 유효하며 한 번만
+              쓸 수 있습니다.
+            </p>
+          </form>
+        ) : null}
 
         {notice ? (
           <Notice tone={notice.tone} className="mx-4.5 mt-3.5">
@@ -123,7 +157,7 @@ export function TeamView() {
                   <Th>이메일</Th>
                   <Th className="w-[150px]">권한</Th>
                   <Th className="w-[110px]">마지막 접속</Th>
-                  <Th className="w-[80px]" />
+                  <Th className="w-[150px]" />
                 </tr>
               </thead>
               <tbody>
@@ -167,7 +201,23 @@ export function TeamView() {
                     <td className="border-b border-line-2 px-3.5 py-3 font-mono text-[11.5px] text-slate-2">
                       {member.lastSeenAt ? member.lastSeenAt.slice(0, 10) : "—"}
                     </td>
-                    <td className="border-b border-line-2 px-3.5 py-3 text-right">
+                    <td className="border-b border-line-2 px-3.5 py-3">
+                      {/* 버튼이 접히지 않게 한 줄로 못 박는다. 칸이 좁으면 표가 가로로 스크롤된다. */}
+                      <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      {isOwner && member.inviteState === "PENDING" ? (
+                        <Button
+                          size="sm"
+                          disabled={resend.isPending}
+                          onClick={() =>
+                            run(
+                              () => resend.mutateAsync(member.id),
+                              "초대 메일을 다시 보냈습니다. 이전 링크는 더 이상 쓸 수 없습니다.",
+                            )
+                          }
+                        >
+                          다시 보내기
+                        </Button>
+                      ) : null}
                       {isOwner && member.role !== "OWNER" ? (
                         <Button
                           size="sm"
@@ -178,6 +228,7 @@ export function TeamView() {
                           삭제
                         </Button>
                       ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -233,5 +284,41 @@ function Th({ className, children }: { className?: string; children?: React.Reac
     >
       {children}
     </th>
+  );
+}
+
+/** 초대 폼의 입력 한 칸. 라벨은 화면에 두지 않고 스크린 리더에만 준다 — 한 줄에 넣기 위해서다. */
+function InviteInput({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  required,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="sr-only" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        required={required}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className={controlClass("md")}
+      />
+    </div>
   );
 }

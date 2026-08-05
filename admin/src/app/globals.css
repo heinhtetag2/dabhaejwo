@@ -39,6 +39,8 @@
   --color-plum-soft: #ede7f7;
 
   --radius-card: 10px;
+  /* shared/common/button.tsx 의 lg 사이즈가 쓴다. 두 콘솔의 버튼 파일은 같은 내용을 유지한다. */
+  --radius-btn: 14px;
 
   --font-sans: var(--font-noto-sans-kr), system-ui, sans-serif;
   --font-mono: var(--font-noto-sans-mono), var(--font-noto-sans-kr), monospace;

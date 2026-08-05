@@ -4,7 +4,7 @@ export type Tone = "ok" | "warn" | "error" | "idle";
 
 const TONE: Record<Tone, string> = {
   ok: "bg-seal-soft text-seal",
-  warn: "bg-mark-soft text-[#8a6a00]",
+  warn: "bg-mark-soft text-mark-ink",
   error: "bg-brick-soft text-brick",
   idle: "bg-line-2 text-slate",
 };

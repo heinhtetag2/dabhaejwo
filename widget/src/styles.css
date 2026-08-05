@@ -200,3 +200,106 @@
     animation: none !important;
   }
 }
+
+/* 근거 링크. 답변 아래에 작게 — 본문을 밀어내지 않는다. */
+.links {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.links a {
+  font-size: 11px;
+  color: var(--dw-brand);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+/* 👍👎. 평가 전에는 옅게, 누르면 잠긴다 — 두 번 눌러 통계를 부풀리지 못하게. */
+.vote {
+  margin-top: 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.vote button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+
+.vote button:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.vote button[aria-pressed="true"] {
+  opacity: 1;
+  background: var(--dw-paper);
+}
+
+.vote button:disabled {
+  cursor: default;
+}
+
+/* 연락처 폼. 답변 실패 뒤에만 열린다. */
+.lead {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--dw-line);
+  border-radius: 10px;
+  background: var(--dw-paper);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lead-title {
+  font-size: 11.5px;
+  color: var(--dw-muted);
+  line-height: 1.5;
+}
+
+.lead input {
+  border: 1px solid var(--dw-line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  background: #fff;
+  color: inherit;
+}
+
+.lead-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.lead-actions button {
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--dw-brand);
+  color: #fff;
+}
+
+.lead-actions button.ghost {
+  background: transparent;
+  color: var(--dw-muted);
+  border: 1px solid var(--dw-line);
+}
+
+.lead-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -16,4 +16,14 @@ public interface ModelPriceRepository extends JpaRepository<ModelPrice, Long> {
             LlmProviderName provider, String model, OffsetDateTime at);
 
     List<ModelPrice> findAllByOrderByProviderAscModelAscEffectiveFromDesc(Limit limit);
+
+    /**
+     * 지금 쓸 임베딩 모델. <b>모델명을 코드에 두지 않기 위해</b> 단가표에서 고른다 —
+     * 공급사가 모델을 갈아치우면 새 단가 행만 넣으면 되고 재배포가 필요 없다
+     * (CLAUDE.md 핵심 결정).
+     *
+     * <p>같은 공급사에 EMBED 모델이 여럿이면 가장 최근에 유효해진 것을 쓴다.
+     */
+    Optional<ModelPrice> findFirstByProviderAndPurposeKindAndEffectiveFromLessThanEqualOrderByEffectiveFromDesc(
+            LlmProviderName provider, ModelPrice.PurposeKind purposeKind, OffsetDateTime at);
 }

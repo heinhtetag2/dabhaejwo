@@ -7,15 +7,21 @@ import type { Faq, Message, WidgetConfig } from "../types";
  * 위젯 본체. Shadow Root 안에서만 산다 — document 를 직접 만지지 않는다.
  * DOM 부착은 loader.ts 의 책임이다.
  */
-export function WidgetApp({ config }: { config: WidgetConfig }) {
+export function WidgetApp({ config, path }: { config: WidgetConfig; path: string }) {
   const [open, setOpen] = useState(false);
   const [nudging, setNudging] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [botName, setBotName] = useState("");
   const [greeting, setGreeting] = useState("");
   const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [leadCapture, setLeadCapture] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  /** 답변 실패 뒤에만 연다. 처음부터 띄우면 물어보러 온 사람에게 폼을 들이미는 꼴이다. */
+  const [leadOpen, setLeadOpen] = useState(false);
+  const [leadDone, setLeadDone] = useState(false);
+  const [voted, setVoted] = useState<Record<string, boolean>>({});
 
   const api = useRef(new WidgetApi(config)).current;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -31,12 +37,14 @@ export function WidgetApp({ config }: { config: WidgetConfig }) {
     if (!open || sessionId) return;
     let cancelled = false;
     void api
-      .createSession()
+      .createSession(path)
       .then((session) => {
         if (cancelled) return;
         setSessionId(session.sessionId);
+        setBotName(session.botName);
         setGreeting(session.greeting);
         setFaqs(session.faqs);
+        setLeadCapture(session.leadCaptureEnabled);
       })
       .catch(() => {
         if (cancelled) return;
@@ -45,13 +53,13 @@ export function WidgetApp({ config }: { config: WidgetConfig }) {
     return () => {
       cancelled = true;
     };
-  }, [open, sessionId, api]);
+  }, [open, sessionId, api, path]);
 
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [messages, greeting]);
+  }, [messages, greeting, leadOpen]);
 
   function openPanel() {
     setNudging(false);
@@ -72,36 +80,35 @@ export function WidgetApp({ config }: { config: WidgetConfig }) {
     }
   }
 
+  function receive(result: {
+    answer: string;
+    saved: boolean;
+    links: string[];
+    messageId: string | null;
+    answered: boolean;
+  }) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "bot",
+        text: result.answer,
+        saved: result.saved,
+        links: result.links,
+        messageId: result.messageId,
+      },
+    ]);
+    // 못 답했을 때만 연락처를 제안한다. 업체가 꺼 뒀으면 제안하지 않는다.
+    if (!result.answered && leadCapture && !leadDone) {
+      setLeadOpen(true);
+    }
+  }
+
   async function ask(question: string) {
-    await run(question, async () => {
-      const result = await api.ask(sessionId!, question);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          text: result.answer,
-          saved: result.saved,
-          links: result.links,
-          messageId: result.messageId,
-        },
-      ]);
-    });
+    await run(question, async () => receive(await api.ask(sessionId!, question, path)));
   }
 
   async function askFaq(faq: Faq) {
-    await run(faq.question, async () => {
-      const result = await api.askFaq(sessionId!, faq.id);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          text: result.answer,
-          saved: result.saved,
-          links: result.links,
-          messageId: result.messageId,
-        },
-      ]);
-    });
+    await run(faq.question, async () => receive(await api.askFaq(sessionId!, faq.id)));
   }
 
   function submit(event: Event) {
@@ -112,12 +119,42 @@ export function WidgetApp({ config }: { config: WidgetConfig }) {
     void ask(question);
   }
 
+  /**
+   * 👍👎. 실패해도 방문자에게 알리지 않는다 — 평가는 우리 쪽 사정이고,
+   * 여기서 오류를 띄우면 방문자는 자기 질문이 잘못된 줄 안다.
+   */
+  function vote(messageId: string, helpful: boolean) {
+    setVoted((prev) => ({ ...prev, [messageId]: helpful }));
+    void api.sendFeedback(messageId, helpful).catch(() => undefined);
+  }
+
+  function submitLead(event: Event) {
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim();
+    const contact = (form.elements.namedItem("contact") as HTMLInputElement).value.trim();
+    if (!name || !contact || !sessionId) return;
+
+    setBusy(true);
+    void api
+      .submitLead(sessionId, name, contact)
+      .then(() => {
+        setLeadDone(true);
+        setLeadOpen(false);
+        setMessages((prev) => [...prev, botMessage("남겨주셔서 감사합니다. 확인 후 연락드리겠습니다.")]);
+      })
+      .catch(() => {
+        setMessages((prev) => [...prev, botMessage("연락처를 남기지 못했습니다. 잠시 후 다시 시도해 주세요.")]);
+      })
+      .finally(() => setBusy(false));
+  }
+
   return (
     <div class="root" data-position={config.position}>
       {open ? (
         <div class="panel" role="dialog" aria-label="챗봇 상담">
           <div class="head">
-            <span class="name">무엇이든 물어보세요</span>
+            <span class="name">{botName || "무엇이든 물어보세요"}</span>
             <button class="close" onClick={() => setOpen(false)} aria-label="닫기">
               ×
             </button>
@@ -143,8 +180,61 @@ export function WidgetApp({ config }: { config: WidgetConfig }) {
                   <div class="saved-tag">저장된 답변</div>
                 ) : null}
                 {message.text}
+
+                {message.role === "bot" && message.links.length > 0 ? (
+                  <div class="links">
+                    {message.links.map((link) => (
+                      <a key={link} href={link} target="_blank" rel="noopener noreferrer">
+                        {link}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "bot" && message.messageId ? (
+                  <div class="vote">
+                    <button
+                      onClick={() => vote(message.messageId!, true)}
+                      aria-label="도움이 됐어요"
+                      aria-pressed={voted[message.messageId] === true}
+                      disabled={message.messageId in voted}
+                    >
+                      👍
+                    </button>
+                    <button
+                      onClick={() => vote(message.messageId!, false)}
+                      aria-label="도움이 안 됐어요"
+                      aria-pressed={voted[message.messageId] === false}
+                      disabled={message.messageId in voted}
+                    >
+                      👎
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ))}
+
+            {leadOpen ? (
+              <form class="lead" onSubmit={submitLead}>
+                <div class="lead-title">연락처를 남겨주시면 담당자가 확인 후 연락드립니다.</div>
+                <input name="name" placeholder="이름" aria-label="이름" required maxLength={60} />
+                <input
+                  name="contact"
+                  placeholder="연락처 또는 이메일"
+                  aria-label="연락처 또는 이메일"
+                  required
+                  maxLength={120}
+                />
+                <div class="lead-actions">
+                  <button type="submit" disabled={busy}>
+                    남기기
+                  </button>
+                  <button type="button" class="ghost" onClick={() => setLeadOpen(false)}>
+                    괜찮아요
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </div>
 
           <form class="foot" onSubmit={submit}>

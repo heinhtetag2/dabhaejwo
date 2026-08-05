@@ -5,6 +5,7 @@ import com.dabhaejwo.domain.knowledge.entity.DocumentStatus;
 import com.dabhaejwo.domain.knowledge.entity.KnowledgeDocument;
 import com.dabhaejwo.domain.knowledge.entity.KnowledgeSource;
 import com.dabhaejwo.domain.knowledge.entity.SourceType;
+import com.dabhaejwo.domain.knowledge.indexing.DocumentIndexer;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeSourceRepository;
 import com.dabhaejwo.domain.plan.entity.Plan;
@@ -37,9 +38,9 @@ import java.util.UUID;
  * <p>순서가 중요하다 — <b>검증 → 저장소 업로드 → DB 기록</b>. 반대로 하면 DB 에는 있는데
  * 파일이 없는 문서가 생기고, 화면은 "학습 중"으로 영원히 남는다.
  *
- * <p>업로드된 파일에서 <b>글자를 뽑아 학습하는 일은 아직 없다.</b> 문서는 {@code PENDING}
- * 으로 남고, 임베딩 워커가 붙으면 그때 처리된다. 화면이 그 사실을 그대로 보여준다 —
- * "올렸으니 학습됐겠지"라고 오해하게 두지 않는다.
+ * <p>글자를 뽑아 학습하는 일은 <b>요청 안에서 하지 않는다.</b> 문서를 {@code PENDING} 으로
+ * 두면 {@code IndexingWorker} 가 집어간다. 20MB PDF 를 동기로 처리하면 수십 초가 걸리고
+ * 브라우저는 타임아웃으로 끊는데, 그때 사용자는 업로드가 실패한 줄 안다 — 파일은 올라가 있는데도.
  */
 @Service
 public class DocumentUploadService {
@@ -54,6 +55,7 @@ public class DocumentUploadService {
     private final TenantRepository tenantRepository;
     private final PlanRepository planRepository;
     private final FileStorage fileStorage;
+    private final DocumentIndexer indexer;
     private final AppProperties.Storage storageConfig;
 
     public DocumentUploadService(KnowledgeSourceRepository sourceRepository,
@@ -61,12 +63,14 @@ public class DocumentUploadService {
                                  TenantRepository tenantRepository,
                                  PlanRepository planRepository,
                                  FileStorage fileStorage,
+                                 DocumentIndexer indexer,
                                  AppProperties properties) {
         this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
         this.fileStorage = fileStorage;
+        this.indexer = indexer;
         this.storageConfig = properties.storage();
     }
 
@@ -107,9 +111,8 @@ public class DocumentUploadService {
 
         document.attachFile(key, contentType, displayName, content.length, sha256);
 
-        // TODO(stub): 임베딩 워커가 없어 PENDING 에서 더 나아가지 않는다.
-        log.info("파일을 저장했습니다 — tenant={}, key={}, {}bytes. "
-                + "임베딩 워커가 없어 학습은 대기 상태로 남습니다", tenantId, key, content.length);
+        log.info("파일을 저장했습니다 — tenant={}, key={}, {}bytes. 학습 대기열에 들어갑니다",
+                tenantId, key, content.length);
 
         return KnowledgeDocumentResponse.from(document);
     }
@@ -129,6 +132,8 @@ public class DocumentUploadService {
                 .filter(found -> found.getTenantId().equals(user.tenantId()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND));
 
+        // 조각을 먼저 지운다. 남으면 없는 문서의 내용이 계속 검색된다.
+        indexer.removeChunks(user.tenantId(), documentId);
         if (document.getStorageKey() != null) {
             fileStorage.delete(document.getStorageKey());
         }

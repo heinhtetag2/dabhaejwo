@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { usePreviewAnswer } from "@/entities/chatbot/preview";
+import { ApiError } from "@/shared/api/http-client";
 import { cn } from "@/shared/lib/cn";
 
 /**
@@ -9,9 +11,11 @@ import { cn } from "@/shared/lib/cn";
  *
  * <p>공통 질문 화면과 말투·모양 화면이 함께 쓴다. 그래서 feature 가 아니라 shared 에 있다.
  *
- * <p><b>여기서 나가는 답변은 저장 답변뿐이다.</b> 자유 입력을 받아 실제 답을 만들려면
- * 답변 파이프라인이 필요한데 아직 없다. 그래서 입력창은 잠가 두고, 흉내 낸 답을
- * 지어내지 않는다 — 업체가 품질을 오판하게 만드는 것이 빈 화면보다 나쁘다.
+ * <p>자유 입력은 <b>위젯과 같은 파이프라인</b>을 탄다. 흉내 낸 답을 지어내지 않는다 —
+ * 업체가 품질을 오판하게 만드는 것이 빈 화면보다 나쁘다.
+ *
+ * <p>대화로 기록되지 않으므로 방문자 통계와 답변 개선 목록이 오염되지 않는다.
+ * 다만 <b>원가는 실제로 나간다</b> — 모델을 진짜로 부르기 때문이다.
  */
 export interface PreviewFaq {
   id: string;
@@ -25,6 +29,8 @@ interface Turn {
   text: string;
   links?: string[];
   saved?: boolean;
+  /** false 면 근거를 못 찾아 안내 문구로 답한 것이다. 업체가 이 상태를 알아야 자료를 보탠다. */
+  failed?: boolean;
 }
 
 export function WidgetPreview({
@@ -41,6 +47,8 @@ export function WidgetPreview({
   className?: string;
 }) {
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [draft, setDraft] = useState("");
+  const preview = usePreviewAnswer();
 
   const ask = (faq: PreviewFaq) => {
     setTurns((prev) => [
@@ -48,6 +56,41 @@ export function WidgetPreview({
       { role: "visitor", text: faq.question },
       { role: "bot", text: faq.answer, links: faq.links, saved: true },
     ]);
+  };
+
+  const send = (event: React.FormEvent) => {
+    event.preventDefault();
+    const question = draft.trim();
+    if (!question || preview.isPending) {
+      return;
+    }
+    setDraft("");
+    setTurns((prev) => [...prev, { role: "visitor", text: question }]);
+
+    preview
+      .mutateAsync(question)
+      .then((result) =>
+        setTurns((prev) => [
+          ...prev,
+          {
+            role: "bot",
+            text: result.answer,
+            links: result.links,
+            saved: result.saved,
+            failed: !result.answered,
+          },
+        ]),
+      )
+      .catch((cause: unknown) =>
+        setTurns((prev) => [
+          ...prev,
+          {
+            role: "bot",
+            text: cause instanceof ApiError ? cause.message : "답변을 만들지 못했습니다",
+            failed: true,
+          },
+        ]),
+      );
   };
 
   return (
@@ -107,26 +150,36 @@ export function WidgetPreview({
                     저장된 답변 · 대화 사용량에 포함되지 않음
                   </span>
                 ) : null}
+                {turn.failed ? (
+                  <span className="mt-1.5 block text-[10.5px] text-brick">
+                    근거를 찾지 못해 안내 문구로 답했습니다 · 지식 소스에 자료를 보태보세요
+                  </span>
+                ) : null}
               </Bubble>
             ))
           )}
         </div>
 
-        <footer className="flex items-center gap-2 border-t border-line-2 px-3 py-2.5">
-          {/* TODO(stub): 자유 입력 응답은 답변 파이프라인이 붙어야 동작한다. */}
+        <form onSubmit={send} className="flex items-center gap-2 border-t border-line-2 px-3 py-2.5">
           <input
-            disabled
-            placeholder="직접 입력은 챗봇 연결 후 사용할 수 있습니다"
-            className="min-w-0 flex-1 rounded-full border border-line bg-paper px-3 py-1.5 text-[12px] text-slate-2"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            disabled={preview.isPending}
+            maxLength={500}
+            aria-label="질문 입력"
+            placeholder={preview.isPending ? "답을 만드는 중…" : "방문자처럼 직접 물어보세요"}
+            className="min-w-0 flex-1 rounded-full border border-line bg-paper px-3 py-1.5 text-[12px]"
           />
-          <span
-            aria-hidden
-            className="grid size-7 shrink-0 place-items-center rounded-full text-[13px] text-white opacity-50"
+          <button
+            type="submit"
+            disabled={preview.isPending || draft.trim().length === 0}
+            aria-label="보내기"
+            className="grid size-7 shrink-0 place-items-center rounded-full text-[13px] text-white disabled:opacity-50"
             style={{ backgroundColor: brandColor }}
           >
             ↑
-          </span>
-        </footer>
+          </button>
+        </form>
       </div>
 
       {turns.length > 0 ? (
@@ -139,7 +192,8 @@ export function WidgetPreview({
         </button>
       ) : (
         <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">
-          버튼을 눌러보세요. 저장해 둔 답변이 그대로 나옵니다.
+          버튼을 눌러보세요. 저장해 둔 답변이 그대로 나옵니다. 직접 입력하면 학습한 자료에서
+          근거를 찾아 답합니다 — 방문자 통계에는 잡히지 않습니다.
         </p>
       )}
     </div>

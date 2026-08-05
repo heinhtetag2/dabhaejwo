@@ -13,41 +13,51 @@ export function PublicFooter() {
   const facts = companyFacts();
 
   return (
-    <footer className="mt-20 border-t border-line bg-card">
-      <div className="mx-auto max-w-[1080px] px-5 py-10">
-        <div className="flex flex-wrap gap-x-8 gap-y-4">
-          <div className="min-w-[180px]">
-            <p className="font-semibold tracking-[-0.01em]">{COMPANY.name}</p>
-            <p className="mt-1.5 text-[12.5px] text-slate-2">
-              홈페이지에 붙이는 챗봇
+    <footer className="bg-fill">
+      <div className="mx-auto max-w-[1080px] px-5 py-16">
+        <div className="grid gap-10 sm:grid-cols-[1.4fr_1fr_1fr]">
+          <div>
+            <p className="flex items-center gap-2.5 text-[16px] font-bold tracking-[-0.03em]">
+              <span
+                aria-hidden
+                className="grid size-6.5 place-items-center rounded-[9px] bg-ink text-[13px] font-bold text-mark"
+              >
+                답
+              </span>
+              답해줘
+            </p>
+            <p className="mt-3.5 text-[14px] leading-relaxed text-slate">
+              홈페이지에 스크립트 한 줄을 붙이면,
+              <br />
+              그 사이트를 학습한 챗봇이 방문자 질문에 답합니다.
             </p>
           </div>
 
-          <nav aria-label="약관" className="flex flex-col gap-1.5 text-[12.5px]">
-            <Link href={ROUTES.pricing} className="text-slate hover:text-ink">
-              요금제
-            </Link>
-            <Link href={ROUTES.terms} className="text-slate hover:text-ink">
-              이용약관
-            </Link>
-            <Link href={ROUTES.privacy} className="text-slate hover:text-ink">
-              개인정보처리방침
-            </Link>
+          <nav aria-label="서비스" className="flex flex-col items-start gap-3">
+            <p className="text-[13px] font-semibold text-slate-2">서비스</p>
+            <FooterLink href={ROUTES.pricing}>요금제</FooterLink>
+            <FooterLink href={ROUTES.signup}>무료로 시작하기</FooterLink>
+            <FooterLink href={ROUTES.login}>로그인</FooterLink>
           </nav>
 
-          <div className="text-[12.5px] text-slate">
-            <p>문의</p>
-            <a href={`mailto:${COMPANY.contactEmail}`} className="mt-1.5 block font-mono text-slate-2 hover:text-ink">
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-[13px] font-semibold text-slate-2">문의와 약관</p>
+            <a
+              href={`mailto:${COMPANY.contactEmail}`}
+              className="text-[14px] text-slate transition-colors hover:text-ink"
+            >
               {COMPANY.contactEmail}
             </a>
             {COMPANY.contactPhone ? (
-              <p className="font-mono text-slate-2">{COMPANY.contactPhone}</p>
+              <p className="text-[14px] text-slate">{COMPANY.contactPhone}</p>
             ) : null}
+            <FooterLink href={ROUTES.terms}>이용약관</FooterLink>
+            <FooterLink href={ROUTES.privacy}>개인정보처리방침</FooterLink>
           </div>
         </div>
 
         {facts.length > 0 ? (
-          <dl className="mt-8 flex flex-wrap gap-x-5 gap-y-1 border-t border-line-2 pt-5 text-[11.5px] text-slate-2">
+          <dl className="mt-12 flex flex-wrap gap-x-6 gap-y-1.5 border-t border-edge pt-7 text-[12.5px] text-slate-2">
             {facts.map((fact) => (
               <span key={fact.label} className="flex gap-1.5">
                 <dt>{fact.label}</dt>
@@ -58,5 +68,13 @@ export function PublicFooter() {
         ) : null}
       </div>
     </footer>
+  );
+}
+
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="text-[14px] text-slate transition-colors hover:text-ink">
+      {children}
+    </Link>
   );
 }

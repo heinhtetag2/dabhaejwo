@@ -51,8 +51,56 @@ public class ImpersonationSession {
     protected ImpersonationSession() {
     }
 
+    /**
+     * 세션 시작. 사유는 서비스 레이어에서 이미 검증됐다 — DB CHECK 가 마지막 방어선이다.
+     *
+     * @param ttlMinutes 기본 30분. 연장하려면 사유를 다시 입력해야 한다 (tenant-plan.md §6.1)
+     */
+    public static ImpersonationSession start(UUID tenantId, UUID operatorId, String reason, int ttlMinutes) {
+        ImpersonationSession session = new ImpersonationSession();
+        session.tenantId = tenantId;
+        session.operatorId = operatorId;
+        session.reason = reason;
+        session.status = ImpersonationStatus.ACTIVE;
+        session.startedAt = OffsetDateTime.now();
+        session.expiresAt = session.startedAt.plusMinutes(ttlMinutes);
+        return session;
+    }
+
+    /** 운영자가 스스로 끝냈다. */
+    public void end() {
+        finish(ImpersonationStatus.ENDED);
+    }
+
+    /**
+     * 대상 업체가 해지되어 강제 종료됐다. 해지된 업체의 데이터를 계속 보고 있을 이유가 없다
+     * (admin-console-tenant-plan.md §9).
+     */
+    public void revoke() {
+        finish(ImpersonationStatus.REVOKED);
+    }
+
+    private void finish(ImpersonationStatus target) {
+        if (status != ImpersonationStatus.ACTIVE) {
+            // 이미 끝난 세션을 또 끝내지 않는다. 처음 끝난 시각이 진실이다.
+            return;
+        }
+        this.status = target;
+        this.endedAt = OffsetDateTime.now();
+    }
+
+    /** 사유를 다시 받아 만료를 미룬다. 사유 검증은 서비스 레이어가 한다. */
+    public void extend(String newReason, int ttlMinutes) {
+        this.reason = newReason;
+        this.expiresAt = OffsetDateTime.now().plusMinutes(ttlMinutes);
+    }
+
     public UUID getId() {
         return id;
+    }
+
+    public UUID getTenantId() {
+        return tenantId;
     }
 
     public UUID getOperatorId() {

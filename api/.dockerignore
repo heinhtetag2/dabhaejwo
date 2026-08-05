@@ -1,0 +1,11 @@
+# 빌드 컨텍스트에서 뺀다. 특히 .env — 이미지에 시크릿을 굽지 않는다.
+.env
+.env.*
+build/
+.gradle/
+out/
+*.log
+
+.git/
+.idea/
+.vscode/

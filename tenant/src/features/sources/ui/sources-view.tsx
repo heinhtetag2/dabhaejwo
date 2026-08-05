@@ -26,6 +26,7 @@ import { Pagination } from "@/shared/ui/pagination";
 
 import { DocumentTable } from "./document-table";
 import { FileUpload } from "./file-upload";
+import { controlClass } from "@/shared/common/control";
 
 const STATUS_FILTERS: Array<{ value: DocumentStatus | "ALL"; label: string }> = [
   { value: "ALL", label: "전체" },
@@ -50,7 +51,7 @@ export function SourcesView() {
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: "info" | "warn"; message: string } | null>(null);
 
   const editable = canEdit(context?.member?.role);
 
@@ -84,13 +85,23 @@ export function SourcesView() {
 
   const selected = sources.find((source) => source.id === effectiveSourceId) ?? sources[0];
 
-  const runStub = (action: () => Promise<unknown>) => {
+  /**
+   * 결과를 항상 띄운다. 성공도 실패도 말이 없으면 업체는 눌렀는지조차 알 수 없다.
+   */
+  const run = (action: () => Promise<unknown>, onDone?: (result: unknown) => string) => {
     setNotice(null);
-    void action().catch((error: unknown) => {
-      setNotice(
-        error instanceof ApiError ? error.message : "요청을 처리하지 못했습니다",
-      );
-    });
+    void action()
+      .then((result) => {
+        if (onDone) {
+          setNotice({ tone: "info", message: onDone(result) });
+        }
+      })
+      .catch((error: unknown) => {
+        setNotice({
+          tone: "warn",
+          message: error instanceof ApiError ? error.message : "요청을 처리하지 못했습니다",
+        });
+      });
   };
 
   const handleToggleExcluded = (document: KnowledgeDocument) => {
@@ -157,7 +168,7 @@ export function SourcesView() {
             <Button
               size="sm"
               disabled={recrawl.isPending}
-              onClick={() => runStub(() => recrawl.mutateAsync(selected.id))}
+              onClick={() => run(() => recrawl.mutateAsync(selected.id))}
             >
               지금 다시 읽기
             </Button>
@@ -172,8 +183,8 @@ export function SourcesView() {
       ) : null}
 
       {notice ? (
-        <Notice tone="warn" className="mb-4">
-          {notice}
+        <Notice tone={notice.tone} className="mb-4">
+          {notice.message}
         </Notice>
       ) : null}
 
@@ -196,7 +207,7 @@ export function SourcesView() {
                   }
                 }}
                 placeholder="주소나 제목으로 찾기"
-                className="w-[190px] rounded-[7px] border border-line px-2.5 py-[5.5px] text-[12.5px] focus:border-ink-3 focus:outline-none"
+                className={controlClass("sm", "w-[190px]")}
               />
               <Button
                 size="sm"
@@ -223,7 +234,7 @@ export function SourcesView() {
               className={cn(
                 "rounded-full px-2.5 py-1 text-[12px] transition-colors",
                 status === filter.value
-                  ? "bg-mark-soft text-[#8a6a00]"
+                  ? "bg-mark-soft text-mark-ink"
                   : "text-slate hover:bg-line-2",
               )}
             >
@@ -235,7 +246,14 @@ export function SourcesView() {
               size="sm"
               className="ml-auto"
               disabled={retry.isPending}
-              onClick={() => runStub(() => retry.mutateAsync(selected.id))}
+              onClick={() =>
+                run(
+                  () => retry.mutateAsync(selected.id),
+                  (result) =>
+                    `${(result as { requeued: number }).requeued}건을 다시 학습 대기로 되돌렸습니다. ` +
+                    "잠시 뒤 상태가 바뀝니다",
+                )
+              }
             >
               실패분 다시 학습
             </Button>
@@ -284,7 +302,7 @@ export function SourcesView() {
               onToggleExcluded={handleToggleExcluded}
               onDelete={
                 editable
-                  ? (document) => runStub(() => removeDocument.mutateAsync(document.id))
+                  ? (document) => run(() => removeDocument.mutateAsync(document.id))
                   : undefined
               }
             />

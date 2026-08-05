@@ -71,8 +71,16 @@ public class AuditLog {
         return id;
     }
 
+    public UUID getOperatorId() {
+        return operatorId;
+    }
+
     public AuditAction getAction() {
         return action;
+    }
+
+    public Map<String, Object> getMeta() {
+        return meta == null ? Map.of() : meta;
     }
 
     public UUID getTenantId() {

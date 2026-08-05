@@ -30,6 +30,11 @@ dabhaejwo:
   auth:
     # 없으면 기동 실패. 임시 키로 뜨면 재시작마다 전 사용자가 로그아웃된다.
     jwt-secret: ${JWT_SECRET}
+    # 리프레시 쿠키는 반드시 Secure. 빼면 평문 HTTP 로도 나가 중간에서 가로챌 수 있다.
+    cookie-secure: true
+    # 콘솔과 API 가 같은 등록가능 도메인(tagoplus.co.kr)이라 Lax 로 충분하다.
+    # API 를 다른 도메인으로 옮기면 None 으로 바꾼다 — 그때도 Secure 는 필수다.
+    cookie-same-site: ${AUTH_COOKIE_SAME_SITE:Lax}
   ops:
     # 운영 콘솔은 사내 IP 또는 VPN 뒤에서만 접근한다 (admin-console-plan.md §8).
     # 비워두면 제한이 사라지므로 운영에서는 반드시 값을 넣는다.

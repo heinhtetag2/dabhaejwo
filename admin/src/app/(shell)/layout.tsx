@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
+import { AuthGuard } from "@/widgets/auth-guard/auth-guard";
 import { InternalBar } from "@/widgets/internal-bar/internal-bar";
+import { NotificationBell } from "@/widgets/notification-bell/notification-bell";
 import { OpsSidebar } from "@/widgets/sidebar/ops-sidebar";
 
 /**
@@ -11,12 +13,19 @@ import { OpsSidebar } from "@/widgets/sidebar/ops-sidebar";
  */
 export default function ShellLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh">
-      <OpsSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <InternalBar />
-        <main className="max-w-[1240px] px-7 pt-6 pb-15">{children}</main>
+    <AuthGuard>
+      <div className="flex min-h-dvh">
+        <OpsSidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <InternalBar />
+          {/* 벨은 어느 화면에서도 같은 자리에 있어야 한다 — 알림은 지금 보고 있는
+              화면과 무관하게 온다. 조합은 여기(app 레이어)서 한다. */}
+          <div className="flex justify-end border-b border-line bg-card px-7 py-2">
+            <NotificationBell />
+          </div>
+          <main className="px-7 pt-6 pb-15">{children}</main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }

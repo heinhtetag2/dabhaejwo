@@ -19,6 +19,13 @@ public interface FileStorage {
      */
     void put(String key, InputStream content, long size, String contentType);
 
+    /**
+     * 원본을 읽는다. 인덱싱 워커가 글자를 뽑기 위해 부른다.
+     *
+     * <p>호출부가 스트림을 닫아야 한다 — 열어둔 채로 두면 커넥션 풀이 마른다.
+     */
+    InputStream get(String key);
+
     /** 없으면 조용히 성공으로 친다 — 지우려던 것이 이미 없는 상태는 원하는 결과다. */
     void delete(String key);
 

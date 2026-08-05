@@ -63,11 +63,21 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
 
     List<KnowledgeDocument> findAllByTenantIdAndStatus(UUID tenantId, DocumentStatus status);
 
+    /**
+     * 학습 대기 문서. 워커가 오래 기다린 것부터 집는다 —
+     * 늦게 올린 파일이 먼저 처리되면 먼저 올린 업체가 계속 밀린다.
+     */
+    List<KnowledgeDocument> findAllByStatusOrderByCreatedAtAsc(
+            DocumentStatus status, org.springframework.data.domain.Limit limit);
+
     /** 같은 파일을 또 올렸는지. 해시가 같으면 내용이 같다. */
     java.util.Optional<KnowledgeDocument> findFirstByTenantIdAndContentSha256(
             UUID tenantId, String contentSha256);
 
     long countByTenantIdAndStatus(UUID tenantId, DocumentStatus status);
+
+    /** 전 업체 합계. 운영자가 "지금 학습이 몇 건 밀렸나"를 볼 때 쓴다. */
+    long countByStatus(DocumentStatus status);
 
     interface SourceCount {
         UUID getSourceId();

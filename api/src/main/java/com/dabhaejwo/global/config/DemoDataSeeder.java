@@ -237,7 +237,8 @@ public class DemoDataSeeder {
                         webTitles[i % webTitles.length] + (i < webTitles.length ? "" : " " + i),
                         "/page/" + (i + 1), status);
                 if (status == DocumentStatus.INDEXED) {
-                    doc.markIndexed(4 + (i % 9));
+                    // 데모 문서는 실제 조각이 없다. 출처를 남겨 두면 뒤에 진짜 학습분과 구분된다.
+                    doc.markIndexed(4 + (i % 9), "STUB", "demo-seed");
                 } else if (status == DocumentStatus.FAILED) {
                     doc.markFailed("fetch_timeout");
                 }
@@ -249,7 +250,7 @@ public class DemoDataSeeder {
                 KnowledgeDocument doc = KnowledgeDocument.of(tenantId, file.getId(),
                         "2026_카탈로그_v" + (i + 1) + ".pdf", null, status);
                 if (status == DocumentStatus.INDEXED) {
-                    doc.markIndexed(20 + i);
+                    doc.markIndexed(20 + i, "STUB", "demo-seed");
                 } else if (status == DocumentStatus.FAILED) {
                     doc.markFailed("pdf_parse_timeout");
                 }
@@ -259,7 +260,7 @@ public class DemoDataSeeder {
             for (String title : manualTitles) {
                 KnowledgeDocument doc = KnowledgeDocument.of(tenantId, manual.getId(), title, null,
                         DocumentStatus.INDEXED);
-                doc.markIndexed(2);
+                doc.markIndexed(2, "STUB", "demo-seed");
                 documentRepository.save(doc);
             }
         }

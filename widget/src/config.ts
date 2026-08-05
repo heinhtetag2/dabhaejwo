@@ -3,8 +3,20 @@ import type { WidgetConfig } from "./types";
 /** window 전역은 이 하나만 쓴다. 전역 함수·클래스를 등록하지 않는다. */
 const GLOBAL_KEY = "dabhaejwo";
 
+/**
+ * 기본 API 주소는 **빌드 시점에 박힌다**(`VITE_API_BASE_URL`).
+ *
+ * 호스트 사이트는 우리 도메인을 알 필요가 없다 — 설치 코드에 키만 적고 끝나야 한다.
+ * 그래서 위젯이 자기가 어디로 물어볼지를 알고 있어야 하고, 그 값은 배포 환경마다 다르다.
+ * 코드에 박아두면 스테이징 위젯이 운영 API 를 두드린다.
+ *
+ * 호스트가 `apiBaseUrl` 을 직접 지정하면 그 값이 이긴다(자체 호스팅·디버깅용).
+ */
+const DEFAULT_API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4310";
+
 const DEFAULTS = {
-  apiBaseUrl: "https://api.dabhaejwo.com",
+  apiBaseUrl: DEFAULT_API_BASE_URL,
   position: "right",
   nudgeDelayMs: 15_000,
   debug: false,

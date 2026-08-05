@@ -16,10 +16,14 @@ export interface Faq {
 
 export interface SessionResponse {
   sessionId: string;
+  botName: string;
   greeting: string;
-  faqs: Faq[];
   brandColor: string;
-  position: "right" | "left";
+  /** 대시보드 API 와 같은 이름·같은 값. 위젯만 다른 말을 쓰면 계약이 두 벌이 된다. */
+  widgetPosition: "BOTTOM_RIGHT" | "BOTTOM_LEFT";
+  /** false 면 답변 실패 뒤에도 연락처 폼을 제안하지 않는다. */
+  leadCaptureEnabled: boolean;
+  faqs: Faq[];
 }
 
 export interface AskResponse {
@@ -29,7 +33,8 @@ export interface AskResponse {
   saved: boolean;
   answer: string;
   links: string[];
-  messageId: string;
+  /** 미리보기 응답에는 없다. 👍👎 를 붙일 대상이 없다는 뜻이다. */
+  messageId: string | null;
 }
 
 export type Message =

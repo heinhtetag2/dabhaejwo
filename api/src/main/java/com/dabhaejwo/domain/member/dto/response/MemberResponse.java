@@ -18,6 +18,7 @@ public record MemberResponse(
         String email,
         TenantMemberRole role,
         InviteState inviteState,
+        String phone,
         OffsetDateTime lastSeenAt) {
 
     public static MemberResponse from(TenantMember member) {
@@ -27,6 +28,7 @@ public record MemberResponse(
                 member.getEmail(),
                 member.getRole(),
                 member.getInviteState(),
+                member.getPhone(),
                 member.getLastSeenAt());
     }
 }

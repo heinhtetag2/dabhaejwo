@@ -2,6 +2,7 @@ package com.dabhaejwo.domain.conversation.repository;
 
 import com.dabhaejwo.domain.conversation.entity.Message;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -76,9 +77,41 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     List<UUID> findFailedConversationIds(@Param("tenantId") UUID tenantId,
                                          @Param("conversationIds") List<UUID> conversationIds);
 
+    /**
+     * 일 집계 배치가 읽는다. 저장 답변으로 나간 BOT 메시지를 테넌트별로 센다 —
+     * 이 건수는 모델 원가가 0 이고 대화 사용량에도 잡히지 않는다.
+     */
+    @Query("""
+            SELECT m.tenantId AS tenantId, COUNT(m) AS count FROM Message m
+            WHERE m.saved = true AND m.createdAt >= :from AND m.createdAt < :to
+            GROUP BY m.tenantId
+            """)
+    List<TenantCount> countSavedByTenantBetween(@Param("from") OffsetDateTime from,
+                                                @Param("to") OffsetDateTime to);
+
+    /**
+     * 답변의 근거 문서를 기록한다.
+     *
+     * <p>{@code uuid[]} 는 Hibernate 로 매핑하지 않는다({@code Message} 주석 참조).
+     * 여기 native update 한 곳만 배열을 안다.
+     *
+     * <p>이 기록이 없으면 "챗봇이 왜 이렇게 답했나"에 답할 방법이 없다 —
+     * 조각은 다시 학습하면 바뀌고, 프롬프트는 어디에도 남지 않는다.
+     */
+    @Modifying
+    @Query(value = "UPDATE messages SET source_document_ids = CAST(:ids AS uuid[]) WHERE id = :messageId",
+            nativeQuery = true)
+    void attachSourceDocuments(@Param("messageId") UUID messageId, @Param("ids") String ids);
+
     interface TopQuestion {
         String getQuestion();
 
         long getAskCount();
+    }
+
+    interface TenantCount {
+        UUID getTenantId();
+
+        long getCount();
     }
 }

@@ -59,8 +59,14 @@ public class CorsConfig {
                 HttpHeaders.ACCEPT));
         // CSV 내보내기에서 파일명을 읽으려면 이 헤더가 노출돼야 한다.
         config.setExposedHeaders(List.of(HttpHeaders.CONTENT_DISPOSITION));
-        // 토큰을 Authorization 헤더로 보낸다. 쿠키를 쓰지 않으므로 credentials 가 필요 없다.
-        config.setAllowCredentials(false);
+        /*
+         * 리프레시 토큰이 httpOnly 쿠키로 오간다(RefreshTokenCookie). 쿠키를 실으려면
+         * 브라우저 쪽 `credentials: "include"` 와 서버 쪽 이 플래그가 <b>둘 다</b> 켜져야 한다.
+         *
+         * 이 값이 true 면 `Access-Control-Allow-Origin: *` 를 쓸 수 없다 — 위에서 출처를
+         * 명시 목록으로 받는 이유가 이것이다. 와일드카드로 바꾸는 순간 브라우저가 거부한다.
+         */
+        config.setAllowCredentials(true);
         config.setMaxAge(MAX_AGE_SECONDS);
         return config;
     }

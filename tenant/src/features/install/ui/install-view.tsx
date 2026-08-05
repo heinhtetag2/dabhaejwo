@@ -11,14 +11,19 @@ import {
 } from "@/entities/tenant/allowed-origin";
 import { ApiError } from "@/shared/api/http-client";
 import { Button } from "@/shared/common/button";
+import { env } from "@/shared/config/env";
 import { Card, CardBody, CardHeader } from "@/shared/common/card";
 import { ErrorState, LoadingState } from "@/shared/common/states";
 import { canEdit } from "@/shared/lib/auth-store";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge } from "@/shared/ui/status-badge";
+import { controlClass } from "@/shared/common/control";
 
-/** 위젯 CDN. 배포되면 실제 주소로 바뀐다 — 코드 문자열의 단일 출처를 여기 하나로 둔다. */
-const WIDGET_SRC = "https://cdn.dabhaejwo.com/w.js";
+/**
+ * 위젯 CDN. 배포 환경마다 다르므로 **빌드 시점에 주입**한다(`NEXT_PUBLIC_WIDGET_SRC`).
+ * 코드에 박아두면 스테이징에서 운영 위젯을 불러오게 된다.
+ */
+const WIDGET_SRC = env.widgetSrc;
 
 const PLATFORM_GUIDES = [
   { name: "카페24", steps: "쇼핑몰 관리자 → 디자인 → HTML 편집 → 공통 레이아웃의 body 끝에 붙여넣습니다." },
@@ -138,7 +143,7 @@ export function InstallView() {
                     value={newOrigin}
                     onChange={(event) => setNewOrigin(event.target.value)}
                     placeholder="shop.example.com"
-                    className="w-[190px] rounded-[7px] border border-line px-2.5 py-[5.5px] text-[12.5px] focus:border-ink-3 focus:outline-none"
+                    className={controlClass("sm", "w-[190px]")}
                   />
                   <Button
                     size="sm"
@@ -232,7 +237,7 @@ export function InstallView() {
                     "저장했습니다.",
                   )
                 }
-                className="w-full rounded-[7px] border border-line px-[11px] py-[8.5px] text-[13.5px]"
+                className={controlClass("md")}
               >
                 <option value="BOTTOM_RIGHT">오른쪽 아래</option>
                 <option value="BOTTOM_LEFT">왼쪽 아래</option>
@@ -258,7 +263,7 @@ export function InstallView() {
                     "저장했습니다.",
                   )
                 }
-                className="w-full rounded-[7px] border border-line px-[11px] py-[8.5px] text-[13.5px]"
+                className={controlClass("md")}
               >
                 <option value="0">띄우지 않기</option>
                 <option value="5">5초 후</option>

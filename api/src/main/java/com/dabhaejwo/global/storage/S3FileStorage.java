@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -46,6 +47,17 @@ public class S3FileStorage implements FileStorage {
             log.error("파일 저장에 실패했습니다 (key={})", key, e);
             throw new BusinessException(ErrorCode.FEATURE_NOT_READY,
                     "파일을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요");
+        }
+    }
+
+    @Override
+    public InputStream get(String key) {
+        try {
+            return client.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build());
+        } catch (S3Exception e) {
+            log.error("파일을 읽지 못했습니다 (key={})", key, e);
+            throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND,
+                    "저장된 원본을 찾지 못했습니다");
         }
     }
 

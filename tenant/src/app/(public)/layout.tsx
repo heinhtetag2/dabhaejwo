@@ -11,7 +11,9 @@ import { PublicHeader } from "@/widgets/public-shell/public-header";
  */
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col">
+    // 대시보드는 옅은 회색 위에서 카드를 구분하지만, 공개 영역은 흰 바탕이 기본이다.
+    // 읽는 화면과 다루는 화면은 필요한 것이 다르다.
+    <div className="flex min-h-dvh flex-col bg-card">
       <PublicHeader />
       <main className="flex-1">{children}</main>
       <PublicFooter />

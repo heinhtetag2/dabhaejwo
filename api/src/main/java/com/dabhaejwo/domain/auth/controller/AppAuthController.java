@@ -1,19 +1,31 @@
 package com.dabhaejwo.domain.auth.controller;
 
 import com.dabhaejwo.domain.auth.dto.request.AppLoginRequest;
-import com.dabhaejwo.domain.auth.dto.request.RefreshRequest;
+import com.dabhaejwo.domain.auth.dto.request.ForgotPasswordRequest;
+import com.dabhaejwo.domain.auth.dto.request.InviteAcceptRequest;
+import com.dabhaejwo.domain.auth.dto.request.OtpVerifyRequest;
+import com.dabhaejwo.domain.auth.dto.request.ResetPasswordRequest;
+import com.dabhaejwo.domain.auth.dto.response.InvitePreviewResponse;
+import com.dabhaejwo.domain.auth.dto.response.OtpChallengeResponse;
+import com.dabhaejwo.domain.auth.entity.AuthScope;
+import com.dabhaejwo.domain.auth.service.InviteService;
+import com.dabhaejwo.domain.auth.service.PasswordResetService;
 import com.dabhaejwo.domain.auth.dto.response.AppLoginResponse;
-import com.dabhaejwo.domain.auth.dto.response.TokenResponse;
 import com.dabhaejwo.domain.auth.dto.request.SignupRequest;
 import com.dabhaejwo.domain.auth.service.AppAuthService;
 import com.dabhaejwo.domain.auth.service.SignupService;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import com.dabhaejwo.global.security.ClientIp;
+import com.dabhaejwo.global.security.RefreshTokenCookie;
 import com.dabhaejwo.global.security.SignupRateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,18 +39,80 @@ public class AppAuthController {
     private final AppAuthService appAuthService;
     private final SignupService signupService;
     private final SignupRateLimiter rateLimiter;
+    private final PasswordResetService passwordResetService;
+    private final InviteService inviteService;
+    private final RefreshTokenCookie refreshCookie;
 
     public AppAuthController(AppAuthService appAuthService,
                              SignupService signupService,
-                             SignupRateLimiter rateLimiter) {
+                             SignupRateLimiter rateLimiter,
+                             PasswordResetService passwordResetService,
+                             InviteService inviteService,
+                             RefreshTokenCookie refreshCookie) {
         this.appAuthService = appAuthService;
         this.signupService = signupService;
         this.rateLimiter = rateLimiter;
+        this.passwordResetService = passwordResetService;
+        this.inviteService = inviteService;
+        this.refreshCookie = refreshCookie;
     }
 
+    /**
+     * 로그인 1단계. 비밀번호가 맞으면 <b>토큰이 아니라 챌린지</b>를 주고 코드를 메일로 보낸다.
+     *
+     * <p>임시 비밀번호로 들어오면 {@code PASSWORD_CHANGE_REQUIRED}(403) 다 —
+     * 화면은 비밀번호 재설정으로 보낸다.
+     */
     @PostMapping("/app/login")
-    public AppLoginResponse login(@Valid @RequestBody AppLoginRequest request) {
-        return appAuthService.login(request);
+    public OtpChallengeResponse login(@Valid @RequestBody AppLoginRequest request,
+                                      HttpServletRequest http) {
+        return appAuthService.login(request, ClientIp.hashOf(http));
+    }
+
+    /**
+     * 로그인 2단계. 코드가 맞아야 토큰이 나온다.
+     *
+     * <p>리프레시 토큰은 본문과 <b>httpOnly 쿠키 양쪽</b>으로 나간다. 본문은 지금 이 탭이
+     * 쓰고, 쿠키는 새로고침 뒤 세션을 되살리는 데 쓴다 — 자바스크립트가 못 읽는 곳에 둬야
+     * XSS 로 털리지 않는다 ({@link RefreshTokenCookie}).
+     */
+    @PostMapping("/app/login/otp")
+    public AppLoginResponse verifyOtp(@Valid @RequestBody OtpVerifyRequest request,
+                                      HttpServletResponse response) {
+        AppLoginResponse login = appAuthService.verifyOtp(request);
+        refreshCookie.issue(response, login.refreshToken());
+        return login;
+    }
+
+    /**
+     * 비밀번호 찾기 — 임시 비밀번호 발송.
+     *
+     * <p>계정이 없어도 <b>204 다.</b> 응답이 갈리면 어떤 주소가 가입돼 있는지 확인하는 도구가 된다.
+     */
+    @PostMapping("/app/password/forgot")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.forgot(AuthScope.APP, request);
+    }
+
+    /** 임시 비밀번호로 본인을 확인하고 새 비밀번호를 만든다. */
+    @PostMapping("/app/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.reset(AuthScope.APP, request);
+    }
+
+    /** 초대 링크를 열었을 때. 비밀번호를 정하기 전에 어디에 초대됐는지 보여준다. */
+    @GetMapping("/app/invite")
+    public InvitePreviewResponse invitePreview(@RequestParam String token) {
+        return inviteService.preview(token);
+    }
+
+    /** 초대 수락 — 비밀번호를 정한다. 끝나면 로그인 화면으로 보낸다. */
+    @PostMapping("/app/invite/accept")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void acceptInvite(@Valid @RequestBody InviteAcceptRequest request) {
+        inviteService.accept(request);
     }
 
     /**
@@ -48,30 +122,15 @@ public class AppAuthController {
     @PostMapping("/app/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public AppLoginResponse signup(@Valid @RequestBody SignupRequest request,
-                                   HttpServletRequest http) {
-        if (!rateLimiter.tryAcquire(clientIp(http))) {
+                                   HttpServletRequest http,
+                                   HttpServletResponse response) {
+        if (!rateLimiter.tryAcquire(ClientIp.of(http))) {
             throw new BusinessException(ErrorCode.RATE_LIMITED,
                     "가입 시도가 너무 잦습니다. 잠시 후 다시 시도해 주세요");
         }
-        return signupService.signup(request);
+        AppLoginResponse login = signupService.signup(request);
+        refreshCookie.issue(response, login.refreshToken());
+        return login;
     }
 
-    /**
-     * 클라이언트 IP. 프록시 뒤에 있으면 {@code X-Forwarded-For} 의 첫 값이 원 클라이언트다.
-     *
-     * <p>이 헤더는 <b>클라이언트가 위조할 수 있다.</b> 그래서 레이트 리밋 키로만 쓰고
-     * 인가 판단에는 쓰지 않는다. 신뢰할 수 있으려면 프록시가 헤더를 덮어써야 한다.
-     */
-    private String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].strip();
-        }
-        return request.getRemoteAddr();
-    }
-
-    @PostMapping("/refresh")
-    public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        return appAuthService.refresh(request.refreshToken());
-    }
 }

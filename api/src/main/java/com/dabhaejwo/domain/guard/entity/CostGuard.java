@@ -55,6 +55,16 @@ public class CostGuard {
     @Column(name = "quota_exceeded_behavior", nullable = false)
     private String quotaExceededBehavior;
 
+    /**
+     * 문서·질문을 임베딩할 공급사.
+     *
+     * <p><b>바꾸면 기존 조각이 전부 무효가 된다</b> — 다른 모델이 만든 벡터끼리는 거리를
+     * 비교할 수 없다. 그래서 문서마다 학습 출처를 남기고, 설정과 다른 문서를 다시 학습
+     * 대상으로 표시한다.
+     */
+    @Column(name = "embedding_provider", nullable = false)
+    private String embeddingProvider;
+
     @Column(name = "slack_alert_enabled", nullable = false)
     private boolean slackAlertEnabled;
 
@@ -65,6 +75,66 @@ public class CostGuard {
     private OffsetDateTime updatedAt;
 
     protected CostGuard() {
+    }
+
+    /**
+     * 안전장치 갱신. 단일 행이므로 생성이 없고 수정만 있다.
+     *
+     * <p>상한을 0 이하로 두는 것을 막는다 — 0 은 "제한 없음"이 아니라 "전부 차단"으로
+     * 동작하고, 그 상태는 화면에서 정상처럼 보인다.
+     */
+    public void update(int tenantDailyCap,
+                       int globalDailyCap,
+                       int ipPerMin,
+                       int bulkLimit,
+                       int warnPercent,
+                       BigDecimal failSimilarity,
+                       int chunkCount,
+                       int maxLength,
+                       int purgeGraceDays,
+                       String behavior,
+                       boolean slackEnabled,
+                       String prompt) {
+        this.tenantDailyCapKrw = tenantDailyCap;
+        this.globalDailyCapKrw = globalDailyCap;
+        this.ipQuestionsPerMin = ipPerMin;
+        this.bulkUploadLimit = bulkLimit;
+        this.costRatioWarnPercent = warnPercent;
+        this.answerFailSimilarity = failSimilarity;
+        this.defaultChunkCount = chunkCount;
+        this.answerMaxLength = maxLength;
+        this.churnPurgeGraceDays = purgeGraceDays;
+        this.quotaExceededBehavior = behavior;
+        this.slackAlertEnabled = slackEnabled;
+        this.commonPrompt = prompt;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    /**
+     * 임베딩 공급사 교체.
+     *
+     * <p>{@link #update} 와 <b>따로 두는 것이 의도다.</b> 이 값은 바꾸는 순간 기존 조각을
+     * 전부 무효로 만든다 — 슬랙 알림 토글과 같은 저장 버튼에 묶이면 사고가 난다.
+     */
+    public void changeEmbeddingProvider(String provider) {
+        this.embeddingProvider = provider;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    public String getQuotaExceededBehavior() {
+        return quotaExceededBehavior;
+    }
+
+    public String getEmbeddingProvider() {
+        return embeddingProvider;
+    }
+
+    public boolean isSlackAlertEnabled() {
+        return slackAlertEnabled;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
     public int getTenantDailyCapKrw() {

@@ -37,7 +37,9 @@ export function mount(scope: Window = window): HTMLElement | null {
     shadow.appendChild(mountPoint);
 
     scope.document.body.appendChild(host);
-    render(<WidgetApp config={config} />, mountPoint);
+    // 경로는 여기서만 읽는다 — UI 는 호스트 페이지를 모른다(widget-embed-script.md 레이어 규칙).
+    // 전체 URL 이 아니라 경로만 넘긴다. 쿼리스트링에 개인정보가 실려 있을 수 있다.
+    render(<WidgetApp config={config} path={scope.location?.pathname ?? "/"} />, mountPoint);
 
     return host;
   } catch {

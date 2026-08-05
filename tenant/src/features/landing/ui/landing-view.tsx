@@ -1,5 +1,6 @@
 import { LinkButton } from "@/shared/common/button";
 import { ROUTES } from "@/shared/config/routes";
+import { PublicCard, PublicSection } from "@/shared/ui/public-section";
 
 /**
  * 서비스 안내.
@@ -12,100 +13,71 @@ import { ROUTES } from "@/shared/config/routes";
 export function LandingView() {
   return (
     <>
-      <section className="mx-auto max-w-[1080px] px-5 pt-16 pb-14">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
-          <div>
-            <p className="font-mono text-[11px] tracking-[0.11em] text-slate-2 uppercase">
-              홈페이지에 붙이는 챗봇
-            </p>
-            <h1 className="mt-3 text-[34px] leading-[1.35] font-semibold tracking-[-0.03em] sm:text-[40px]">
-              한 줄만 붙이면,
-              <br />
-              <span className="bg-linear-to-t from-mark-soft from-40% to-40% to-transparent px-1">
-                우리 사이트를 학습한 챗봇
-              </span>
-              이<br />
-              방문자 질문에 답합니다.
-            </h1>
-            <p className="mt-5 max-w-[520px] text-[14.5px] leading-relaxed text-slate">
-              사이트 주소만 알려주시면 페이지를 읽어 학습합니다. 답하지 못한 질문은 모아서
-              보여드리고, 답을 한 번 달아두면 다음부터는 챗봇이 대신 답합니다.
-            </p>
+      <Hero />
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <LinkButton href={ROUTES.signup} variant="accent">
-                14일 무료로 시작하기
-              </LinkButton>
-              <LinkButton href={ROUTES.pricing}>요금제 보기</LinkButton>
-            </div>
-            <p className="mt-3 text-[12.5px] text-slate-2">
-              카드 등록이 필요 없습니다. 체험 기간에는 요금이 청구되지 않습니다.
-            </p>
-          </div>
-
-          <div>
-            <p className="mb-2 font-mono text-[11px] tracking-[0.11em] text-slate-2 uppercase">
-              설치는 이게 전부입니다
-            </p>
-            <pre className="overflow-x-auto rounded-card bg-ink px-5 py-4 font-mono text-[12.5px] leading-relaxed text-[#c9d4dc]">
-{`<script>
-  window.dabhaejwo = { key: "pk_live_..." };
-</script>
-<script src="https://cdn.dabhaejwo.com/w.js" async></script>`}
-            </pre>
-            <p className="mt-2.5 text-[12px] text-slate-2">
-              가입하면 이 코드가 키와 함께 만들어집니다. 개발자가 없어도 붙일 수 있도록
-              플랫폼별 안내를 드립니다.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <Section title="어떻게 동작하나요" eyebrow="3단계">
-        <ol className="grid gap-5 sm:grid-cols-3">
+      <PublicSection
+        tone="fill"
+        eyebrow="3단계"
+        title="주소를 알려주고, 코드를 붙이면 끝입니다"
+        description="가입하고 30분이면 챗봇이 사이트에 떠 있습니다."
+      >
+        <ol className="grid gap-4 sm:grid-cols-3">
           {STEPS.map((step, index) => (
-            <li key={step.title} className="rounded-card border border-line bg-card p-5">
-              <span className="tabular grid size-7 place-items-center rounded-full bg-paper text-[12px] font-semibold">
+            <PublicCard as="li" key={step.title} className="bg-card">
+              <span
+                aria-hidden
+                className="grid size-8 place-items-center rounded-full bg-ink text-[13px] font-bold text-mark"
+              >
                 {index + 1}
               </span>
-              <h3 className="mt-3.5 text-[15px] font-semibold">{step.title}</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-slate">{step.body}</p>
-            </li>
+              <h3 className="mt-5 text-[17px] font-bold tracking-[-0.02em]">{step.title}</h3>
+              <p className="mt-2.5 text-[14.5px] leading-[1.7] text-slate">{step.body}</p>
+            </PublicCard>
           ))}
         </ol>
-      </Section>
+      </PublicSection>
 
-      <Section title="무엇이 좋아지나요" eyebrow="효과">
-        <div className="grid gap-5 sm:grid-cols-3">
+      <PublicSection
+        eyebrow="효과"
+        title="문의를 줄이고, 놓친 질문은 남깁니다"
+        description="답하지 못한 질문은 사라지지 않고 목록에 쌓입니다. 답을 한 번 달아두면 다음부터는 챗봇이 대신 답합니다."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
           {BENEFITS.map((benefit) => (
-            <div key={benefit.title} className="rounded-card border border-line bg-card p-5">
-              <h3 className="text-[15px] font-semibold">{benefit.title}</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-slate">{benefit.body}</p>
-            </div>
+            <PublicCard key={benefit.title} className="bg-fill">
+              <h3 className="text-[17px] font-bold tracking-[-0.02em] text-balance">
+                {benefit.title}
+              </h3>
+              <p className="mt-2.5 text-[14.5px] leading-[1.7] text-slate">{benefit.body}</p>
+            </PublicCard>
           ))}
         </div>
-      </Section>
+      </PublicSection>
 
-      <Section title="자주 묻는 질문" eyebrow="FAQ">
-        <dl className="rounded-card border border-line bg-card">
+      <PublicSection tone="fill" eyebrow="FAQ" title="자주 묻는 질문">
+        <dl className="grid gap-3">
           {FAQS.map((faq) => (
-            <div key={faq.q} className="border-b border-line-2 px-5 py-4 last:border-b-0">
-              <dt className="text-[14px] font-medium">{faq.q}</dt>
-              <dd className="mt-1.5 text-[13px] leading-relaxed text-slate">{faq.a}</dd>
+            <div key={faq.q} className="rounded-block bg-card px-6 py-6 sm:px-7">
+              <dt className="text-[15.5px] font-bold tracking-[-0.02em]">{faq.q}</dt>
+              <dd className="mt-2.5 text-[14.5px] leading-[1.75] text-slate">{faq.a}</dd>
             </div>
           ))}
         </dl>
-      </Section>
+      </PublicSection>
 
-      <section className="mx-auto max-w-[1080px] px-5 pb-4">
-        <div className="rounded-card border border-line bg-card px-7 py-9 text-center">
-          <h2 className="text-[22px] font-semibold tracking-[-0.02em]">
+      <section className="mx-auto max-w-[1080px] px-5 pt-4 pb-24 sm:pb-28">
+        <div className="rounded-panel bg-ink px-6 py-16 text-center sm:px-10 sm:py-20">
+          <h2 className="text-[26px] leading-[1.35] font-bold tracking-[-0.035em] text-balance text-white sm:text-[34px]">
             사이트 주소 하나로 시작합니다
           </h2>
-          <p className="mt-2 text-[13.5px] text-slate">
-            가입하고 30분이면 챗봇이 사이트에 떠 있습니다.
+          <p className="mt-4 text-[15.5px] leading-[1.7] text-slate-2">
+            카드 등록이 필요 없습니다. 14일 동안 요금이 청구되지 않습니다.
           </p>
-          <LinkButton href={ROUTES.signup} variant="accent" className="mt-5">
+          <LinkButton
+            href={ROUTES.signup}
+            size="lg"
+            className="mt-8 border-mark bg-mark text-ink hover:brightness-105"
+          >
             14일 무료로 시작하기
           </LinkButton>
         </div>
@@ -114,20 +86,55 @@ export function LandingView() {
   );
 }
 
-function Section({
-  title,
-  eyebrow,
-  children,
-}: {
-  title: string;
-  eyebrow: string;
-  children: React.ReactNode;
-}) {
+function Hero() {
   return (
-    <section className="mx-auto max-w-[1080px] px-5 py-10">
-      <p className="font-mono text-[11px] tracking-[0.11em] text-slate-2 uppercase">{eyebrow}</p>
-      <h2 className="mt-2 mb-6 text-[22px] font-semibold tracking-[-0.02em]">{title}</h2>
-      {children}
+    <section className="mx-auto max-w-[1080px] px-5 pt-16 pb-20 sm:pt-24 sm:pb-24 lg:pt-28">
+      <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+        <div>
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-mark-soft px-3 py-1.5 text-[13px] font-semibold text-ink-2">
+            홈페이지에 붙이는 챗봇
+          </p>
+
+          <h1 className="mt-5 text-[36px] leading-[1.28] font-bold tracking-[-0.045em] text-balance sm:text-[46px] lg:text-[52px]">
+            한 줄만 붙이면,
+            <br />
+            우리 사이트를 학습한 챗봇이
+            <br />
+            방문자 질문에 답합니다.
+          </h1>
+
+          <p className="mt-6 max-w-[500px] text-[16px] leading-[1.75] text-slate sm:text-[17px]">
+            사이트 주소만 알려주시면 페이지를 읽어 학습합니다. 답하지 못한 질문은 모아서
+            보여드리고, 답을 한 번 달아두면 다음부터는 챗봇이 대신 답합니다.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center gap-2.5">
+            <LinkButton href={ROUTES.signup} variant="primary" size="lg">
+              14일 무료로 시작하기
+            </LinkButton>
+            <LinkButton href={ROUTES.pricing} size="lg" className="border-edge bg-fill hover:bg-line-2">
+              요금제 보기
+            </LinkButton>
+          </div>
+          <p className="mt-4 text-[13.5px] text-slate-2">
+            카드 등록이 필요 없습니다. 체험 기간에는 요금이 청구되지 않습니다.
+          </p>
+        </div>
+
+        <div className="rounded-panel bg-fill p-6 sm:p-7">
+          <p className="text-[13px] font-semibold text-slate-2">설치는 이게 전부입니다</p>
+          <pre className="mt-4 overflow-x-auto rounded-block bg-ink px-5 py-5 font-mono text-[12.5px] leading-[1.8] text-code">
+{`<script>
+  window.dabhaejwo = { key: "pk_live_..." };
+</script>
+<script src="https://cdn.dabhaejwo.com/w.js" async></script>`}
+          </pre>
+          <p className="mt-4 text-[13.5px] leading-relaxed text-slate">
+            가입하면 이 코드가 키와 함께 만들어집니다. 개발자가 없어도 붙일 수 있도록
+            카페24·아임웹·워드프레스 안내를 화면에서 드립니다.
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

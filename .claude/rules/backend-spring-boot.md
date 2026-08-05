@@ -55,6 +55,9 @@ com.dabhaejwo/
 - `jsonb` 컬럼은 Hibernate `@JdbcTypeCode(SqlTypes.JSON)`. 문자열로 다루지 않는다.
 - 벡터 검색은 `KnowledgeChunkRepository` 의 native query로 격리한다. `<=>` 연산자가 서비스 레이어로 새어나가지 않게 한다.
 - 배열 컬럼(`uuid[]`)은 조회 조건으로 쓰지 않는다 — 조인 테이블이 필요한 신호다.
+- **JPQL 파라미터에 null 을 넘기지 않는다.** PostgreSQL 은 파라미터 타입을 추론할 근거가 없으면 터진다. 컴파일도 단위 테스트도 못 잡고 **실 DB 호출에서만** 드러난다.
+  - 함수 안에만 나오는 문자열(`LOWER(CONCAT('%', :q, '%'))`)에 null → `bytea` 로 바인딩되어 `function lower(bytea) does not exist`. **빈 문자열을 넘긴다** (`LIKE '%%'` 는 전부 매칭이라 필터 없는 것과 같다).
+  - `:from IS NULL OR col >= :from` 형태의 `timestamptz` → `could not determine data type of parameter`. **null 을 받지 말고 호출부가 기본 범위를 정한다.** uuid·enum 은 비교 대상 컬럼에서 타입이 잡혀 통과하지만 시각은 안 된다.
 
 ## 이 프로젝트 고유 — LLM 호출
 - **모든 LLM 호출은 `global/llm/LlmGateway` 를 지난다.** Provider 를 직접 주입받아 호출하는 코드 금지.

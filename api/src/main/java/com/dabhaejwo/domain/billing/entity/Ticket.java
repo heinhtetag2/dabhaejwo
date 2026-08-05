@@ -40,10 +40,35 @@ public class Ticket {
     @Column(nullable = false)
     private TicketStatus status;
 
+    @Column(name = "answered_by")
+    private UUID answeredBy;
+
+    @Column(name = "answered_at")
+    private OffsetDateTime answeredAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     protected Ticket() {
+    }
+
+    /**
+     * 상태 변경. 답변 본문은 여기 남기지 않는다 — 회신은 이메일로 나가고, 티켓에 사본을
+     * 두면 두 곳이 갈라진다. 여기 남는 것은 "누가 언제 처리했는가"다.
+     *
+     * <p>{@code CLOSED} 에서 되돌리지 않는다. 새 문의는 새 티켓이다.
+     */
+    public void changeStatus(TicketStatus target, UUID operatorId) {
+        if (status == TicketStatus.CLOSED) {
+            throw new com.dabhaejwo.global.exception.BusinessException(
+                    com.dabhaejwo.global.exception.ErrorCode.INVALID_STATE_TRANSITION,
+                    "종료된 문의는 다시 열 수 없습니다");
+        }
+        this.status = target;
+        if (target == TicketStatus.ANSWERED || target == TicketStatus.CLOSED) {
+            this.answeredBy = operatorId;
+            this.answeredAt = OffsetDateTime.now();
+        }
     }
 
     public static Ticket open(UUID tenantId, String subject, String body) {
@@ -60,8 +85,24 @@ public class Ticket {
         return id;
     }
 
+    public UUID getTenantId() {
+        return tenantId;
+    }
+
     public String getSubject() {
         return subject;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public UUID getAnsweredBy() {
+        return answeredBy;
+    }
+
+    public OffsetDateTime getAnsweredAt() {
+        return answeredAt;
     }
 
     public TicketStatus getStatus() {

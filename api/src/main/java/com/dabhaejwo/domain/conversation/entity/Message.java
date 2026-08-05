@@ -62,17 +62,35 @@ public class Message {
     }
 
     public static Message fromVisitor(UUID tenantId, UUID conversationId, String content) {
+        return fromVisitor(tenantId, conversationId, content, OffsetDateTime.now());
+    }
+
+    /**
+     * 시각을 직접 받는 형태.
+     *
+     * <p>질문과 답변을 각각 {@code now()} 로 찍으면 <b>같은 순간에 걸려 순서가 뒤집힌다.</b>
+     * 실제로 대화 로그에 답변이 질문보다 위에 나왔다. 답변 시각은 질문 시각 + 걸린 시간이
+     * 되어야 하고, 그게 사실이기도 하다.
+     */
+    public static Message fromVisitor(UUID tenantId, UUID conversationId, String content,
+                                      OffsetDateTime askedAt) {
         Message message = new Message();
         message.tenantId = tenantId;
         message.conversationId = conversationId;
         message.role = MessageRole.VISITOR;
         message.content = content;
-        message.createdAt = OffsetDateTime.now();
+        message.createdAt = askedAt;
         return message;
     }
 
     public static Message fromBot(UUID tenantId, UUID conversationId, String content,
                                   boolean answered, boolean saved, UUID faqId) {
+        return fromBot(tenantId, conversationId, content, answered, saved, faqId, OffsetDateTime.now());
+    }
+
+    public static Message fromBot(UUID tenantId, UUID conversationId, String content,
+                                  boolean answered, boolean saved, UUID faqId,
+                                  OffsetDateTime answeredAt) {
         Message message = new Message();
         message.tenantId = tenantId;
         message.conversationId = conversationId;
@@ -81,12 +99,21 @@ public class Message {
         message.answered = answered;
         message.saved = saved;
         message.faqId = faqId;
-        message.createdAt = OffsetDateTime.now();
+        message.createdAt = answeredAt;
         return message;
+    }
+
+    /** 답을 만드는 데 걸린 시간을 기록한다. 재보지 않았으면 부르지 않는다 — 0 은 거짓말이다. */
+    public void measured(int millis) {
+        this.latencyMs = millis;
     }
 
     public UUID getId() {
         return id;
+    }
+
+    public UUID getTenantId() {
+        return tenantId;
     }
 
     public UUID getConversationId() {

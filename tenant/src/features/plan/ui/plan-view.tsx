@@ -15,6 +15,7 @@ import { env } from "@/shared/config/env";
 import { ErrorState, LoadingState } from "@/shared/common/states";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge, type Tone } from "@/shared/ui/status-badge";
+import { controlClass } from "@/shared/common/control";
 
 const TONE: Record<BillingStatus, Tone> = {
   PAID: "ok",
@@ -174,7 +175,7 @@ function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
         id="upgrade-plan"
         value={planCode}
         onChange={(event) => setPlanCode(event.target.value)}
-        className="w-full rounded-[7px] border border-line bg-card px-2.5 py-1.5 text-[13px]"
+        className={controlClass("sm")}
       >
         {(plans ?? []).map((plan) => (
           <option key={plan.code} value={plan.code}>
@@ -192,7 +193,7 @@ function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
         value={note}
         onChange={(event) => setNote(event.target.value)}
         placeholder="연락 가능한 시간, 세금계산서 필요 여부 등"
-        className="w-full resize-y rounded-[7px] border border-line bg-card px-2.5 py-1.5 text-[13px]"
+        className={controlClass("sm", "resize-y")}
       />
 
       {request.isError ? (

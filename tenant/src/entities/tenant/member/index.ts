@@ -22,6 +22,7 @@ const memberSchema = z.object({
   email: z.string(),
   role: z.enum(["OWNER", "EDITOR", "VIEWER"]),
   inviteState: z.enum(["PENDING", "ACCEPTED"]),
+  phone: z.string().nullable(),
   lastSeenAt: z.string().nullable(),
 });
 
@@ -44,11 +45,29 @@ function useInvalidateMembers() {
   return () => void queryClient.invalidateQueries({ queryKey: memberKeys.list });
 }
 
+/**
+ * 초대. 서버가 <b>메일을 보내야 성공한다</b> — 발송이 실패하면 팀원 행도 만들어지지 않는다.
+ * 그래서 성공 응답은 "링크가 나갔다"는 뜻이다.
+ */
 export function useInviteMember() {
   const invalidate = useInvalidateMembers();
   return useMutation({
-    mutationFn: (input: { email: string; name?: string; role: TenantMemberRole }) =>
-      api("/api/app/members", { method: "POST", body: input }),
+    mutationFn: (input: {
+      email: string;
+      name: string;
+      role: TenantMemberRole;
+      phone?: string;
+    }) => api("/api/app/members", { method: "POST", body: input }),
+    onSuccess: invalidate,
+  });
+}
+
+/** 초대 메일 다시 보내기. 이전 링크는 무효가 된다. */
+export function useResendInvite() {
+  const invalidate = useInvalidateMembers();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api(`/api/app/members/${id}/resend-invite`, { method: "POST" }),
     onSuccess: invalidate,
   });
 }

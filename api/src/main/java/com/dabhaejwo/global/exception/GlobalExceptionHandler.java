@@ -6,7 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
@@ -62,6 +65,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.status())
                 .body(ErrorResponse.of(ErrorCode.VALIDATION_FAILED,
                         "파일이 너무 큽니다. 20MB 까지 올릴 수 있습니다"));
+    }
+
+    /**
+     * 없는 경로. 기본 동작은 500 인데, 그러면 오타 하나가 서버 오류로 보고되고
+     * 진짜 장애와 구분되지 않는다 — 운영에서 5xx 그래프를 못 믿게 된다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException e) {
+        log.debug("없는 경로 요청: {}", e.getResourcePath());
+        return ResponseEntity.status(404)
+                .body(new ErrorResponse("NOT_FOUND", "요청한 경로를 찾을 수 없습니다"));
+    }
+
+    /**
+     * 필수 쿼리 파라미터 누락·타입 불일치.
+     *
+     * <p>기본값으로 두면 <b>500</b> 이 나간다 — 클라이언트 실수가 서버 장애로 집계되어
+     * 5xx 그래프를 못 믿게 된다({@link #handleNoResource} 와 같은 이유다).
+     * 어느 파라미터가 문제인지 이름만 알려주고 내부 구조는 노출하지 않는다.
+     */
+    @ExceptionHandler({MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ErrorResponse> handleBadParameter(Exception e) {
+        String parameter = e instanceof MissingServletRequestParameterException missing
+                ? missing.getParameterName()
+                : ((MethodArgumentTypeMismatchException) e).getName();
+        log.debug("잘못된 요청 파라미터: {}", parameter);
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(ErrorCode.VALIDATION_FAILED.name(),
+                        parameter + " 파라미터가 없거나 형식이 올바르지 않습니다"));
     }
 
     /**

@@ -53,6 +53,35 @@ public class Plan {
     protected Plan() {
     }
 
+    public static Plan create(String code, String name, int monthlyFee, boolean negotiable,
+                              int convLimit, int docLimit, int sortOrder) {
+        Plan plan = new Plan();
+        plan.code = code;
+        plan.name = name;
+        plan.monthlyFee = monthlyFee;
+        plan.negotiable = negotiable;
+        plan.convLimit = convLimit;
+        plan.docLimit = docLimit;
+        plan.sellable = true;
+        plan.sortOrder = sortOrder;
+        plan.createdAt = OffsetDateTime.now();
+        return plan;
+    }
+
+    /**
+     * 수정. {@code code} 는 인자에 없다 — 코드가 이 값으로 요금제를 찾으므로 바뀌면
+     * 참조가 조용히 끊긴다.
+     */
+    public void update(String newName, int newMonthlyFee, boolean newNegotiable,
+                       int newConvLimit, int newDocLimit, boolean newSellable) {
+        this.name = newName;
+        this.monthlyFee = newMonthlyFee;
+        this.negotiable = newNegotiable;
+        this.convLimit = newConvLimit;
+        this.docLimit = newDocLimit;
+        this.sellable = newSellable;
+    }
+
     /** 판매 중단. 삭제 대신 이것만 한다. */
     public void stopSelling() {
         this.sellable = false;
@@ -60,6 +89,10 @@ public class Plan {
 
     public void resumeSelling() {
         this.sellable = true;
+    }
+
+    public int getSortOrder() {
+        return sortOrder;
     }
 
     public UUID getId() {

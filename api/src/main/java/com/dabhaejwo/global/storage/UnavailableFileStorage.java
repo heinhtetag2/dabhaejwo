@@ -21,6 +21,12 @@ public class UnavailableFileStorage implements FileStorage {
     }
 
     @Override
+    public InputStream get(String key) {
+        throw new BusinessException(ErrorCode.FEATURE_NOT_READY,
+                "파일 저장소가 설정되지 않았습니다");
+    }
+
+    @Override
     public void delete(String key) {
         // 저장한 적이 없으니 지울 것도 없다.
     }

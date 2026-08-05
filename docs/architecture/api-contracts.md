@@ -63,12 +63,51 @@ size 기본 20, **최대 100**. 무제한 조회 금지.
 레이트 리밋도 거기 붙는다 (`docs/plan/tenant-public-plan.md` §7.1).
 
 ```
-POST /api/auth/ops/login      → { accessToken, refreshToken, operator: {...} }
-POST /api/auth/app/login      → { accessToken, refreshToken, member: {...} }
-POST /api/auth/app/signup     → { accessToken, refreshToken, member: {...} }   ← login 과 같은 형태
+POST /api/auth/ops/login      { email, password }      → { challengeId, maskedEmail, ttlMinutes }
+POST /api/auth/ops/login/otp  { challengeId, code }    → { accessToken, refreshToken, operator }
+POST /api/auth/app/login      { email, password }      → { challengeId, maskedEmail, ttlMinutes }
+POST /api/auth/app/login/otp  { challengeId, code }    → { accessToken, refreshToken, member }
+POST /api/auth/app/signup     → { accessToken, refreshToken, member: {...} }
 POST /api/auth/refresh        → { accessToken }
+
+POST /api/auth/{app|ops}/password/forgot  { email }                              → 204
+POST /api/auth/{app|ops}/password/reset   { email, temporaryPassword, newPassword } → 204
+GET  /api/auth/app/invite?token=...       → { tenantName, email, name, role }
+POST /api/auth/app/invite/accept          { token, password }                    → 204
 GET  /api/public/plans        → [ PublicPlan ]
 ```
+
+### 0-4. 로그인은 두 단계다
+
+비밀번호가 맞아도 **토큰이 나오지 않는다.** 1단계는 인증 코드를 메일로 보내고 챌린지만
+돌려준다. 코드를 맞혀야 2단계에서 토큰이 나온다. 비밀번호 하나가 새면 계정이 통째로
+넘어가는 구조를 없앤다.
+
+| 규칙 | 값 |
+|---|---|
+| 코드 | 6자리 숫자. **DB 에는 해시로만** 저장한다 |
+| 만료 | 5분 (`dabhaejwo.otp.ttl-minutes`) |
+| 시도 | 5회. 넘으면 폐기하고 **되돌리지 않는다** |
+| 재발송 | 계정당 시간당 10회. 새로 발급하면 **이전 코드는 전부 닫힌다** |
+| 스코프 | `APP` · `OPS` 를 챌린지에 못 박는다 — 업체 챌린지로 운영자 토큰을 받아낼 수 없다 |
+| 실패 응답 | 틀림·만료·사용됨·횟수초과를 **구분하지 않는다**(`OTP_INVALID` 401) |
+
+`maskedEmail` 은 `ab***@example.com` 이다. 어디로 보냈는지는 알려주되 주소를 그대로
+돌려주지 않는다 — 계정 존재를 확인하는 수단이 된다.
+
+**메일 발송이 실패하면 로그인도 실패한다.** 챌린지만 남기면 오지 않을 코드를 기다리게 된다.
+
+### 0-5. 임시 비밀번호와 초대 링크
+
+| 흐름 | 규칙 |
+|---|---|
+| 비밀번호 찾기 | 임시 비밀번호(12자)를 메일로 보내고 **기존 비밀번호를 덮어쓴다.** 남겨 두면 재설정을 눌러도 옛 비밀번호가 산다 |
+| 임시 비밀번호로 로그인 | **끝나지 않는다** — `PASSWORD_CHANGE_REQUIRED`(403). 화면은 재설정으로 보낸다 |
+| 임시 비밀번호 유효기간 | 24시간 (`dabhaejwo.invite.temp-password-ttl-hours`) |
+| 없는 이메일로 찾기 | **204.** 응답이 갈리면 가입 여부를 확인하는 도구가 된다 |
+| 초대 링크 | 32바이트 난수. **원문은 메일에만** 있고 DB 에는 SHA-256 해시만 남는다 |
+| 초대 유효기간 | 7일, **한 번만** 쓸 수 있다. 다시 보내면 이전 링크는 무효 |
+| 이미 수락한 팀원 재발송 | 거부(400). 허용하면 소유자가 남의 계정을 가로챌 수 있는 통로가 된다 |
 
 `/api/auth/refresh` 는 **하나뿐이다.** 리프레시 토큰의 `scope`(`ops` | `app`)를 서버가 읽어
 원래 주체 종류로만 액세스 토큰을 다시 만든다. 운영자 리프레시 토큰으로 업체 액세스 토큰을
@@ -122,6 +161,36 @@ access token 은 **메모리에만** 보관한다 (`kickoff-prompt.md` §1.3). l
 `role`: `OPS_ADMIN` · `CS` · `SALES` · `DEV`
 
 권한 키는 `{RESOURCE}_{ACTION}`. 역할→권한 매핑은 서버가 진실이며 `docs/intake.md` §3-1 매트릭스와 일치한다.
+
+### 1-1. 운영자 계정 관리 (`OPS_ADMIN` 전용)
+
+| Method | Path | 권한 |
+|---|---|---|
+| GET | `/api/ops/operators` | `OPERATOR_READ` |
+| GET | `/api/ops/operators/role-permissions` | `OPERATOR_READ` |
+| POST | `/api/ops/operators` | `OPERATOR_WRITE` |
+| PATCH | `/api/ops/operators/{id}` | `OPERATOR_WRITE` — `{ name, role, reason }` |
+| PATCH | `/api/ops/operators/{id}/password` | `OPERATOR_WRITE` — `{ password, reason }` |
+| PATCH | `/api/ops/operators/{id}/active` | `OPERATOR_WRITE` — `{ active, reason }` |
+
+```json
+{ "role": "CS", "label": "CS 담당",
+  "permissions": ["JOB_READ", "JOB_RETRY", "QUOTA_GRANT", "TENANT_IMPERSONATE", "..."] }
+```
+
+- **`DELETE` 가 존재하지 않는다.** `operators` 를 여섯 테이블이 FK 로 참조하고 그중
+  `audit_logs` 는 수정·삭제 불가에 3년 보존이다 — 계정을 지우면 "누가 이 업체에 대리
+  접속했나"의 답이 사라진다. `PATCH /active` 로 **비활성화**만 한다. 비활성 계정은 로그인이
+  `UNAUTHENTICATED` 로 막히고 과거 기록에는 이름이 그대로 남는다
+- **개인별 권한을 두지 않는다.** 권한은 역할이 정하고 매핑은 코드에 있다(§7). 개인별로 열면
+  누군가 자기에게 `AUDIT_READ` 를 붙일 수 있고 감사 체계가 무의미해진다.
+  `role-permissions` 는 그 매핑을 **서버가 그대로 내려주는** 읽기 전용 응답이다 —
+  화면이 표를 복제하면 배포 후 실제와 어긋난다
+- `email` 은 등록 후 바꿀 수 없다 — 로그인 식별자이자 감사 기록이 가리키는 사람이다
+- **잠금 방지** — 자기 역할 낮추기·자기 비활성화는 `VALIDATION_FAILED`. 마지막 활성
+  `OPS_ADMIN` 을 강등·비활성화하는 것도 거부한다(그 상태는 DB 를 직접 고쳐야 복구된다)
+- 모든 쓰기는 **사유 필수**이며 `OPERATOR_WRITE` 로 감사 기록에 남는다. **비밀번호는 기록하지 않는다**
+- 초기 비밀번호는 관리자가 정한다 — 초대 메일(`Mailer`)이 아직 stub 이다
 
 ---
 
@@ -423,6 +492,41 @@ CHURNED → (종착)
 | GET · POST | `/api/ops/model-prices` | `MODEL_PRICE_READ` / `MODEL_PRICE_WRITE` |
 | GET · PUT | `/api/ops/plan-model-assignments` | `PLAN_READ` / `MODEL_PRICE_WRITE` |
 | GET · PUT | `/api/ops/cost-guards` | `COST_GUARD_READ` / `COST_GUARD_WRITE` |
+| PUT | `/api/ops/cost-guards/embedding-provider` | `COST_GUARD_WRITE` |
+| GET | `/api/ops/provider-credentials` | `PROVIDER_CREDENTIAL_READ` |
+| PUT · PATCH | `/api/ops/provider-credentials/{provider}` | `PROVIDER_CREDENTIAL_WRITE` |
+
+### 7-1. 공급사 자격증명
+
+```json
+{ "provider": "GOOGLE", "configured": true, "enabled": true,
+  "keyHint": "AIza…1234", "source": "CONSOLE",
+  "updatedAt": "2026-08-04T10:03:07Z", "updatedByName": "정OO" }
+```
+
+`source`: `CONSOLE`(콘솔 등록) · `ENV`(환경변수 대체) · `NONE`(없음)
+
+- **API 키 원문을 담는 필드가 없다.** 등록은 `PUT { apiKey, reason }` 이고 응답에도, 어떤
+  조회에도 원문이 나오지 않는다 — 한 번 넣으면 사람이 다시 볼 수 없고 교체만 할 수 있다.
+  조회할 수 있으면 콘솔 계정 하나가 뚫렸을 때 키까지 함께 나간다
+- 저장은 **AES-256-GCM 암호문**이며 마스터 키(`ENCRYPTION_KEY`)는 환경변수에만 있다.
+  마스터 키가 없으면 `ENCRYPTION_UNAVAILABLE`(503)로 거부한다 — 평문으로 떨어지지 않는다
+- 우선순위는 **콘솔 등록분 → 환경변수**. 콘솔에 등록하고 꺼 두면 환경변수로 되돌아가지 않는다
+  (끈 것은 "이 공급사를 쓰지 말라"이지 "옛 키로 돌아가라"가 아니다)
+- `PATCH { enabled, reason }` 는 키를 지우지 않고 끄기만 한다. **DELETE 가 없다**
+- 쓰기는 `OPS_ADMIN` 전용이며 **사유 필수**. 감사 기록에 키도 힌트도 남기지 않는다
+
+```json
+{ "provider": "GOOGLE", "reason": "실 임베딩 전환" }
+```
+
+`PUT /cost-guards/embedding-provider` — 안전장치 저장과 **경로가 다른 것이 의도다.**
+이 값을 바꾸면 이미 학습된 조각이 전부 무효가 된다(다른 모델이 만든 벡터끼리는 거리를
+비교할 수 없다). 슬랙 토글과 같은 저장 버튼에 묶이면 클릭 한 번에 전 조각이 죽는다.
+
+바뀐 뒤에는 업체의 **"다시 학습"이 실패분뿐 아니라 출처가 다른 문서까지** 대상으로 삼는다.
+판단 근거는 `knowledge_documents.embedding_provider`·`embedding_model` 이며,
+출처를 모르는 문서(컬럼 도입 전 학습분)는 "다르다"로 본다.
 
 - **요금제는 삭제하지 않는다.** `sellable: false` 로 판매 중단만. 기존 계약 업체가 남아 있다.
   `DELETE` 엔드포인트가 존재하지 않는다
@@ -580,11 +684,40 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 | POST | `/api/app/knowledge/documents` | OWNER · EDITOR — **multipart** `file` |
 | DELETE | `/api/app/knowledge/documents/{id}` | OWNER · EDITOR. 대리 접속 중 금지 |
 | PATCH | `/api/app/knowledge/documents/{id}` | OWNER · EDITOR — `{ excluded }` |
-| POST | `/api/app/knowledge/documents/{id}/retry` · `/retry-failed?sourceId=` | OWNER · EDITOR |
+| POST | `/api/app/knowledge/documents/retry-failed?sourceId=` | OWNER · EDITOR |
+| GET | `/api/app/knowledge/search?q=&limit=` | 전 역할 |
 
-`recrawl` 과 `retry` 는 **크롤러·임베딩 워커가 붙어야 실제로 동작한다.** 지금은
-`FEATURE_NOT_READY`(503) 를 돌려준다 — 상태만 바꾸고 아무 일도 일어나지 않으면
-업체는 학습된 줄 알고 기다린다. 조용한 성공 처리 금지 (`workflow-rules.md`).
+`recrawl` 은 **크롤러가 붙어야 동작한다.** 지금은 `FEATURE_NOT_READY`(503) 를 돌려준다 —
+상태만 바꾸고 아무 일도 일어나지 않으면 업체는 학습된 줄 알고 기다린다.
+조용한 성공 처리 금지 (`workflow-rules.md`).
+
+`retry-failed` 는 실제로 동작한다. `FAILED` 문서를 `PENDING` 으로 되돌리고 조각을 지우면
+워커가 다시 집어간다. 되돌릴 문서가 없으면 `VALIDATION_FAILED`(400) — 눌렀는데 아무 일도
+없었다는 상태를 남기지 않는다.
+
+```json
+{ "requeued": 3 }
+```
+
+**검색** — 질문과 가까운 학습 조각을 돌려준다. 답변을 만들지 않으므로 답변 모델은
+부르지 않고 질문 임베딩 비용만 든다(`ai_usage.purpose = EMBED_QUERY`).
+
+```json
+{ "query": "환불은 며칠 안에 신청해야 하나요",
+  "matches": [
+    { "documentId": "d1...", "documentTitle": "배송 및 반품 안내",
+      "content": "상품 수령 후 7일 이내에 환불을 신청하실 수 있습니다. ...",
+      "similarity": 0.8412 }
+  ] }
+```
+
+| 규칙 | 값 |
+|---|---|
+| `limit` | 기본 5, 최대 20 |
+| `q` | 500자 초과분은 잘라서 검색한다. 길수록 임베딩 비용만 늘고 정확도는 떨어진다 |
+| 대상 | `INDEXED` 문서의 조각만. 현재 테넌트 소유로 **항상** 제한된다 |
+| `similarity` | 1에 가까울수록 비슷하다. 반올림하지 않고 원값을 준다 |
+| 빈 결과 | 오류가 아니다. 근거가 없다는 뜻이고 그대로 보여준다 |
 
 **업로드** — 원본은 오브젝트 저장소(S3 호환)에 두고 문서 행이 키로 가리킨다.
 
@@ -597,8 +730,20 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 | 한도 | 올리기 **전에** 요금제 문서 한도를 본다. 넘으면 `QUOTA_EXCEEDED`(429) |
 | 저장소 미설정 | `FEATURE_NOT_READY`(503). **로컬 디스크로 대체하지 않는다** |
 
-업로드 응답의 `status` 는 `PENDING` 이다. **저장은 됐지만 학습은 시작되지 않는다** —
-글자를 뽑아 임베딩하는 워커가 아직 없다. 화면이 이 사실을 그대로 표시한다.
+업로드 응답의 `status` 는 항상 `PENDING` 이다. 글자 뽑기와 임베딩은 **요청 안에서 하지 않는다** —
+워커가 뒤에서 처리한다. 20MB PDF 를 동기로 처리하면 브라우저가 타임아웃으로 끊고,
+그때 사용자는 파일이 올라갔는데도 실패한 줄 안다.
+
+상태는 `PENDING → PROCESSING → INDEXED`(또는 `FAILED`)로 간다. 화면은 목록을 다시 읽어
+따라간다. 실패 사유는 `errorCode` 로 온다.
+
+| `errorCode` | 뜻 |
+|---|---|
+| `pdf_no_text` | 스캔 이미지 PDF. 글자가 없어 학습할 것이 없다 |
+| `no_text_found` | 파일에 의미 있는 글자가 없다 |
+| `parse_failed` | 형식이 깨졌거나 암호가 걸렸다. 다시 해도 같다 |
+| `indexing_failed` | 저장소·공급사 오류. 다시 학습으로 재시도할 수 있다 |
+| `no_original_file` | 원본이 없다(웹페이지 문서를 학습 대기로 둔 경우) |
 
 `storageKey` 는 업로드 문서만 값이 있다. 웹페이지 문서는 원본 파일이 없어 `null` 이며,
 화면은 이 값으로 삭제 버튼 노출을 정한다.
@@ -631,7 +776,8 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 | POST | `/api/app/answer-gaps/{id}/resolve` (→ Faq 생성) · `/dismiss` |
 | GET | `/api/app/conversations` · `/api/app/conversations/{id}` |
 | GET · PATCH | `/api/app/leads` · `/api/app/leads/{id}` |
-| GET · POST · DELETE | `/api/app/members` |
+| GET · POST · DELETE | `/api/app/members` — 초대는 `{ email, name, role, phone? }`, **메일이 나가야 성공한다** |
+| POST | `/api/app/members/{id}/resend-invite` — 초대 메일 재발송. **OWNER 전용** |
 | GET · PUT | `/api/app/appearance` |
 | GET · POST · DELETE | `/api/app/allowed-origins` |
 | GET | `/api/app/plan` — 요금제·사용량·결제 내역 |
@@ -672,15 +818,122 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 인증은 `X-Dabhaejwo-Key` + `Origin`. 시크릿을 받지 않는다.
 
 ```
-POST /api/widget/session      → { sessionId, greeting, faqs: [ { id, question } ], brandColor, position }
-POST /api/widget/ask          { sessionId, question }
+POST /api/widget/session      { path }
+                              → { sessionId, botName, greeting, brandColor, widgetPosition,
+                                  leadCaptureEnabled, faqs: [ { id, question } ] }
+POST /api/widget/ask          { sessionId, question, path }
                               → { answered, saved, answer, links, messageId }
-POST /api/widget/faq/{id}     { sessionId } → { answer, links, followUpFaqIds, messageId }
+POST /api/widget/faq/{id}     { sessionId } → { answered, saved, answer, links, messageId }
 POST /api/widget/feedback     { messageId, helpful } → 204
-POST /api/widget/lead         { sessionId, name, contact } → 201
+POST /api/widget/lead         { sessionId, name, contact, memo } → 201 { id }
 ```
 
+`widgetPosition` 은 대시보드 API(`/api/app/bot-settings`)와 **같은 이름·같은 값**이다
+(`BOTTOM_RIGHT` · `BOTTOM_LEFT`). 같은 것을 두 이름으로 부르면 코드에서 계속 번역하게 된다.
+
+**대화는 `session` 에서 만들어진다** — 패널을 열 때다. 질문할 때 만들면 "열어보고 안 물어본"
+방문자가 통계에서 사라지는데, 업체가 알아야 할 것은 그쪽이 더 많다.
+
+`ask` 와 `faq` 는 <b>응답 형태가 같다</b>. 위젯이 두 경로를 다르게 다룰 이유가 없고,
+다르면 화면이 분기부터 하게 된다. 구분은 `saved` 플래그 하나로 한다.
+
 - `saved: true` 면 저장 답변으로 나간 것이다 — **모델을 거치지 않았고 `ai_usage` 에 기록되지 않으며 대화 사용량에도 잡히지 않는다.** 위젯은 이때 "저장된 답변" 태그를 표시한다
-- `answered: false` 면 답변 실패 — 위젯이 연락처 폼을 제안하고, 그 질문은 업체 대시보드의 `answer-gaps` 로 올라간다
-- 레이트 리밋 초과 `RATE_LIMITED`, 일일 원가 상한 도달 `COST_CAP_REACHED` (챗봇이 안내 메시지만 표시하고 멈춘다)
+- `answered: false` 면 답변 실패 — 위젯이 연락처 폼을 제안하고(업체가 `leadCaptureEnabled` 를 켰을 때만), 그 질문은 업체 대시보드의 `answer-gaps` 로 `ANSWER_FAILED` 로 올라간다
+- `links` 는 근거 문서 중 **방문자가 열 수 있는 경로만** 담는다. 업로드 파일은 열 수 없으므로 들어가지 않는다
+- 레이트 리밋 초과 `RATE_LIMITED`, 일일 원가 상한 도달 `COST_CAP_REACHED`, 월 대화 한도 초과 `QUOTA_EXCEEDED` (챗봇이 안내 메시지만 표시하고 멈춘다)
+- 정지·해지된 업체는 `TENANT_INACTIVE`(403). 키가 살아 있어도 답하지 않는다 — 안 내는 사이트에서 원가가 계속 나가면 안 된다
 - 응답에 내부 구조·스택트레이스를 노출하지 않는다
+
+### 10-1. 답을 만드는 규칙 (서버가 지키는 것)
+
+| 규칙 | 이유 |
+|---|---|
+| **근거를 먼저 찾고, 근거가 있을 때만 모델을 부른다** | 근거 없이 부르면 모르는 것을 지어내고 그 답에 돈까지 나간다 |
+| 최고 유사도 < `cost_guards.answer_fail_similarity` → 모델 호출 없이 실패 처리 | 위와 같다. 실패도 `messages` 에 남고 `latency_ms` 가 찍힌다 |
+| 프롬프트에 실을 조각 수는 `plan_model_assignments.chunk_count` | 조각이 많을수록 정확하지만 **입력 토큰이 비례해 는다.** 답변 원가의 대부분은 입력이다 |
+| 모델·공급사는 요금제 배정에서 읽는다. 배정이 없으면 `FEATURE_NOT_READY` | 코드에 모델명을 두지 않는다. 아무 모델이나 고르면 예산 밖에서 원가가 난다 |
+| 답변은 `cost_guards.answer_max_length` 로 자른다 | 위젯 말풍선에 들어갈 분량이라 길 이유가 없다 |
+| `messages.source_document_ids` 에 근거 문서를 남긴다 | "왜 이렇게 답했나"의 유일한 기록. 조각은 재학습하면 바뀌고 프롬프트는 남지 않는다 |
+| 질문·답변 시각은 **질문 시각 + 걸린 시간** | 둘 다 `now()` 로 찍으면 동률이 되어 대화 로그에서 답이 질문 위에 나온다 (실제로 났던 일) |
+| 답변 실패에 👎 를 눌러도 개선 목록 횟수를 올리지 않는다 | 한 번 물은 질문이 두 번으로 세어져 "몇 번 놓쳤나"가 부풀어 오른다 |
+
+### 10-2. 미리보기 (`POST /api/app/chat/preview`)
+
+업체가 자기 챗봇에게 직접 물어본다. `{ question }` → `ask` 와 **같은 응답 형태**.
+
+- **대화를 만들지 않는다** — 시험 삼아 던진 질문이 방문자 통계·개선 목록에 섞이면 두 화면 다 못 믿는다
+- 그래서 `messageId` 가 `null` 이다. 평가를 붙일 대상이 없다
+- **원가는 진짜로 나간다.** 모델을 실제로 부르므로 `ai_usage` 에 남고 일일 상한도 적용된다
+
+---
+
+## 11. 알림 (`/api/ops/notifications` · `/api/app/notifications`)
+
+같은 리소스이므로 **두 경계에서 모양이 같다**. 수신자만 다르고 필드는 하나도 다르지 않다.
+
+```jsonc
+{
+  "id": 5,
+  "type": "LEAD_RECEIVED",          // 종류. api 의 NotificationType enum
+  "severity": "NORMAL",             // LOW | NORMAL | HIGH — 종류가 정한다. 발행자가 못 바꾼다
+  "title": "새 연락처가 도착했습니다",
+  "body": "이순신 님이 연락처를 남겼습니다",
+  "targetPath": "/app/leads",       // 눌렀을 때 갈 프론트 라우트. null 이면 이동 없음
+  "read": false,
+  "createdAt": "2026-08-05T02:25:50Z"
+}
+```
+
+```
+GET   /api/ops/notifications?page=&size=   → PageResponse<Notification>
+GET   /api/ops/notifications/unread-count  → { count }
+PATCH /api/ops/notifications/{id}/read     → 204
+PATCH /api/ops/notifications/read-all      → { updated }
+
+GET   /api/app/notifications?page=&size=   → PageResponse<Notification>  (같은 모양)
+GET   /api/app/notifications/unread-count  → { count }
+PATCH /api/app/notifications/{id}/read     → 204
+PATCH /api/app/notifications/read-all      → { updated }
+```
+
+- **수신자를 파라미터로 받지 않는다.** 토큰에서만 유도한다 — 받는 순간 남의 알림을 읽을 수 있다
+- 남의 알림은 `NOTIFICATION_NOT_FOUND`(404). *존재하지만 권한이 없다*와 *없다*를 구분해 주지 않는다 — 구분해 주면 남의 알림 id 를 훑어 존재 여부를 알아낼 수 있다
+- 운영자 알림은 **역할로 걸러져** 내려간다. 그래서 별도 권한 키를 두지 않는다 — 두 곳에서 같은 판단을 하게 된다
+- **대리 접속 세션은 업체 알림을 읽음 처리할 수 없다**(`IMPERSONATION_FORBIDDEN_ACTION`). 특히 "운영팀이 접속했습니다" 알림을 그 운영자가 지우는 셈이 된다
+- `size` 상한은 공통 규칙과 같다 (기본 20, 최대 100)
+
+### 11-1. 종류
+
+`severity` 와 받을 역할은 **종류가 정한다**. 발행 지점이 정하면 같은 사건이 곳마다 다른 중요도로 뜬다.
+
+| 종류 | 대상 | 중요도 | 받을 역할 | 이동 |
+|---|---|---|---|---|
+| `TENANT_SIGNED_UP` | 운영 | LOW | 전원 | `/tenants?tenantId=` |
+| `TICKET_OPENED` | 운영 | NORMAL | 관리자·CS | `/tickets` |
+| `GLOBAL_COST_CAP_WARNING` | 운영 | HIGH | 관리자 | `/ai-usage` |
+| `TENANT_COST_CAP_REACHED` | 운영 | NORMAL | 관리자·CS | `/tenants?tenantId=` |
+| `TENANT_COST_EXCEEDED` | 운영 | NORMAL | 관리자·영업 | `/profitability` |
+| `TRIAL_ENDING_SOON` | 운영 | LOW | 관리자·영업 | `/tenants?tenantId=` |
+| `INDEXING_FAILURES` | 운영 | NORMAL | 관리자·CS·개발 | `/jobs` |
+| `PAYMENT_RECEIVED` | 운영 | NORMAL | 관리자·영업 | — (**stub**: PG 미연동이라 아무도 발행하지 않는다) |
+| `IMPERSONATION_STARTED` | 업체 | HIGH | — | `/app/team` |
+| `QUOTA_WARNING` / `QUOTA_EXHAUSTED` | 업체 | NORMAL / HIGH | — | `/app/plan` |
+| `TRIAL_ENDING` | 업체 | HIGH | — | `/app/plan` |
+| `INDEXING_DONE` / `INDEXING_FAILED` | 업체 | LOW / NORMAL | — | `/app/sources` |
+| `LEAD_RECEIVED` | 업체 | NORMAL | — | `/app/leads` |
+| `ANSWER_GAPS_PILING` | 업체 | NORMAL | — | `/app/improve` |
+
+### 11-2. 실시간 (`/ws/notifications`)
+
+```
+클라이언트 → {"type":"AUTH","token":"eyJ..."}     연결 직후 첫 프레임
+서버      → {"type":"READY"}                      인증 성공
+서버      → {"type":"NOTIFICATION","notification":{ …위 JSON과 같은 모양… }}
+```
+
+- **토큰을 URL 에 싣지 않는다.** 브라우저 WebSocket API 는 커스텀 헤더를 못 붙이지만, 쿼리 파라미터로 보내면 액세스 토큰이 접근 로그·프록시 로그에 그대로 남는다. 그래서 연결 뒤 첫 프레임으로 받고, 그 전에는 **어떤 알림도 보내지 않는다**
+- 인증 실패는 즉시 종료(`1003`). 이유를 알려주지 않는다 — 토큰 종류를 떠보는 수단이 되지 않게 한다
+- 구독 대상은 **토큰에서만** 유도한다. 본문에 테넌트 id 를 받지 않는다
+- 푸시는 **커밋 뒤에** 나간다. 롤백된 트랜잭션의 알림이 화면에 떠 있으면 눌러서 없는 대상으로 가고, 새로고침하면 사라진다
+- **소켓은 편의이지 저장소가 아니다.** 진실은 `notifications` 행이다 — 접속 중이 아닐 때 발생한 알림도 목록에 남는다. 전달 실패는 로그만 남기고 삼킨다
+- Origin 은 `CORS_ALLOWED_ORIGINS` 로 제한한다

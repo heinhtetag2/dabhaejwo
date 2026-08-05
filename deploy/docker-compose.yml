@@ -1,0 +1,83 @@
+# 답해줘 운영 배포 — 리눅스 서버
+#
+# DB 는 원격 PostgreSQL(pgvector) 을 쓴다 → DB 컨테이너 없음.
+# 서버에서 직접 빌드한다(레지스트리 불필요): `docker compose up -d --build`.
+# 시크릿은 같은 폴더의 .env — **커밋 금지.** CI 가 GitLab Variables 로 만들어 준다.
+#
+# 리버스 프록시 + TLS 는 호스트의 Apache 가 담당한다.
+# 컨테이너는 127.0.0.1 로컬 포트만 노출 → Apache vhost 가 도메인별로 프록시한다.
+#   api.dabhaejwo.co.kr   → 127.0.0.1:4310   (WebSocket /ws/notifications 포함)
+#   ops.dabhaejwo.co.kr   → 127.0.0.1:4311
+#   app.dabhaejwo.co.kr   → 127.0.0.1:4312
+#   cdn.dabhaejwo.co.kr   → 정적 파일. 컨테이너가 아니라 Apache 가 디스크에서 직접 서빙한다
+#                            (widget 은 서버가 아니라 w.js 하나다 — deploy/apache/ 참고)
+#
+# **위젯이 여기 없는 것은 빠뜨린 게 아니다.** widget/Dockerfile 은 산출물을 꺼내기 위한
+# 빌드 도구이고, CI 가 이미지에서 /dist 를 복사해 Apache 문서 루트에 놓는다.
+
+# 고정 프로젝트명 — CI 체크아웃 경로가 바뀌어도 같은 스택을 재사용한다
+name: dabhaejwo
+
+services:
+  api:
+    build:
+      context: ../api
+    image: dabhaejwo-api:latest
+    restart: unless-stopped
+    # POSTGRES_*, JWT_SECRET, ENCRYPTION_KEY, R2_*, MAIL_*, CORS_ALLOWED_ORIGINS 등.
+    # 하나라도 빠지면 production 프로파일이 기동에 실패한다 — 조용히 기본값으로 뜨지 않는다.
+    env_file: .env
+    environment:
+      # 힙 상한을 명시한다. 20MB 문서를 통째로 메모리에 올리는 구간이 있어
+      # (IMPROVEMENTS P1) 컨테이너 메모리와 힙이 어긋나면 OOM 킬로 조용히 죽는다.
+      JAVA_OPTS: "-Xms256m -Xmx768m"
+    ports:
+      - "127.0.0.1:4310:4310"   # 외부 직접 노출 금지 — Apache 만 접근
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4310/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      # Flyway 마이그레이션 + JPA 검증이 끝나야 health 가 뜬다. 짧게 잡으면
+      # 정상 기동 중인 컨테이너를 unhealthy 로 표시한다.
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  admin:
+    build:
+      context: ../admin
+      args:
+        # NEXT_PUBLIC_* 는 빌드 시점에 클라이언트 번들로 인라인된다. 런타임 주입이 아니다 —
+        # 값을 바꾸려면 다시 빌드해야 한다. 미설정 시 빌드 실패(기본값 없음).
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL required}
+    image: dabhaejwo-admin:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4311:4311"   # 외부 직접 노출 금지 — Apache 만 접근
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  tenant:
+    build:
+      context: ../tenant
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL required}
+        # 설치 화면이 업체에게 보여줄 스크립트 주소. 틀리면 업체가 붙인 코드가
+        # 조용히 아무 일도 하지 않는다.
+        NEXT_PUBLIC_WIDGET_SRC: ${NEXT_PUBLIC_WIDGET_SRC:?NEXT_PUBLIC_WIDGET_SRC required}
+    image: dabhaejwo-tenant:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4312:4312"   # 외부 직접 노출 금지 — Apache 만 접근
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"

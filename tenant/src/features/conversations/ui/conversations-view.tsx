@@ -15,6 +15,7 @@ import { ROUTES } from "@/shared/config/routes";
 import { cn } from "@/shared/lib/cn";
 import { Pagination } from "@/shared/ui/pagination";
 import { StatusBadge } from "@/shared/ui/status-badge";
+import { controlClass } from "@/shared/common/control";
 
 /**
  * 대화 로그. 좌측 목록 + 우측 상세.
@@ -53,7 +54,7 @@ export function ConversationsView() {
                   }
                 }}
                 placeholder="대화 내용 검색"
-                className="w-full rounded-[7px] border border-line px-2.5 py-[5.5px] text-[12.5px] focus:border-ink-3 focus:outline-none"
+                className={controlClass("sm")}
               />
             </>
           }

@@ -29,9 +29,17 @@ dabhaejwo:
     # 비워두면 기동할 때마다 임시 키가 생성되고 이전 토큰이 전부 무효가 된다.
     # 개발 중 로그인이 자꾸 풀리면 .env 에 JWT_SECRET 을 채운다.
     jwt-secret: ${JWT_SECRET:}
+    # 로컬은 http 라 Secure 쿠키가 브라우저에 저장되지 않는다. 켜두면 새로고침 유지가
+    # 개발에서만 안 되고, 그러면 "운영에서 되는지"를 배포해 봐야 알게 된다.
+    cookie-secure: false
   ops:
     # 로컬에서는 IP 제한을 걸지 않는다.
     ip-allowlist: ${OPS_IP_ALLOWLIST:}
+  otp:
+    # 개발 중 메일을 기다리지 않으려면 .env 에 OTP_DEV_ACCEPT_ANY=true.
+    # 켜면 형식만 맞는 6자리면 무엇이든 통과한다. 메일은 그대로 나간다.
+    # production 프로파일에서 켜져 있으면 DevOtpGuard 가 기동을 막는다.
+    dev-accept-any-code: ${OTP_DEV_ACCEPT_ANY:false}
   llm:
     # 기본은 stub. 실제 공급사를 붙이려면 .env 에 키를 넣고 이 값을 GOOGLE 등으로 바꾼다.
     # stub 도 ai_usage 적재는 실제로 하므로 원가 파이프라인은 그대로 검증된다.

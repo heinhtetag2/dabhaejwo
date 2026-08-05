@@ -19,6 +19,7 @@ import { cn } from "@/shared/lib/cn";
 import { Notice } from "@/shared/ui/notice";
 import { Pagination } from "@/shared/ui/pagination";
 import { StatusBadge } from "@/shared/ui/status-badge";
+import { controlClass } from "@/shared/common/control";
 
 const TABS: Array<{ value: GapStatus; label: string }> = [
   { value: "OPEN", label: "남은 질문" },
@@ -175,7 +176,7 @@ function GapCard({
                 id={`q-${gap.id}`}
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                className="mb-3 w-full rounded-[7px] border border-line px-[11px] py-[8.5px] text-[13.5px] focus:border-ink-3 focus:outline-none"
+                className={controlClass("md", "mb-3")}
               />
 
               <label htmlFor={`a-${gap.id}`} className="mb-1.5 block text-[12.5px] font-medium">
@@ -187,7 +188,7 @@ function GapCard({
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
                 placeholder="예: 제주 및 도서 지역도 배송 가능합니다. 지역에 따라 도선료가 추가됩니다."
-                className="w-full resize-y rounded-[7px] border border-line px-[11px] py-[8.5px] text-[13.5px] leading-relaxed focus:border-ink-3 focus:outline-none"
+                className={controlClass("md", "resize-y leading-relaxed")}
               />
               <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-2">
                 공통 질문으로 저장됩니다. 버튼 노출은 꺼진 상태로 시작하지만, 비슷한 질문이 들어오면

@@ -17,6 +17,7 @@ import { ROUTES } from "@/shared/config/routes";
 import { canEdit } from "@/shared/lib/auth-store";
 import { Notice } from "@/shared/ui/notice";
 import { WidgetPreview } from "@/shared/ui/widget-preview";
+import { controlClass } from "@/shared/common/control";
 
 const PRESET_COLORS = ["#17222E", "#1B6B5C", "#BF3F2B", "#3B5BDB"];
 
@@ -105,7 +106,7 @@ export function AppearanceView() {
                     value={draft.brandColor}
                     disabled={!editable}
                     onChange={(event) => patch({ brandColor: event.target.value })}
-                    className="w-[96px] rounded-[7px] border border-line px-2.5 py-1.5 font-mono text-[12px]"
+                    className={controlClass("sm", "w-[96px] font-mono")}
                   />
                 </span>
               </Field>
@@ -208,7 +209,7 @@ export function AppearanceView() {
                   value={draft.supportPhone}
                   disabled={!editable}
                   onChange={(event) => patch({ supportPhone: event.target.value })}
-                  className="mt-2 ml-6 w-[200px] rounded-[7px] border border-line px-2.5 py-1.5 font-mono text-[12.5px]"
+                  className={controlClass("sm", "mt-2 ml-6 w-[200px] font-mono")}
                 />
               ) : null}
             </div>
@@ -267,8 +268,7 @@ export function AppearanceView() {
   );
 }
 
-const INPUT =
-  "w-full rounded-[7px] border border-line bg-card px-[11px] py-[8.5px] text-[13.5px] focus:border-ink-3 focus:outline-none disabled:bg-paper";
+const INPUT = controlClass("md");
 
 function isHexColor(value: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(value);

@@ -57,6 +57,30 @@ public class TenantDailyUsage {
     protected TenantDailyUsage() {
     }
 
+    public static TenantDailyUsage of(UUID tenantId, LocalDate day) {
+        TenantDailyUsage usage = new TenantDailyUsage();
+        usage.tenantId = tenantId;
+        usage.day = day;
+        usage.costKrw = BigDecimal.ZERO;
+        usage.aggregatedAt = OffsetDateTime.now();
+        return usage;
+    }
+
+    /**
+     * 배치가 다시 계산한 값으로 덮는다. <b>더하지 않는다</b> — 증분으로 더하면 배치가
+     * 두 번 돌거나 중간에 실패했을 때 숫자가 부풀고, 그 사실을 알아챌 방법이 없다.
+     * 원장({@code ai_usage})이 진실이고 이 테이블은 캐시다.
+     */
+    public void overwrite(long newConvCount, long newSavedCount,
+                          long newTokensIn, long newTokensOut, BigDecimal newCostKrw) {
+        this.convCount = (int) newConvCount;
+        this.savedCount = (int) newSavedCount;
+        this.tokensIn = newTokensIn;
+        this.tokensOut = newTokensOut;
+        this.costKrw = newCostKrw == null ? BigDecimal.ZERO : newCostKrw;
+        this.aggregatedAt = OffsetDateTime.now();
+    }
+
     public UUID getTenantId() {
         return tenantId;
     }

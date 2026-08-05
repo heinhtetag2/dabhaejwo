@@ -59,6 +59,12 @@ public class MemberController {
         return memberService.list();
     }
 
+    /** 초대 메일 다시 보내기. 이전 링크는 무효가 된다. */
+    @PostMapping("/members/{id}/resend-invite")
+    public MemberResponse resendInvite(@PathVariable UUID id) {
+        return memberService.resendInvite(id);
+    }
+
     @PostMapping("/members")
     @ResponseStatus(HttpStatus.CREATED)
     public MemberResponse invite(@Valid @RequestBody MemberInviteRequest request) {

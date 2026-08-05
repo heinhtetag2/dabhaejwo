@@ -39,6 +39,38 @@ public interface TenantDailyUsageRepository
                       @Param("from") LocalDate from,
                       @Param("to") LocalDate to);
 
+    /**
+     * 전 업체 합계. 오늘 화면의 지표 4종이 쓴다.
+     * 결과가 없으면 0 을 반환하도록 COALESCE 를 건다.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(u.convCount), 0) AS convCount,
+                   COALESCE(SUM(u.savedCount), 0) AS savedCount,
+                   COALESCE(SUM(u.costKrw), 0) AS costKrw
+            FROM TenantDailyUsage u
+            WHERE u.day >= :from AND u.day <= :to
+            """)
+    GlobalTotal totalBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * 마지막 집계 시각. 당일분이 몇 시 기준인지 화면에 함께 표시한다 —
+     * 집계가 언제 것인지 모르면 숫자를 믿을 수 없다 (admin-console-plan.md §6.1).
+     *
+     * @return 한 번도 집계된 적 없으면 null
+     */
+    @Query("SELECT MAX(u.aggregatedAt) FROM TenantDailyUsage u WHERE u.day = :day")
+    java.time.OffsetDateTime lastAggregatedAt(@Param("day") LocalDate day);
+
+    java.util.Optional<TenantDailyUsage> findByTenantIdAndDay(UUID tenantId, LocalDate day);
+
+    interface GlobalTotal {
+        long getConvCount();
+
+        long getSavedCount();
+
+        java.math.BigDecimal getCostKrw();
+    }
+
     /** 프로젝션. 필드명은 위 쿼리의 alias 와 일치해야 한다. */
     interface MonthlyTotal {
         UUID getTenantId();

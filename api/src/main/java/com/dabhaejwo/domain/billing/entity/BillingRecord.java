@@ -67,6 +67,18 @@ public class BillingRecord {
         return id;
     }
 
+    public UUID getTenantId() {
+        return tenantId;
+    }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
     public LocalDate getPeriod() {
         return period;
     }
