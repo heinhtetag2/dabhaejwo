@@ -16,6 +16,8 @@ import { ErrorState, LoadingState } from "@/shared/common/states";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge, type Tone } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
+import { BillingMethodCard } from "./billing-method-card";
+import { BillingReturn } from "./billing-return";
 
 const TONE: Record<BillingStatus, Tone> = {
   PAID: "ok",
@@ -42,6 +44,8 @@ export function PlanView() {
 
   return (
     <>
+      <BillingReturn />
+
       {convPercent >= WARN_PERCENT ? (
         <Notice tone={convPercent >= 100 ? "error" : "warn"} className="mb-4">
           {convPercent >= 100
@@ -87,13 +91,14 @@ export function PlanView() {
 
             <UpgradeRequest currentPlanCode={data.plan.id} />
 
-            {/* TODO(stub): PG 미연동이라 카드 자동 결제가 없다. 신청 → 운영팀 수동 처리다. */}
             <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">
-              카드 자동 결제는 준비 중입니다. 신청하시면 1영업일 안에 담당자가 연락드려
-              계약과 수납을 도와드립니다. 세금계산서가 필요하시면 함께 알려주세요.
+              카드를 등록해 두시면 매달 자동으로 결제됩니다. 세금계산서가 필요하시면
+              신청할 때 함께 알려주세요.
             </p>
           </CardBody>
         </Card>
+
+        <BillingMethodCard />
 
         <Card>
           <CardHeader title="결제 내역" aside={<Eyebrow>{data.billingRecords.length}건</Eyebrow>} />

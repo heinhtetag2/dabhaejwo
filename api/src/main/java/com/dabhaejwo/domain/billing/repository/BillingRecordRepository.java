@@ -11,6 +11,9 @@ public interface BillingRecordRepository extends JpaRepository<BillingRecord, Lo
 
     List<BillingRecord> findAllByTenantIdOrderByPeriodDesc(UUID tenantId);
 
+    /** 같은 달을 두 번 청구하지 않기 위한 조회. (tenant_id, period) 는 UNIQUE 다. */
+    java.util.Optional<BillingRecord> findByTenantIdAndPeriod(UUID tenantId, java.time.LocalDate period);
+
     /**
      * <b>가장 최근</b> 결제 시도가 실패한 업체들.
      *

@@ -102,6 +102,12 @@ dabhaejwo:
     # 한 계정이 이 분 안에 새로 받을 수 있는 횟수. 메일 폭탄을 막는다.
     resend-per-hour: 10
 
+  payment:
+    # 서버 전용. 클라이언트 키는 프론트 환경변수(NEXT_PUBLIC_TOSS_CLIENT_KEY)로 간다.
+    # 비어 있으면 카드 등록·결제가 FEATURE_NOT_READY 로 거절된다.
+    secret-key: ${TOSS_SECRET_KEY:}
+    security-key: ${TOSS_SECURITY_KEY:}
+
   invite:
     # 초대 링크 유효 기간. 길면 메일함에 남은 링크가 계속 살아 있다.
     ttl-hours: 168

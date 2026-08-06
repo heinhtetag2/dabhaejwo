@@ -22,6 +22,7 @@ public record AppProperties(
         Mail mail,
         Otp otp,
         Invite invite,
+        Payment payment,
         // `notify` 는 Object.notify() 와 충돌해 record 컴포넌트명으로 쓸 수 없다.
         Notification notification,
         Cors cors,
@@ -177,6 +178,28 @@ public record AppProperties(
             @DefaultValue("168") int ttlHours,
             @DefaultValue("24") int tempPasswordTtlHours
     ) {
+    }
+
+    /**
+     * 결제 대행사(토스페이먼츠).
+     *
+     * <p>클라이언트 키는 여기 없다 — 브라우저 번들에 들어가는 값이라 프론트 환경변수로 간다.
+     * 여기 있는 것은 <b>서버 밖으로 나가면 안 되는 것들</b>뿐이다.
+     *
+     * @param securityKey 웹훅 서명 검증용. 토스가 보낸 알림인지 확인한다
+     */
+    public record Payment(
+            @DefaultValue("") String secretKey,
+            @DefaultValue("") String securityKey
+    ) {
+        public boolean configured() {
+            return secretKey != null && !secretKey.isBlank();
+        }
+
+        /** 라이브 키인가. 로그에 "테스트 키로 붙었다"를 남겨 운영 사고를 줄인다. */
+        public boolean live() {
+            return configured() && !secretKey.startsWith("test_");
+        }
     }
 
     public record Notification(

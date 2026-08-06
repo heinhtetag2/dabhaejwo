@@ -71,7 +71,14 @@ public enum ErrorCode {
      * 메일 발송 실패. <b>조용히 넘기지 않는다</b> — 초대·비밀번호 재설정은 메일이 나가야
      * 완결되는 기능이라, 성공으로 응답하면 사용자가 오지 않는 메일을 기다린다.
      */
-    MAIL_SEND_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "메일을 보내지 못했습니다");
+    MAIL_SEND_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "메일을 보내지 못했습니다"),
+    /**
+     * 결제 실패. <b>조용히 넘기지 않는다</b> — 성공으로 응답하면 업체는 유료 전환이 끝난 줄 알고,
+     * 우리는 받지 않은 돈을 받은 것으로 기록한다.
+     */
+    PAYMENT_FAILED(HttpStatus.PAYMENT_REQUIRED, "결제를 처리하지 못했습니다"),
+    /** 등록된 결제수단이 없다. 카드 등록 화면으로 보낸다. */
+    BILLING_KEY_MISSING(HttpStatus.BAD_REQUEST, "등록된 결제수단이 없습니다");
 
     private final HttpStatus status;
     private final String message;

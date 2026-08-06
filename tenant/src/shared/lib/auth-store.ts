@@ -53,3 +53,12 @@ export function currentAccessToken(): string | null {
 export function canEdit(role: "OWNER" | "EDITOR" | "VIEWER" | undefined): boolean {
   return role === "OWNER" || role === "EDITOR";
 }
+
+/**
+ * 결제·팀원을 다룰 수 있는가. 소유자만이다 (tenant-plan.md §8).
+ *
+ * 권한의 진실은 서버다 — 이건 버튼을 숨기는 UX 일 뿐이다.
+ */
+export function canManageBilling(role: "OWNER" | "EDITOR" | "VIEWER" | undefined): boolean {
+  return role === "OWNER";
+}

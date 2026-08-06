@@ -24,6 +24,7 @@ import { count, dateTime } from "@/shared/lib/format";
 import { Modal } from "@/shared/ui/modal";
 import { PageHeader } from "@/widgets/page-header/page-header";
 
+import { ModelsGuide } from "./models-guide";
 import { ProviderCard } from "./provider-card";
 
 export function ModelsView() {
@@ -43,7 +44,7 @@ export function ModelsView() {
 
   return (
     <>
-      <PageHeader title="모델과 프롬프트" description="전 업체 공통 설정" />
+      <PageHeader title="모델과 프롬프트" description="전 업체 공통 설정" guide={<ModelsGuide />} />
       {/* 키가 없으면 아래 단가·배정이 전부 무의미하다. 그래서 맨 위에 둔다. */}
       <ProviderCard />
       <PriceCard />

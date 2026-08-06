@@ -7,6 +7,13 @@ import { z } from "zod";
 const schema = z.object({
   apiBaseUrl: z.url(),
   widgetSrc: z.url(),
+  /**
+   * 토스페이먼츠 결제창 키.
+   *
+   * **공개돼도 되는 값이다** — 결제창을 띄우는 데만 쓰이고, 실제 승인은 서버가 시크릿 키로 한다.
+   * 비어 있으면 카드 등록 버튼을 띄우지 않는다(누르면 아무 일도 안 나는 버튼을 두지 않는다).
+   */
+  tossClientKey: z.string(),
 });
 
 export const env = schema.parse({
@@ -19,4 +26,5 @@ export const env = schema.parse({
    * 위젯만 안 뜨므로, 배포마다 반드시 실제 CDN 주소를 넣는다. 기본값은 로컬 데모용이다.
    */
   widgetSrc: process.env.NEXT_PUBLIC_WIDGET_SRC ?? "http://localhost:5173/w.js",
+  tossClientKey: process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "",
 });

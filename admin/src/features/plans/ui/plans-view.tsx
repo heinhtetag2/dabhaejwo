@@ -15,6 +15,8 @@ import { count, won } from "@/shared/lib/format";
 import { Modal } from "@/shared/ui/modal";
 import { PageHeader } from "@/widgets/page-header/page-header";
 
+import { PlansGuide } from "./plans-guide";
+
 const BEHAVIOR_LABEL: Record<QuotaExceededBehavior, string> = {
   STOP_AND_NOTICE: "챗봇을 멈추고 안내 메시지 표시",
   OVERAGE_BILLING: "초과분 과금",
@@ -30,7 +32,7 @@ export function PlansView() {
 
   return (
     <>
-      <PageHeader title="요금제" description="플랜 정의와 한도 정책" />
+      <PageHeader title="요금제" description="플랜 정의와 한도 정책" guide={<PlansGuide />} />
 
       <Card>
         <CardHeader title="요금제" />
