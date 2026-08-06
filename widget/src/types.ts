@@ -56,6 +56,10 @@ export type Message =
  */
 export interface RemoteConfig {
   enabled: boolean;
+  /** 런처에 넣을 이미지. 서버가 아이콘 > 로고 순으로 이미 골라 준 값이다. 없으면 기본 아이콘. */
+  launcherImageUrl: string | null;
+  /** 런처 지름(px). 업체는 3단계 중에서 고르고 픽셀은 서버가 정한다. */
+  launcherSizePx: number;
   widgetPosition: "BOTTOM_RIGHT" | "BOTTOM_LEFT";
   /** `#RRGGBB`. 스타일에 그대로 들어가므로 쓰기 전에 형식을 한 번 더 본다. */
   brandColor: string;

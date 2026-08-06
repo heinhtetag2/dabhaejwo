@@ -23,6 +23,9 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
    * 아무것도 그리지 않으므로 위치가 바뀌며 튀는 일은 없다.
    */
   const [remotePosition, setRemotePosition] = useState<"left" | "right" | null>(null);
+  /** 업체가 올린 로고·아이콘. 없으면 기본 말풍선을 그린다. */
+  const [launcherImageUrl, setLauncherImageUrl] = useState<string | null>(null);
+  const [launcherSizePx, setLauncherSizePx] = useState<number | null>(null);
   /**
    * 업체가 정한 버블 색. 스타일에 그대로 들어가는 값이라 <b>형식이 맞을 때만</b> 쓴다 —
    * 서버가 저장할 때 막고 있지만, 여기서도 보는 이유는 이 값이 남의 사이트의
@@ -61,6 +64,8 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
         setNudgeDelayMs(remote.nudgeDelayMs);
         // 위치는 반대다. 호스트가 적었으면 그쪽을 존중한다(아래 position 참조).
         setRemotePosition(remote.widgetPosition === "BOTTOM_LEFT" ? "left" : "right");
+        setLauncherImageUrl(remote.launcherImageUrl ?? null);
+        setLauncherSizePx(remote.launcherSizePx ?? null);
         setBrandColor(HEX_COLOR.test(remote.brandColor) ? remote.brandColor : null);
       })
       .catch(() => {
@@ -221,7 +226,13 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
    * 색은 CSS 변수 하나만 덮는다. 개별 규칙을 인라인으로 넣으면 스타일시트와 두 벌이 되고,
    * 어느 쪽이 이기는지가 규칙마다 달라진다.
    */
-  const rootStyle = brandColor ? { "--dw-brand": brandColor } : undefined;
+  const rootStyle: Record<string, string> = {};
+  if (brandColor) {
+    rootStyle["--dw-brand"] = brandColor;
+  }
+  if (launcherSizePx) {
+    rootStyle["--dw-launcher"] = `${launcherSizePx}px`;
+  }
 
   return (
     <div class="root" data-position={position} style={rootStyle}>
@@ -336,10 +347,38 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
 
       {!open ? (
         <button class="bubble" onClick={openPanel} aria-label="채팅 열기">
-          💬
+          {launcherImageUrl ? (
+            // alt 를 비운다. 옆의 aria-label 이 이미 "채팅 열기"라고 말하므로
+            // 로고 이름까지 읽으면 스크린리더가 같은 버튼을 두 번 설명하게 된다.
+            <img src={launcherImageUrl} alt="" />
+          ) : (
+            <LauncherIcon />
+          )}
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 기본 런처 아이콘.
+ *
+ * <p>이모지(`💬`)를 쓰지 않는다 — 운영체제가 그리므로 윈도우·맥·안드로이드에서 서로 다른
+ * 그림이 나온다. 남의 사이트에 얹히는 요소가 우리가 통제하지 못하는 모양이면 안 된다.
+ *
+ * <p>선(stroke)으로만 그려 어떤 브랜드 색 위에서도 형태가 남는다. 면으로 채우면
+ * 밝은 배경색에서 뭉개진다. `currentColor` 라 색을 따로 관리하지 않는다.
+ */
+function LauncherIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M20.5 11.7c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42l-4.6 1.5 1.5-3.9C4.6 14.9 3.5 13.4 3.5 11.7c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2Z"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linejoin="round"
+      />
+    </svg>
   );
 }
 

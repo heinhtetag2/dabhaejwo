@@ -27,6 +27,7 @@ import { Pagination } from "@/shared/ui/pagination";
 import { DocumentTable } from "./document-table";
 import { FileUpload } from "./file-upload";
 import { controlClass } from "@/shared/common/control";
+import { date } from "@/shared/lib/format";
 
 const STATUS_FILTERS: Array<{ value: DocumentStatus | "ALL"; label: string }> = [
   { value: "ALL", label: "전체" },
@@ -168,7 +169,7 @@ export function SourcesView() {
                   : "자동 갱신이 꺼져 있습니다"
                 : "직접 등록한 자료입니다"}
               {selected.lastCrawledAt
-                ? ` · 마지막 ${selected.lastCrawledAt.slice(0, 10)}`
+                ? ` · 마지막 ${date(selected.lastCrawledAt)}`
                 : " · 아직 읽은 적 없음"}
             </p>
           </div>

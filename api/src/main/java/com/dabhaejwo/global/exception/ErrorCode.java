@@ -28,6 +28,7 @@ public enum ErrorCode {
     /** 정지·해지된 업체의 위젯. 키가 살아 있어도 답하지 않는다 — 안 내는 사이트에서 원가가 계속 나간다. */
     TENANT_INACTIVE(HttpStatus.FORBIDDEN, "현재 이용할 수 없는 업체입니다"),
 
+    ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 이미지를 찾을 수 없습니다"),
     TENANT_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 업체를 찾을 수 없습니다"),
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 요금제를 찾을 수 없습니다"),
     FAQ_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 공통 질문을 찾을 수 없습니다"),

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAppContextQuery } from "@/entities/auth/session";
+import { useBotSettingsQuery } from "@/entities/chatbot/bot-settings";
+import { env } from "@/shared/config/env";
 import { LogoutButton } from "@/features/auth/logout";
 import { NAV_GROUPS, ROUTES } from "@/shared/config/routes";
 import { cn } from "@/shared/lib/cn";
@@ -11,6 +13,7 @@ import { cn } from "@/shared/lib/cn";
 export function TenantSidebar() {
   const pathname = usePathname();
   const { data } = useAppContextQuery();
+  const { data: settings } = useBotSettingsQuery();
   const usage = data?.usage;
   const usedPercent =
     usage && usage.convLimit > 0
@@ -26,10 +29,24 @@ export function TenantSidebar() {
           </span>
           <span className="font-semibold tracking-[-0.01em] text-white">답해줘</span>
         </div>
-        <div className="mt-3.5 rounded-lg bg-white/6 px-2.5 py-2 text-[13px] text-[#dde6eb]">
+        {/*
+          업체 로고. 없으면 자리를 비워 둔다 — 회색 상자를 그리면 "이미지가 깨졌나"로 읽힌다.
+          위젯 관리 화면에서 올린다.
+        */}
+        <div className="mt-3.5 flex items-center gap-2.5 rounded-lg bg-white/6 px-2.5 py-2 text-[13px] text-[#dde6eb]">
+          {settings?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={new URL(settings.logoUrl, env.apiBaseUrl).toString()}
+              alt=""
+              className="size-7 shrink-0 rounded-md bg-white/90 object-contain"
+            />
+          ) : null}
+          <span className="min-w-0">
           {data?.tenant.name ?? "—"}
           <span className="block font-mono text-[10.5px] tracking-[0.06em] text-[#7e8f9c]">
             {data?.tenant.primaryDomain ?? ""}
+          </span>
           </span>
         </div>
       </div>

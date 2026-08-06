@@ -8,6 +8,7 @@ import {
 } from "@/entities/chatbot/knowledge";
 import { Button } from "@/shared/common/button";
 import { StatusBadge, type Tone } from "@/shared/ui/status-badge";
+import { date } from "@/shared/lib/format";
 
 const TONE: Record<DocumentStatus, Tone> = {
   INDEXED: "ok",
@@ -65,7 +66,7 @@ export function DocumentTable({
                 />
               </td>
               <td className="border-b border-line-2 px-3.5 py-3 font-mono text-[11.5px] text-slate-2">
-                {document.indexedAt ? document.indexedAt.slice(0, 10) : "—"}
+                {date(document.indexedAt)}
               </td>
               <td className="border-b border-line-2 px-3.5 py-3">
                 {editable ? (

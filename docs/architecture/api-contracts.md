@@ -838,7 +838,8 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 인증은 `X-Dabhaejwo-Key` + `Origin`. 시크릿을 받지 않는다.
 
 ```
-GET  /api/widget/config?path=…  → { enabled, widgetPosition, nudgeDelayMs }
+GET  /api/widget/config?path=…  → { enabled, widgetPosition, brandColor,
+                                    launcherImageUrl, launcherSizePx, nudgeDelayMs }
 POST /api/widget/session      { path }
                               → { sessionId, botName, greeting, brandColor, widgetPosition,
                                   leadCaptureEnabled, faqs: [ { id, question } ] }
@@ -860,6 +861,26 @@ POST /api/widget/lead         { sessionId, name, contact, memo } → 201 { id }
 - `false` 면 위젯은 **아무것도 그리지 않는다.** 오류 말풍선도 남기지 않는다 — 끄기는 "정상 응답 + 안 보임"이어야 한다. 허용 주소를 지워 막던 우회로는 방문자에게 고장으로 보였다
 - 키가 틀리거나 등록되지 않은 주소면 403 이고, 이때도 위젯은 조용히 사라진다
 - 위젯이 붙은 사이트의 **모든 페이지뷰마다 한 번씩** 오는 호출이라 GET 이다
+- `launcherImageUrl` 은 **서버가 이미 고른 값**이다 — 아이콘 > 로고 순. 두 필드를 내려보내 위젯이 스스로 고르게 하면 대시보드 미리보기와 실제 위젯이 다른 규칙을 갖게 된다. 없으면 위젯이 기본 말풍선 아이콘을 그린다
+- `launcherSizePx` 는 48·56·64 중 하나다. 업체는 3단계 중에서 고르고 픽셀은 서버가 정한다
+
+### 10-3. 브랜딩 이미지 (`/api/app/appearance/{logo|launcher-icon}`)
+
+```
+POST   /api/app/appearance/logo           multipart file → { url }
+DELETE /api/app/appearance/logo           → 204
+POST   /api/app/appearance/launcher-icon  multipart file → { url }
+DELETE /api/app/appearance/launcher-icon  → 204
+
+GET    /api/public/assets/tenants/{tenantId}/branding/…   공개. 인증 없음
+```
+
+- **PNG · JPG · WEBP 만.** SVG 는 받지 않는다 — 그림이 아니라 문서라서 `<script>` 를 품을 수 있고, 우리는 그것을 **남의 사이트 위젯**과 **우리 콘솔** 양쪽에 띄운다. 정화기를 붙이는 방법도 있지만 그 구멍은 계속 발견된다
+- 확장자와 **매직 바이트를 둘 다** 본다. `.png` 로 이름 붙인 HTML 이 우리 도메인에서 서빙되면 XSS 다
+- 512KB 이하. 로고·아이콘은 작은 그림이고, 넘으면 목적이 다른 파일이다
+- 키가 **내용의 해시**다(`logo-{sha256 앞 16자}.png`). 같은 URL 이 다른 그림을 가리키지 않으므로 `immutable` 캐시를 1년으로 잡는다 — 이미지를 바꾸면 URL 이 바뀐다
+- **저장소를 공개로 열지 않았다.** 같은 버킷에 업체의 학습 문서가 있다. `branding/` 아래만 이 경로로 흘려보내고, 그 밖의 경로는 404 다
+- 옛 파일을 지우지 않는다 — 그 URL 을 담아 응답한 위젯이 남의 사이트에서 아직 돌고 있다
 
 `widgetPosition` 은 대시보드 API(`/api/app/bot-settings`)와 **같은 이름·같은 값**이다
 (`BOTTOM_RIGHT` · `BOTTOM_LEFT`). 같은 것을 두 이름으로 부르면 코드에서 계속 번역하게 된다.

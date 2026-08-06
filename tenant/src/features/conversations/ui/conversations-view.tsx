@@ -16,6 +16,7 @@ import { cn } from "@/shared/lib/cn";
 import { Pagination } from "@/shared/ui/pagination";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
+import { time, dateTime } from "@/shared/lib/format";
 
 /**
  * 대화 로그. 좌측 목록 + 우측 상세.
@@ -101,7 +102,7 @@ export function ConversationsView() {
                         방문자{conversation.visitorRegion ? ` · ${conversation.visitorRegion}` : ""}
                       </span>
                       <span className="tabular shrink-0 text-[11px] text-slate-2">
-                        {conversation.startedAt.slice(11, 16)}
+                        {time(conversation.startedAt)}
                       </span>
                     </span>
                     <span className="mt-1 flex items-center gap-1.5">
@@ -142,7 +143,7 @@ export function ConversationsView() {
               title={`방문자${detail.data.visitorRegion ? ` · ${detail.data.visitorRegion}` : ""}`}
               aside={
                 <span className="text-[11.5px] text-slate-2">
-                  {detail.data.startedAt.slice(0, 16).replace("T", " ")}
+                  {dateTime(detail.data.startedAt)}
                   {detail.data.startedPath ? ` · ${detail.data.startedPath} 에서 시작` : ""}
                 </span>
               }

@@ -17,6 +17,7 @@ import { canEdit, currentAccessToken } from "@/shared/lib/auth-store";
 import { Notice } from "@/shared/ui/notice";
 import { Pagination } from "@/shared/ui/pagination";
 import { StatusBadge, type Tone } from "@/shared/ui/status-badge";
+import { date } from "@/shared/lib/format";
 
 const TONE: Record<LeadStatus, Tone> = {
   NEW: "warn",
@@ -121,7 +122,7 @@ export function LeadsView() {
                       {lead.reason ?? "—"}
                     </td>
                     <td className="border-b border-line-2 px-3.5 py-3 font-mono text-[11.5px] text-slate-2">
-                      {lead.createdAt.slice(0, 10)}
+                      {date(lead.createdAt)}
                     </td>
                     <td className="border-b border-line-2 px-3.5 py-3">
                       <span className="flex items-center gap-2">

@@ -23,6 +23,11 @@ export function date(value: string | null | undefined): string {
 export function dateTime(value: string | null | undefined): string {
   return value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "—";
 }
+/** `HH:mm`. 오늘 안의 목록처럼 날짜가 자명한 곳에 쓴다. */
+export function time(value: string | null | undefined): string {
+  return value ? dayjs(value).format("HH:mm") : "—";
+}
+
 
 /** "3일 전" 같은 상대 표현. 마지막 접속처럼 정확한 시각이 중요하지 않은 곳에 쓴다. */
 export function relative(value: string | null | undefined): string {

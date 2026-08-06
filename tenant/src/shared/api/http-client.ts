@@ -129,14 +129,20 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  if (body !== undefined) {
+  /*
+   * FormData 는 그대로 보낸다. Content-Type 을 우리가 적으면 안 된다 —
+   * 멀티파트 경계(boundary)는 브라우저가 만들고, 헤더를 덮어쓰면 그 값이 빠져
+   * 서버가 본문을 파싱하지 못한다.
+   */
+  const multipart = typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !multipart) {
     headers["Content-Type"] = "application/json";
   }
 
   return fetch(url, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : multipart ? (body as FormData) : JSON.stringify(body),
     // 리프레시 토큰이 httpOnly 쿠키로 오간다. 이 옵션이 없으면 브라우저가 쿠키를
     // 싣지 않아 새로고침 후 세션 복원이 조용히 실패한다 — 서버의 CORS
     // allowCredentials 와 **둘 다** 켜져야 동작한다.

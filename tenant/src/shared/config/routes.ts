@@ -30,6 +30,7 @@ export const ROUTES = {
   sources: "/app/sources",
   faq: "/app/faq",
   appearance: "/app/appearance",
+  widget: "/app/widget",
   install: "/app/install",
 
   // 대시보드 — 계정
@@ -57,7 +58,8 @@ export const NAV_GROUPS: ReadonlyArray<{
     items: [
       { href: ROUTES.sources, label: "지식 소스" },
       { href: ROUTES.faq, label: "공통 질문" },
-      { href: ROUTES.appearance, label: "말투와 모양" },
+      { href: ROUTES.appearance, label: "말투" },
+      { href: ROUTES.widget, label: "위젯 관리" },
       { href: ROUTES.install, label: "설치" },
     ],
   },

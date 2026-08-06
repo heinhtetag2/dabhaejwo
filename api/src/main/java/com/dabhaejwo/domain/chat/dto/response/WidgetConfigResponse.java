@@ -17,11 +17,17 @@ import com.dabhaejwo.domain.botsettings.entity.WidgetPosition;
  * @param brandColor     버블·버튼 색({@code #RRGGBB}). <b>여기서 줘야 한다</b> —
  *                       버블은 패널을 열기 전에 그려지므로 세션 응답으로는 늦다.
  *                       저장할 때 형식을 막아 두었다({@code BotSettingsSaveRequest})
+ * @param launcherImageUrl 런처에 넣을 이미지. 없으면 위젯이 기본 말풍선 아이콘을 그린다.
+ *                        아이콘 > 로고 순으로 서버가 이미 골라 준 값이다 —
+ *                        위젯이 두 필드를 받아 스스로 고르면 미리보기와 어긋난다
+ * @param launcherSizePx  런처 지름(px). 업체는 3단계 중에서 고르고 픽셀은 서버가 정한다
  * @param nudgeDelayMs   자동으로 말 거는 시점. 0 이면 말 걸지 않는다
  */
 public record WidgetConfigResponse(
         boolean enabled,
         WidgetPosition widgetPosition,
         String brandColor,
+        String launcherImageUrl,
+        int launcherSizePx,
         int nudgeDelayMs) {
 }

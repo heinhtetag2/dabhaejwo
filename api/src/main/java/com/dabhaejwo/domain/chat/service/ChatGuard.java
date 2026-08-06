@@ -7,6 +7,7 @@ import com.dabhaejwo.domain.plan.entity.Plan;
 import com.dabhaejwo.domain.tenant.repository.TenantRepository;
 import com.dabhaejwo.domain.usage.repository.AiUsageRepository;
 import com.dabhaejwo.global.exception.BusinessException;
+import com.dabhaejwo.global.common.BusinessDay;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.SlidingWindowLimiter;
 import org.slf4j.Logger;
@@ -80,7 +81,9 @@ public class ChatGuard {
      * 호출 전에 원가를 알 수 없으니 어쩔 수 없고, 한 번의 초과분은 무시할 만하다.
      */
     public void requireWithinDailyCost(UUID tenantId, CostGuard guard) {
-        OffsetDateTime from = LocalDate.now(ZoneOffset.UTC).atStartOfDay().atOffset(ZoneOffset.UTC);
+        // 상한도 업체의 하루를 따른다. UTC 로 끊으면 한국 시간 오전 9시에 초기화돼,
+        // 업체는 "어제 한도가 찼는데 아침에도 안 풀린다"고 느낀다.
+        OffsetDateTime from = BusinessDay.startOfToday();
         OffsetDateTime to = from.plusDays(1);
 
         BigDecimal tenantCost = usageRepository.sumCostKrw(tenantId, from, to);

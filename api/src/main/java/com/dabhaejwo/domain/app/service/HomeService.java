@@ -9,6 +9,7 @@ import com.dabhaejwo.domain.knowledge.entity.DocumentStatus;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
 import com.dabhaejwo.domain.lead.repository.LeadRepository;
 import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.global.common.BusinessDay;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -58,7 +59,7 @@ public class HomeService {
         AuthPrincipal.TenantUser user = CurrentAuth.tenantUser();
         UUID tenantId = user.tenantId();
 
-        OffsetDateTime todayStart = startOfDay(LocalDate.now());
+        OffsetDateTime todayStart = BusinessDay.startOfToday();
         OffsetDateTime tomorrowStart = todayStart.plusDays(1);
         OffsetDateTime yesterdayStart = todayStart.minusDays(1);
         OffsetDateTime weekStart = todayStart.minusDays(7);
@@ -127,8 +128,8 @@ public class HomeService {
                 .toList();
     }
 
-    /** 하루 경계는 UTC 로 잡는다. 시각을 전부 timestamptz 로 저장하므로 기준을 하나로 둔다. */
+    /** 하루 경계는 {@link BusinessDay} 하나로 정한다 — 업체가 보는 "오늘"이어야 한다. */
     private OffsetDateTime startOfDay(LocalDate day) {
-        return day.atStartOfDay().atOffset(ZoneOffset.UTC);
+        return BusinessDay.startOf(day);
     }
 }

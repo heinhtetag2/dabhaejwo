@@ -53,7 +53,7 @@ public class BotSettingsService {
                 request.agentHandoffEnabled(), blankToNull(request.agentHours()));
         settings.editPlacement(request.widgetPosition(), request.pageScope(),
                 clean(request.pagePatterns()), request.nudgeDelaySeconds(),
-                request.widgetEnabled());
+                request.widgetEnabled(), request.launcherSize());
 
         return BotSettingsResponse.from(settings);
     }

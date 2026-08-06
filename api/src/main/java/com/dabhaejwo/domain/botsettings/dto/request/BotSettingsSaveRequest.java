@@ -1,5 +1,7 @@
 package com.dabhaejwo.domain.botsettings.dto.request;
 
+import com.dabhaejwo.domain.botsettings.entity.LauncherSize;
+
 import com.dabhaejwo.domain.botsettings.entity.PageScope;
 import com.dabhaejwo.domain.botsettings.entity.WidgetPosition;
 import jakarta.validation.constraints.Max;
@@ -36,5 +38,6 @@ public record BotSettingsSaveRequest(
         @NotNull PageScope pageScope,
         List<@Size(max = 200) String> pagePatterns,
         @Min(0) @Max(600) int nudgeDelaySeconds,
-        boolean widgetEnabled) {
+        boolean widgetEnabled,
+        LauncherSize launcherSize) {
 }

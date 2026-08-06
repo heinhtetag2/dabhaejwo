@@ -29,6 +29,7 @@ import com.dabhaejwo.domain.plan.repository.PlanRepository;
 import com.dabhaejwo.domain.tenant.entity.Tenant;
 import com.dabhaejwo.domain.tenant.repository.TenantRepository;
 import com.dabhaejwo.global.exception.BusinessException;
+import com.dabhaejwo.global.common.BusinessDay;
 import com.dabhaejwo.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,6 +116,10 @@ public class WidgetChatService {
                 visible,
                 settings.getWidgetPosition(),
                 settings.getBrandColor(),
+                // 아이콘 > 로고 순으로 **여기서** 고른다. 두 필드를 위젯에 넘겨 스스로 고르게 하면
+                // 대시보드 미리보기와 실제 위젯이 다른 규칙을 갖게 된다.
+                settings.effectiveLauncherImageUrl(),
+                settings.getLauncherSize().px(),
                 settings.getNudgeDelaySeconds() * 1000);
     }
 
@@ -265,8 +270,7 @@ public class WidgetChatService {
      * 한도 판정을 늦은 값으로 하면 그 사이에 한도를 넘겨 쓴다.
      */
     private long monthlyConversations(UUID tenantId) {
-        OffsetDateTime from = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1)
-                .atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime from = BusinessDay.startOfThisMonth();
         return conversationRepository.countByTenantIdAndStartedAtBetween(tenantId, from, from.plusMonths(1));
     }
 

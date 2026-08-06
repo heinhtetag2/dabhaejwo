@@ -3,23 +3,15 @@
 import { useState } from "react";
 
 import { useAppContextQuery } from "@/entities/auth/session";
-import {
-  useBotSettingsQuery,
-  useSaveBotSettings,
-  type BotSettings,
-} from "@/entities/chatbot/bot-settings";
+import { useBotSettingsDraft } from "@/entities/chatbot/bot-settings";
 import { useFaqListQuery } from "@/entities/chatbot/faq";
-import { ApiError } from "@/shared/api/http-client";
-import { Button, LinkButton } from "@/shared/common/button";
+import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
 import { ErrorState, LoadingState } from "@/shared/common/states";
-import { ROUTES } from "@/shared/config/routes";
 import { canEdit } from "@/shared/lib/auth-store";
 import { Notice } from "@/shared/ui/notice";
 import { WidgetPreview } from "@/shared/ui/widget-preview";
 import { controlClass } from "@/shared/common/control";
-
-const PRESET_COLORS = ["#17222E", "#1B6B5C", "#BF3F2B", "#3B5BDB"];
 
 /**
  * 말투와 모양.
@@ -32,131 +24,24 @@ const PRESET_COLORS = ["#17222E", "#1B6B5C", "#BF3F2B", "#3B5BDB"];
  */
 export function AppearanceView() {
   const { data: context } = useAppContextQuery();
-  const { data: saved, isPending, isError, refetch } = useBotSettingsQuery();
   const { data: faqs } = useFaqListQuery();
-  const save = useSaveBotSettings();
+  const { query, save, draft, dirty, patch, reset, submit } = useBotSettingsDraft();
 
-  /**
-   * 편집 중인 값만 따로 든다. 서버 값을 상태로 복사해 두면 다시 불러왔을 때 어긋나므로,
-   * 손대기 전에는 서버 값을 그대로 쓰고 손댄 뒤에만 로컬 값이 이긴다.
-   */
-  const [localDraft, setLocalDraft] = useState<BotSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const editable = canEdit(context?.member?.role);
   const shownFaqs = (faqs ?? []).filter((faq) => faq.shown);
-  const draft = localDraft ?? saved;
 
-  if (isPending || draft === undefined) {
+  if (query.isPending || draft === undefined) {
     return <LoadingState />;
   }
-  if (isError) {
-    return <ErrorState message="설정을 불러오지 못했습니다" onRetry={() => void refetch()} />;
+  if (query.isError) {
+    return <ErrorState message="설정을 불러오지 못했습니다" onRetry={() => void query.refetch()} />;
   }
-
-  const patch = (changes: Partial<BotSettings>) => setLocalDraft({ ...draft, ...changes });
-
-  const submit = () => {
-    setError(null);
-    save.mutate(draft, {
-      // 저장이 끝나면 서버 값이 진실이다. 로컬 편집본을 버려 다음 조회 결과를 그대로 쓴다.
-      onSuccess: () => setLocalDraft(null),
-      onError: (cause: unknown) =>
-        setError(cause instanceof ApiError ? cause.message : "저장하지 못했습니다"),
-    });
-  };
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
       <div className="min-w-0">
-        {/*
-          노출 카드를 맨 앞에 둔다. 급히 챗봇을 내려야 하는 상황에서 스크롤을 내려가며
-          찾게 만들면 안 된다 — 학습이 덜 된 채로 공개됐거나 답변이 이상할 때 쓰는 스위치다.
-        */}
-        <Card className="mb-4">
-          <CardHeader title="노출" />
-          <CardBody className="space-y-3">
-            <Toggle
-              label="홈페이지에 챗봇 띄우기"
-              hint="끄면 방문자에게 챗봇이 보이지 않습니다. 홈페이지에 붙인 코드는 그대로 두셔도 됩니다."
-              checked={draft.widgetEnabled}
-              disabled={!editable}
-              onChange={(widgetEnabled) => patch({ widgetEnabled })}
-            />
-            {draft.widgetEnabled ? null : (
-              <Notice tone="warn">
-                지금은 방문자에게 챗봇이 보이지 않습니다. 설치 코드는 그대로 두셔도 됩니다 —
-                다시 켜면 바로 나타납니다.
-              </Notice>
-            )}
-          </CardBody>
-        </Card>
-
-        <Card className="mb-4">
-          <CardHeader title="모양" />
-          <CardBody>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="bot-name" label="챗봇 이름">
-                <input
-                  id="bot-name"
-                  value={draft.botName}
-                  disabled={!editable}
-                  onChange={(event) => patch({ botName: event.target.value })}
-                  className={INPUT}
-                />
-              </Field>
-
-              <Field id="brand-color" label="버블 색상">
-                <span className="flex flex-wrap items-center gap-2">
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`색상 ${color}`}
-                      aria-pressed={draft.brandColor.toUpperCase() === color}
-                      disabled={!editable}
-                      onClick={() => patch({ brandColor: color })}
-                      className="size-[30px] rounded-[7px] border-2"
-                      style={{
-                        backgroundColor: color,
-                        borderColor:
-                          draft.brandColor.toUpperCase() === color ? "#17222E" : "transparent",
-                      }}
-                    />
-                  ))}
-                  <input
-                    id="brand-color"
-                    value={draft.brandColor}
-                    disabled={!editable}
-                    onChange={(event) => patch({ brandColor: event.target.value })}
-                    className={controlClass("sm", "w-[96px] font-mono")}
-                  />
-                </span>
-              </Field>
-            </div>
-
-            <Field id="greeting" label="첫 인사말">
-              <input
-                id="greeting"
-                value={draft.greeting}
-                disabled={!editable}
-                onChange={(event) => patch({ greeting: event.target.value })}
-                className={INPUT}
-              />
-            </Field>
-
-            <div className="flex flex-wrap items-center gap-3 rounded-lg bg-paper px-3.5 py-3">
-              <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-slate">
-                <b className="font-semibold text-ink">{shownFaqs.length}개</b>의 공통 질문이 버튼으로
-                보입니다. 문구와 답변은 공통 질문에서 관리합니다.
-              </p>
-              <LinkButton size="sm" href={ROUTES.faq}>
-                공통 질문 열기
-              </LinkButton>
-            </div>
-          </CardBody>
-        </Card>
-
         <Card className="mb-4">
           <CardHeader title="말투" />
           <CardBody>
@@ -274,10 +159,18 @@ export function AppearanceView() {
 
         {editable ? (
           <div className="mt-3 flex gap-2">
-            <Button className="flex-1" disabled={localDraft === null} onClick={() => setLocalDraft(null)}>
+            <Button className="flex-1" disabled={!dirty} onClick={reset}>
               되돌리기
             </Button>
-            <Button variant="accent" className="flex-1" disabled={save.isPending} onClick={submit}>
+            <Button
+              variant="accent"
+              className="flex-1"
+              disabled={save.isPending}
+              onClick={() => {
+                setError(null);
+                submit(setError);
+              }}
+            >
               {save.isPending ? "저장 중…" : "저장"}
             </Button>
           </div>

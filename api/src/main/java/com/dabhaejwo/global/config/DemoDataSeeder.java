@@ -210,7 +210,8 @@ public class DemoDataSeeder {
                     "제가 확인하기 어려운 내용이네요. 상담원에게 연결해 드릴까요?",
                     List.of("타사 브랜드 비교", "할인 협상", "재고 수량"));
             settings.editFallback(true, "1588-0000", false, "평일 09:00–18:00");
-            settings.editPlacement(WidgetPosition.BOTTOM_RIGHT, PageScope.ALL, List.of(), 15, true);
+            settings.editPlacement(WidgetPosition.BOTTOM_RIGHT, PageScope.ALL, List.of(), 15, true,
+                    com.dabhaejwo.domain.botsettings.entity.LauncherSize.MEDIUM);
             return settings;
         }
 

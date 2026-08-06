@@ -12,6 +12,8 @@
   --dw-paper: #fbfaf8;
   /* 최댓값(2147483647)을 쓰지 않는다 — 다른 위젯과 전면전이 된다 */
   --dw-z: 2147480000;
+  /* 런처 지름. 업체가 3단계 중에서 고르고 서버가 픽셀을 정해 내려준다. */
+  --dw-launcher: 56px;
 
   all: initial;
   /*
@@ -59,15 +61,67 @@
   align-items: flex-start;
 }
 
+/*
+ * 런처.
+ *
+ * 전에는 `💬` 이모지였다. 이모지는 운영체제가 그리므로 윈도우·맥·안드로이드에서 서로 다른
+ * 그림이 나온다 — 남의 사이트에 얹히는 요소가 우리가 통제하지 못하는 모양인 셈이다.
+ * 지금은 인라인 SVG 라 어디서든 같다.
+ */
 .bubble {
-  width: 52px;
-  height: 52px;
+  display: grid;
+  place-items: center;
+  width: var(--dw-launcher);
+  height: var(--dw-launcher);
+  padding: 0;
   border: none;
   border-radius: 50%;
   background: var(--dw-brand);
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 6px 20px -6px rgba(42, 39, 35, 0.45);
+  overflow: hidden;
+  /* 그림자를 두 겹으로 둔다 — 가까운 것이 형태를, 먼 것이 떠 있는 느낌을 만든다.
+     한 겹이면 어두운 배경의 사이트에서 런처가 배경에 묻는다. */
+  box-shadow:
+    0 2px 6px rgba(23, 34, 46, 0.16),
+    0 10px 28px -8px rgba(23, 34, 46, 0.42);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.bubble:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 8px rgba(23, 34, 46, 0.2),
+    0 14px 34px -8px rgba(23, 34, 46, 0.5);
+}
+
+.bubble:active {
+  transform: translateY(0);
+}
+
+/* 업로드한 로고·아이콘. 원형 안에 꽉 채우되 비율은 지킨다 —
+   `fill` 로 늘리면 업체 로고가 찌그러져 보인다. */
+.bubble img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 기본 아이콘. 선 굵기를 런처 크기에 비례시키지 않는다 —
+   작은 런처에서 선이 가늘어져 흐릿해 보인다. */
+.bubble svg {
+  width: 55%;
+  height: 55%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    transition: none;
+  }
+  .bubble:hover {
+    transform: none;
+  }
 }
 
 .nudge {

@@ -85,6 +85,23 @@ public class BotSettings {
     @Column(name = "widget_enabled", nullable = false)
     private boolean widgetEnabled;
 
+    /**
+     * 런처에 넣을 이미지. 없으면 {@link #logoUrl}, 그것도 없으면 기본 말풍선 아이콘.
+     *
+     * <p>우리 API 를 가리키는 경로다({@code /api/public/assets/...}). 외부 URL 을 받지 않는 이유는
+     * 업체가 남의 서버 이미지를 걸면 그 서버가 죽었을 때 <b>우리 위젯이 깨져 보이기</b> 때문이다.
+     */
+    @Column(name = "launcher_icon_url")
+    private String launcherIconUrl;
+
+    /** 업체 로고. 콘솔 사이드바에 뜨고, 런처 아이콘이 없으면 런처에도 쓰인다. */
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "launcher_size", nullable = false)
+    private LauncherSize launcherSize;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
@@ -103,6 +120,7 @@ public class BotSettings {
         settings.leadCaptureEnabled = true;
         settings.agentHandoffEnabled = false;
         settings.widgetEnabled = true;
+        settings.launcherSize = LauncherSize.MEDIUM;
         settings.widgetPosition = WidgetPosition.BOTTOM_RIGHT;
         settings.pageScope = PageScope.ALL;
         settings.nudgeDelaySeconds = 15;
@@ -139,11 +157,13 @@ public class BotSettings {
                               PageScope scope,
                               List<String> patterns,
                               int nudgeDelaySeconds,
-                              boolean widgetEnabled) {
+                              boolean widgetEnabled,
+                              LauncherSize launcherSize) {
         if (nudgeDelaySeconds < 0) {
             throw new IllegalArgumentException("nudgeDelaySeconds must be >= 0");
         }
         this.widgetEnabled = widgetEnabled;
+        this.launcherSize = launcherSize == null ? LauncherSize.MEDIUM : launcherSize;
         this.widgetPosition = position;
         this.pageScope = scope;
         this.pagePatterns = patterns == null ? new ArrayList<>() : new ArrayList<>(patterns);
@@ -217,5 +237,37 @@ public class BotSettings {
 
     public boolean isWidgetEnabled() {
         return widgetEnabled;
+    }
+
+    public String getLauncherIconUrl() {
+        return launcherIconUrl;
+    }
+
+    public String getLogoUrl() {
+        return logoUrl;
+    }
+
+    public LauncherSize getLauncherSize() {
+        return launcherSize;
+    }
+
+    /**
+     * 런처에 실제로 그릴 이미지. <b>아이콘 > 로고 > 없음</b> 순이다.
+     *
+     * <p>둘 다 올린 업체에게 무엇이 이기는지를 화면이 아니라 여기서 정한다 —
+     * 화면마다 다르게 고르면 미리보기와 실제 위젯이 어긋난다.
+     */
+    public String effectiveLauncherImageUrl() {
+        if (launcherIconUrl != null && !launcherIconUrl.isBlank()) {
+            return launcherIconUrl;
+        }
+        return logoUrl == null || logoUrl.isBlank() ? null : logoUrl;
+    }
+
+    /** 업로드한 이미지 경로를 바꾼다. null 을 주면 지운다(기본 아이콘으로 돌아간다). */
+    public void changeBranding(String launcherIconUrl, String logoUrl) {
+        this.launcherIconUrl = launcherIconUrl;
+        this.logoUrl = logoUrl;
+        touch();
     }
 }

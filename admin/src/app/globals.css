@@ -38,6 +38,9 @@
   --color-plum: #6c4ba6;
   --color-plum-soft: #ede7f7;
 
+  /* mark-soft 면 위의 글자. 노랑 자체는 흰 바탕에서 대비가 모자라 글자색으로 못 쓴다. */
+  --color-mark-ink: #8a6a00;
+
   --radius-card: 10px;
   /* shared/common/button.tsx 의 lg 사이즈가 쓴다. 두 콘솔의 버튼 파일은 같은 내용을 유지한다. */
   --radius-btn: 14px;

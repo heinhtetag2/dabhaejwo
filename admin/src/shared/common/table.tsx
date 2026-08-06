@@ -21,7 +21,7 @@ export function Th({ className, children }: { className?: string; children?: Rea
   return (
     <th
       className={cn(
-        "border-b border-line-2 px-3.5 pb-2.5 text-left",
+        "border-b border-line-2 px-3.5 pb-2.5 text-left whitespace-nowrap",
         "font-mono text-[10.5px] font-medium tracking-[0.09em] text-slate-2 uppercase",
         className,
       )}

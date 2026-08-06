@@ -20,6 +20,7 @@ import { Notice } from "@/shared/ui/notice";
 import { Pagination } from "@/shared/ui/pagination";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
+import { dateTime } from "@/shared/lib/format";
 
 const TABS: Array<{ value: GapStatus; label: string }> = [
   { value: "OPEN", label: "남은 질문" },
@@ -145,7 +146,7 @@ function GapCard({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px] font-medium">{gap.question}</span>
           <span className="mt-0.5 block text-[11.5px] text-slate-2">
-            최근 {gap.lastAskedAt.slice(0, 16).replace("T", " ")}
+            최근 {dateTime(gap.lastAskedAt)}
             {gap.lastPath ? ` · ${gap.lastPath} 에서` : ""}
           </span>
         </span>

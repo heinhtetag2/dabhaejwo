@@ -18,6 +18,7 @@ import { canEdit } from "@/shared/lib/auth-store";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
+import { date } from "@/shared/lib/format";
 
 /**
  * 위젯 CDN. 배포 환경마다 다르므로 **빌드 시점에 주입**한다(`NEXT_PUBLIC_WIDGET_SRC`).
@@ -187,7 +188,7 @@ export function InstallView() {
                 )}
                 <span className="w-[120px] text-[11.5px] text-slate-2">
                   {origin.lastCalledAt
-                    ? `마지막 ${origin.lastCalledAt.slice(0, 10)}`
+                    ? `마지막 ${date(origin.lastCalledAt)}`
                     : "—"}
                 </span>
                 {editable ? (

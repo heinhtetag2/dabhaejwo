@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -12,10 +14,12 @@ import {
 import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
 import { TextArea } from "@/shared/common/field";
-import { EmptyState, ErrorState, LoadingState } from "@/shared/common/states";
+import { ErrorState, LoadingState } from "@/shared/common/states";
+import { ROUTES } from "@/shared/config/routes";
 import { errorMessage } from "@/shared/lib/error-message";
 import { count, date, dateTime, quota, relative, won } from "@/shared/lib/format";
 import { TenantStatusBadge } from "@/shared/ui/tenant-status-badge";
+import { PageHeader } from "@/widgets/page-header/page-header";
 
 import { TenantActions } from "./tenant-actions";
 
@@ -34,16 +38,22 @@ const ACTIVITY_LABEL: Record<TenantActivityType, string> = {
   NOTE: "메모",
 } as Record<TenantActivityType, string>;
 
-export function TenantDetailPanel({ tenantId }: { tenantId: string | null }) {
+/**
+ * 업체 상세.
+ *
+ * <p>목록 옆의 좁은 칸이 아니라 <b>한 페이지 전부</b>를 쓴다. 담을 것이 늘면서
+ * 348px 안에 요약·조치·메모·활동 이력을 다 밀어넣게 되어 어느 것도 제대로 안 보였다.
+ *
+ * <p>돌아가기는 {@code ?back=} 에 담아온 목록 상태를 그대로 복원한다 —
+ * 여러 업체를 연속으로 확인하는 CS 흐름이 끊기지 않아야 한다.
+ */
+export function TenantDetailView({ tenantId }: { tenantId: string }) {
+  const searchParams = useSearchParams();
+  const back = searchParams.get("back");
+  const listHref = back ? `${ROUTES.tenants}?${back}` : ROUTES.tenants;
+
   const { data: tenant, isPending, isError, error, refetch } = useTenantDetailQuery(tenantId);
 
-  if (!tenantId) {
-    return (
-      <Card>
-        <EmptyState message="왼쪽 목록에서 업체를 고르세요" />
-      </Card>
-    );
-  }
   if (isPending) {
     return (
       <Card>
@@ -62,54 +72,70 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string | null }) {
   const churned = tenant.status === "CHURNED";
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader title={tenant.name} aside={<TenantStatusBadge status={tenant.status} />} />
-        <CardBody>
-          <p className="tabular mb-3.5 text-[11.5px] text-slate-2">
-            {tenant.primaryDomain} · {tenant.publishableKey}
-          </p>
+    <>
+      <div className="mb-3">
+        <Link href={listHref} className="text-[12.5px] text-slate hover:text-ink">
+          ← 업체 목록
+        </Link>
+      </div>
 
-          <Row label="가입일" value={date(tenant.joinedDate)} />
-          <Row
-            label="요금제"
-            value={
-              tenant.plan ? `${tenant.plan.name} ${won(tenant.plan.monthlyFee)}` : "요금제 없음"
-            }
-          />
-          <Row label="이번 달 대화" value={quota(tenant.convCount, tenant.convLimit)} />
-          <Row label="학습 문서" value={quota(tenant.docCount, tenant.docLimit)} />
-          {/* 공통 질문 0개는 원가 급증의 선행 지표다 (admin-console-tenant-plan.md §4.2.2) */}
-          <Row
-            label="공통 질문"
-            value={`${count(tenant.faqCount)}개`}
-            emphasis={tenant.faqCount === 0}
-          />
-          <Row label="저장 답변 비율" value={`${tenant.savedAnswerPercent}%`} />
-          <Row
-            label="이번 달 모델 원가"
-            value={won(Math.round(tenant.costKrw))}
-            emphasis={tenant.costRatioPercent >= 100}
-          />
-          <Row label="다음 결제일" value={date(tenant.nextBillingDate)} />
-          <Row label="마지막 접속" value={relative(tenant.lastSeenAt)} />
+      <PageHeader
+        title={tenant.name}
+        description={`${tenant.primaryDomain} · ${tenant.publishableKey}`}
+        actions={<TenantStatusBadge status={tenant.status} />}
+      />
 
-          <div className="mt-4 border-t border-line-2 pt-3.5">
-            <Eyebrow className="mb-2 block">조치</Eyebrow>
-            {churned ? (
-              <p className="text-[12.5px] text-slate-2">
-                해지된 업체입니다. 읽기 전용이며 조치할 수 없습니다.
-              </p>
-            ) : (
-              <TenantActions tenant={tenant} />
-            )}
-          </div>
-        </CardBody>
-      </Card>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
+          <Card>
+            <CardHeader title="계정" />
+            <CardBody>
+              <Row label="가입일" value={date(tenant.joinedDate)} />
+              <Row
+                label="요금제"
+                value={
+                  tenant.plan ? `${tenant.plan.name} ${won(tenant.plan.monthlyFee)}` : "요금제 없음"
+                }
+              />
+              <Row label="이번 달 대화" value={quota(tenant.convCount, tenant.convLimit)} />
+              <Row label="학습 문서" value={quota(tenant.docCount, tenant.docLimit)} />
+              {/* 공통 질문 0개는 원가 급증의 선행 지표다 (admin-console-tenant-plan.md §4.2.2) */}
+              <Row
+                label="공통 질문"
+                value={`${count(tenant.faqCount)}개`}
+                emphasis={tenant.faqCount === 0}
+              />
+              <Row label="저장 답변 비율" value={`${tenant.savedAnswerPercent}%`} />
+              <Row
+                label="이번 달 모델 원가"
+                value={won(Math.round(tenant.costKrw))}
+                emphasis={tenant.costRatioPercent >= 100}
+              />
+              <Row label="다음 결제일" value={date(tenant.nextBillingDate)} />
+              <Row label="마지막 접속" value={relative(tenant.lastSeenAt)} />
+            </CardBody>
+          </Card>
 
-      <NotesCard tenantId={tenant.id} readOnly={churned} />
-      <ActivitiesCard tenantId={tenant.id} />
-    </div>
+          <Card>
+            <CardHeader title="조치" />
+            <CardBody>
+              {churned ? (
+                <p className="text-[12.5px] text-slate-2">
+                  해지된 업체입니다. 읽기 전용이며 조치할 수 없습니다.
+                </p>
+              ) : (
+                <TenantActions tenant={tenant} />
+              )}
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="min-w-0 space-y-4">
+          <NotesCard tenantId={tenant.id} readOnly={churned} />
+          <ActivitiesCard tenantId={tenant.id} />
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -136,9 +162,7 @@ function NotesCard({ tenantId, readOnly }: { tenantId: string; readOnly: boolean
               <Button
                 size="sm"
                 disabled={body.trim().length === 0 || mutation.isPending}
-                onClick={() =>
-                  mutation.mutate({ body }, { onSuccess: () => setBody("") })
-                }
+                onClick={() => mutation.mutate({ body }, { onSuccess: () => setBody("") })}
               >
                 메모 저장
               </Button>
@@ -149,7 +173,11 @@ function NotesCard({ tenantId, readOnly }: { tenantId: string; readOnly: boolean
           </>
         ) : null}
 
-        <ul className="mt-4 space-y-3">
+        {/*
+         * 메모도 쌓이면 페이지가 한없이 길어진다. 활동 이력과 같은 이유로 높이를 준다.
+         * 다만 메모는 최근 것이 위라 잘려도 맥락을 잃지 않는다.
+         */}
+        <ul className="mt-4 max-h-[280px] space-y-3 overflow-y-auto pr-1">
           {(notes ?? []).map((note) => (
             <li key={note.id} className="border-t border-line-2 pt-3 first:border-t-0 first:pt-0">
               <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{note.body}</p>
@@ -170,12 +198,20 @@ function NotesCard({ tenantId, readOnly }: { tenantId: string; readOnly: boolean
 /** 감사 기록·결제·메모를 합친 읽기 전용 뷰. 별도 테이블을 두지 않는다. */
 function ActivitiesCard({ tenantId }: { tenantId: string }) {
   const { data } = useTenantActivitiesQuery(tenantId);
+  const total = data?.content.length ?? 0;
 
   return (
     <Card>
-      <CardHeader title="활동 이력" />
+      <CardHeader
+        title="활동 이력"
+        aside={total > 0 ? <Eyebrow>{count(total)}건</Eyebrow> : null}
+      />
       <CardBody>
-        <ul className="space-y-3">
+        {/*
+         * 높이를 못 박고 안에서만 스크롤한다. 안 그러면 활동이 많은 업체에서 이 카드가
+         * 페이지를 수십 화면 길이로 늘려, 옆 칸의 조치 버튼이 화면 밖으로 나간다.
+         */}
+        <ul className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
           {(data?.content ?? []).map((activity) => (
             <li
               key={activity.id}
@@ -185,7 +221,7 @@ function ActivitiesCard({ tenantId }: { tenantId: string }) {
                 <span className="text-[13px] font-medium">
                   {ACTIVITY_LABEL[activity.type] ?? activity.type}
                 </span>
-                <span className="tabular text-[11.5px] text-slate-2">
+                <span className="tabular shrink-0 text-[11.5px] text-slate-2">
                   {dateTime(activity.at)}
                 </span>
               </div>
@@ -209,15 +245,7 @@ function ActivitiesCard({ tenantId }: { tenantId: string }) {
   );
 }
 
-function Row({
-  label,
-  value,
-  emphasis,
-}: {
-  label: string;
-  value: string;
-  emphasis?: boolean;
-}) {
+function Row({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
   return (
     <div className="flex justify-between gap-3 border-b border-line-2 py-2 text-[13px] last:border-b-0">
       <span className="text-slate">{label}</span>

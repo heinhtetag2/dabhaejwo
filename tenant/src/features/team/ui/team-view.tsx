@@ -20,6 +20,7 @@ import { ErrorState, LoadingState } from "@/shared/common/states";
 import { Notice } from "@/shared/ui/notice";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
+import { date, dateTime } from "@/shared/lib/format";
 
 /**
  * 팀원 · 운영팀 접속 이력.
@@ -199,7 +200,7 @@ export function TeamView() {
                       )}
                     </td>
                     <td className="border-b border-line-2 px-3.5 py-3 font-mono text-[11.5px] text-slate-2">
-                      {member.lastSeenAt ? member.lastSeenAt.slice(0, 10) : "—"}
+                      {date(member.lastSeenAt)}
                     </td>
                     <td className="border-b border-line-2 px-3.5 py-3">
                       {/* 버튼이 접히지 않게 한 줄로 못 박는다. 칸이 좁으면 표가 가로로 스크롤된다. */}
@@ -260,7 +261,7 @@ export function TeamView() {
               {history.data.map((item) => (
                 <li key={item.sessionId} className="flex flex-wrap items-center gap-3 text-[13px]">
                   <span className="tabular w-[130px] shrink-0 text-[11.5px] text-slate-2">
-                    {item.startedAt.slice(0, 16).replace("T", " ")}
+                    {dateTime(item.startedAt)}
                   </span>
                   <span className="min-w-0 flex-1">{item.reason}</span>
                   <StatusBadge

@@ -1,5 +1,7 @@
 package com.dabhaejwo.domain.botsettings.dto.response;
 
+import com.dabhaejwo.domain.botsettings.entity.LauncherSize;
+
 import com.dabhaejwo.domain.botsettings.entity.BotSettings;
 import com.dabhaejwo.domain.botsettings.entity.PageScope;
 import com.dabhaejwo.domain.botsettings.entity.WidgetPosition;
@@ -22,7 +24,10 @@ public record BotSettingsResponse(
         PageScope pageScope,
         List<String> pagePatterns,
         int nudgeDelaySeconds,
-        boolean widgetEnabled) {
+        boolean widgetEnabled,
+        LauncherSize launcherSize,
+        String launcherIconUrl,
+        String logoUrl) {
 
     public static BotSettingsResponse from(BotSettings settings) {
         return new BotSettingsResponse(
@@ -40,6 +45,9 @@ public record BotSettingsResponse(
                 settings.getPageScope(),
                 settings.getPagePatterns(),
                 settings.getNudgeDelaySeconds(),
-                settings.isWidgetEnabled());
+                settings.isWidgetEnabled(),
+                settings.getLauncherSize(),
+                settings.getLauncherIconUrl(),
+                settings.getLogoUrl());
     }
 }
