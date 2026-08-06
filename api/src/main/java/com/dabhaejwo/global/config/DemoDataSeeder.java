@@ -211,7 +211,8 @@ public class DemoDataSeeder {
                     List.of("타사 브랜드 비교", "할인 협상", "재고 수량"));
             settings.editFallback(true, "1588-0000", false, "평일 09:00–18:00");
             settings.editPlacement(WidgetPosition.BOTTOM_RIGHT, PageScope.ALL, List.of(), 15, true,
-                    com.dabhaejwo.domain.botsettings.entity.LauncherSize.MEDIUM);
+                    com.dabhaejwo.domain.botsettings.entity.LauncherSize.MEDIUM,
+                    com.dabhaejwo.domain.botsettings.entity.LauncherBackground.BRAND);
             return settings;
         }
 

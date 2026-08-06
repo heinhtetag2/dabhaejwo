@@ -12,10 +12,14 @@ import java.util.UUID;
  *                  {@code ai_usage} 에도 기록되지 않는다.</b> 위젯이 "저장된 답변" 태그를 표시한다
  * @param links     근거 문서 중 방문자가 열 수 있는 경로만. 업로드 파일은 들어가지 않는다
  * @param messageId 👍👎 를 붙일 대상. 미리보기는 기록을 남기지 않으므로 {@code null} 이다
+ * @param followUpFaqs 이 답 다음에 물어볼 만한 공통 질문. <b>업체가 직접 지정한 것만</b> 나가고,
+ *                  지정하지 않았으면 빈 목록이다. 자유 질문에는 붙지 않는다 — 무엇을 물었는지에
+ *                  대응하는 후속을 우리가 고를 근거가 없다
  */
 public record AnswerResponse(boolean answered,
                              boolean saved,
                              String answer,
                              List<String> links,
-                             UUID messageId) {
+                             UUID messageId,
+                             List<WidgetFaq> followUpFaqs) {
 }

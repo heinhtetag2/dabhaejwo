@@ -28,13 +28,15 @@ public enum OperatorRole {
             Permission.TICKET_READ,
             Permission.TICKET_WRITE)),
 
-    /** 조회 + 메모 + 체험 연장 + 요금제 변경 + 수익성. 대리 로그인은 불가. */
+    /** 조회 + 메모 + 체험 연장 + 요금제 변경 + 수익성 + 정산. 대리 로그인은 불가. */
     SALES(EnumSet.of(
             Permission.TENANT_READ,
             Permission.TENANT_NOTE_WRITE,
             Permission.TENANT_TRIAL_WRITE,
             Permission.TENANT_PLAN_WRITE,
             Permission.PROFITABILITY_READ,
+            // 미수금을 쫓아가는 일이 영업의 일이다. 수익성과 같은 등급으로 둔다.
+            Permission.REVENUE_READ,
             Permission.PLAN_READ,
             Permission.PLAN_WRITE,
             Permission.TICKET_READ)),

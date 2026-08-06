@@ -10,6 +10,7 @@ export const ROUTES = {
   // 운영
   today: "/today",
   tenants: "/tenants",
+  revenue: "/revenue",
   profitability: "/profitability",
   aiUsage: "/ai-usage",
   jobs: "/jobs",
@@ -44,6 +45,8 @@ export const NAV_GROUPS: ReadonlyArray<{
       // 오늘은 전 역할이 본다 (admin-console-plan.md §7).
       { href: ROUTES.today, label: "오늘" },
       { href: ROUTES.tenants, label: "업체", permission: "TENANT_READ" },
+      // 정산이 수익성보다 위인 이유 — 실제로 받은 돈이 먼저고, 원가율은 그 다음 질문이다.
+      { href: ROUTES.revenue, label: "정산", permission: "REVENUE_READ" },
       { href: ROUTES.profitability, label: "수익성", permission: "PROFITABILITY_READ" },
       { href: ROUTES.aiUsage, label: "AI 사용량", permission: "AI_USAGE_READ" },
       // 개발자만 보는 화면처럼 보이지만 CS 문의의 상당수가 작업 실패에서 비롯되므로

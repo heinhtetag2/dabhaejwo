@@ -22,8 +22,4 @@ public record WidgetSessionResponse(UUID sessionId,
                                     WidgetPosition widgetPosition,
                                     boolean leadCaptureEnabled,
                                     List<WidgetFaq> faqs) {
-
-    /** 버튼으로 보여줄 공통 질문. 답은 눌렀을 때 받는다 — 미리 다 내려주면 응답이 커진다. */
-    public record WidgetFaq(UUID id, String question) {
-    }
 }

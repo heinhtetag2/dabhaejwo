@@ -14,6 +14,15 @@ public enum Permission {
     PROFITABILITY_READ,
     AI_USAGE_READ,
 
+    /**
+     * 정산 조회 — 실제 청구·수납·미수금.
+     *
+     * <p>수익성({@link #PROFITABILITY_READ})과 <b>같은 등급으로 둔다.</b> 둘 다 업체별
+     * 금액을 드러내고, 미수금을 쫓는 일은 영업의 일이기 때문이다. 쓰기 권한은 없다 —
+     * 이 영역은 {@code billing_records} 를 읽기만 한다.
+     */
+    REVENUE_READ,
+
     JOB_READ,
     JOB_RETRY,
 

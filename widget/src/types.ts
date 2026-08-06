@@ -42,11 +42,24 @@ export interface AskResponse {
   links: string[];
   /** 미리보기 응답에는 없다. 👍👎 를 붙일 대상이 없다는 뜻이다. */
   messageId: string | null;
+  /**
+   * 이 답 다음에 물어볼 만한 질문. <b>업체가 직접 지정한 것만</b> 온다.
+   * 자유 질문에는 늘 빈 배열이다 — 무엇을 물었는지에 맞는 후속을 고를 근거가 없다.
+   */
+  followUpFaqs: Faq[];
 }
 
 export type Message =
   | { role: "visitor"; text: string }
-  | { role: "bot"; text: string; saved: boolean; links: string[]; messageId: string | null };
+  | {
+      role: "bot";
+      text: string;
+      saved: boolean;
+      links: string[];
+      messageId: string | null;
+      /** 이 말풍선 아래에 칩으로 붙일 질문. 마지막 말풍선에서만 그린다. */
+      suggestions: Faq[];
+    };
 
 /**
  * 서버가 정하는 노출 규칙. 위젯이 뜨기 전에 받는다.
@@ -60,6 +73,14 @@ export interface RemoteConfig {
   launcherImageUrl: string | null;
   /** 런처 지름(px). 업체는 3단계 중에서 고르고 픽셀은 서버가 정한다. */
   launcherSizePx: number;
+  /**
+   * 올린 이미지 뒤에 깔 것.
+   *
+   * PNG 의 투명은 흰색이 아니라 <b>아무것도 안 칠한 것</b>이라 뒤에 있는 게 그대로 올라온다.
+   * 이미지가 없으면 서버가 늘 `BRAND` 를 준다 — 기본 아이콘이 흰 선이라 흰 바탕·투명
+   * 위에서는 보이지 않는다.
+   */
+  launcherBackground: "BRAND" | "WHITE" | "NONE";
   widgetPosition: "BOTTOM_RIGHT" | "BOTTOM_LEFT";
   /** `#RRGGBB`. 스타일에 그대로 들어가므로 쓰기 전에 형식을 한 번 더 본다. */
   brandColor: string;

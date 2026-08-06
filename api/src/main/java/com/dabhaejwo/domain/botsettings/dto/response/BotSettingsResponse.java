@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.botsettings.dto.response;
 
+import com.dabhaejwo.domain.botsettings.entity.LauncherBackground;
 import com.dabhaejwo.domain.botsettings.entity.LauncherSize;
 
 import com.dabhaejwo.domain.botsettings.entity.BotSettings;
@@ -26,6 +27,7 @@ public record BotSettingsResponse(
         int nudgeDelaySeconds,
         boolean widgetEnabled,
         LauncherSize launcherSize,
+        LauncherBackground launcherBackground,
         String launcherIconUrl,
         String logoUrl) {
 
@@ -47,6 +49,7 @@ public record BotSettingsResponse(
                 settings.getNudgeDelaySeconds(),
                 settings.isWidgetEnabled(),
                 settings.getLauncherSize(),
+                settings.getLauncherBackground(),
                 settings.getLauncherIconUrl(),
                 settings.getLogoUrl());
     }

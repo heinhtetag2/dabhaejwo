@@ -8,6 +8,7 @@ import com.dabhaejwo.domain.chat.dto.request.FeedbackRequest;
 import com.dabhaejwo.domain.chat.dto.request.LeadRequest;
 import com.dabhaejwo.domain.chat.dto.response.AnswerResponse;
 import com.dabhaejwo.domain.chat.dto.response.WidgetConfigResponse;
+import com.dabhaejwo.domain.chat.dto.response.WidgetFaq;
 import com.dabhaejwo.domain.chat.dto.response.WidgetSessionResponse;
 import com.dabhaejwo.domain.conversation.entity.Conversation;
 import com.dabhaejwo.domain.conversation.entity.Message;
@@ -38,7 +39,11 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 방문자 위젯의 진입점.
@@ -52,6 +57,9 @@ import java.util.UUID;
  */
 @Service
 public class WidgetChatService {
+
+    /** 답변 아래에 붙일 후속 질문 최대 개수. 위젯 패널이 좁아 넷을 넘으면 답이 밀린다. */
+    private static final int MAX_FOLLOW_UPS = 3;
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
@@ -120,6 +128,9 @@ public class WidgetChatService {
                 // 대시보드 미리보기와 실제 위젯이 다른 규칙을 갖게 된다.
                 settings.effectiveLauncherImageUrl(),
                 settings.getLauncherSize().px(),
+                // 이미지가 없으면 BRAND 로 되돌린다 — 기본 아이콘은 흰 선이라
+                // 흰 바탕·투명 위에서 통째로 사라진다.
+                settings.effectiveLauncherBackground(),
                 settings.getNudgeDelaySeconds() * 1000);
     }
 
@@ -137,9 +148,9 @@ public class WidgetChatService {
         Conversation conversation = conversationRepository.save(
                 Conversation.start(tenantId, path, null, visitorIpHash));
 
-        List<WidgetSessionResponse.WidgetFaq> faqs =
+        List<WidgetFaq> faqs =
                 faqRepository.findAllByTenantIdAndShownTrueOrderBySortOrderAsc(tenantId).stream()
-                        .map(faq -> new WidgetSessionResponse.WidgetFaq(faq.getId(), faq.getQuestion()))
+                        .map(faq -> new WidgetFaq(faq.getId(), faq.getQuestion()))
                         .toList();
 
         return new WidgetSessionResponse(
@@ -196,7 +207,41 @@ public class WidgetChatService {
                 true, true, faq.getId(), askedAt.plusNanos(1_000_000L));
         messageRepository.saveAndFlush(bot);
 
-        return new AnswerResponse(true, true, faq.getAnswer(), faq.getLinks(), bot.getId());
+        return new AnswerResponse(true, true, faq.getAnswer(), faq.getLinks(), bot.getId(),
+                followUps(tenantId, faq));
+    }
+
+    /**
+     * 이 답 다음에 물어볼 만한 질문.
+     *
+     * <p>업체가 지정한 것만 나간다. <b>우리가 골라주지 않는다</b> — 유사도로 추천하면 임베딩
+     * 호출이 붙어 원가가 0이던 저장 답변 경로에 돈이 흐르기 시작한다.
+     *
+     * <p>순서는 <b>업체가 적은 순서</b>다. 조회 결과 순서를 그대로 쓰면 DB 가 돌려주는 순서에
+     * 좌우돼 화면에서 뒤섞인다.
+     */
+    private List<WidgetFaq> followUps(UUID tenantId, Faq faq) {
+        List<UUID> ids = faq.getFollowUpFaqIds().stream()
+                // 자기 자신을 가리키면 방금 읽은 답을 다시 물으라는 칩이 된다.
+                .filter(id -> !id.equals(faq.getId()))
+                .toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Faq> found = faqRepository.findAllByTenantIdAndShownTrueAndIdIn(tenantId, ids)
+                .stream()
+                .collect(Collectors.toMap(Faq::getId, Function.identity()));
+        return ids.stream()
+                .map(found::get)
+                // 지운 질문의 id 가 남아 있을 수 있다. 조회에 없으면 그냥 빠진다.
+                .filter(Objects::nonNull)
+                /*
+                 * 3개까지만. 위젯 패널은 좁아서 칩이 넷을 넘으면 답변보다 칩이 커 보이고,
+                 * 방문자는 읽던 답을 스크롤로 밀어낸다. 업체가 더 지정해도 화면이 감당한다.
+                 */
+                .limit(MAX_FOLLOW_UPS)
+                .map(f -> new WidgetFaq(f.getId(), f.getQuestion()))
+                .toList();
     }
 
     /**
@@ -271,7 +316,7 @@ public class WidgetChatService {
      */
     private long monthlyConversations(UUID tenantId) {
         OffsetDateTime from = BusinessDay.startOfThisMonth();
-        return conversationRepository.countByTenantIdAndStartedAtBetween(tenantId, from, from.plusMonths(1));
+        return conversationRepository.countAnsweredByTenantIdBetween(tenantId, from, from.plusMonths(1));
     }
 
     private Conversation conversation(UUID tenantId, UUID sessionId) {

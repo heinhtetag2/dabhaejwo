@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.chat.dto.response;
 
+import com.dabhaejwo.domain.botsettings.entity.LauncherBackground;
 import com.dabhaejwo.domain.botsettings.entity.WidgetPosition;
 
 /**
@@ -21,6 +22,8 @@ import com.dabhaejwo.domain.botsettings.entity.WidgetPosition;
  *                        아이콘 > 로고 순으로 서버가 이미 골라 준 값이다 —
  *                        위젯이 두 필드를 받아 스스로 고르면 미리보기와 어긋난다
  * @param launcherSizePx  런처 지름(px). 업체는 3단계 중에서 고르고 픽셀은 서버가 정한다
+ * @param launcherBackground 올린 이미지 뒤에 깔 것. <b>이미지가 없으면 늘 {@code BRAND} 다</b> —
+ *                        기본 아이콘이 흰 선이라 흰 바탕·투명 위에서는 보이지 않는다
  * @param nudgeDelayMs   자동으로 말 거는 시점. 0 이면 말 걸지 않는다
  */
 public record WidgetConfigResponse(
@@ -29,5 +32,6 @@ public record WidgetConfigResponse(
         String brandColor,
         String launcherImageUrl,
         int launcherSizePx,
+        LauncherBackground launcherBackground,
         int nudgeDelayMs) {
 }

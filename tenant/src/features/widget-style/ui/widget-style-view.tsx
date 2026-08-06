@@ -4,8 +4,10 @@ import { useState } from "react";
 
 import { useAppContextQuery } from "@/entities/auth/session";
 import {
+  LAUNCHER_BACKGROUND_LABEL,
   LAUNCHER_SIZE_LABEL,
   useBotSettingsDraft,
+  type LauncherBackground,
   type LauncherSize,
 } from "@/entities/chatbot/bot-settings";
 import { useFaqListQuery } from "@/entities/chatbot/faq";
@@ -13,7 +15,9 @@ import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
 import { controlClass } from "@/shared/common/control";
 import { ErrorState, LoadingState } from "@/shared/common/states";
+import { env } from "@/shared/config/env";
 import { canEdit } from "@/shared/lib/auth-store";
+import { cn } from "@/shared/lib/cn";
 import { Notice } from "@/shared/ui/notice";
 import { SettingsField, SettingsToggle } from "@/shared/ui/settings-field";
 import { WidgetPreview } from "@/shared/ui/widget-preview";
@@ -22,6 +26,7 @@ import { ImageUploadField } from "./image-upload-field";
 
 const PRESET_COLORS = ["#17222E", "#1B6B5C", "#BF3F2B", "#3B5BDB"];
 const SIZES: LauncherSize[] = ["SMALL", "MEDIUM", "LARGE"];
+const BACKGROUNDS: LauncherBackground[] = ["BRAND", "WHITE", "NONE"];
 
 /**
  * 위젯 관리 — 방문자에게 <b>어떻게 보일지</b>.
@@ -168,6 +173,49 @@ export function WidgetStyleView() {
               </span>
             </SettingsField>
 
+            {/*
+              PNG 의 투명은 흰색이 아니라 아무것도 안 칠한 것이라, 그 자리로 뒤에 있는 게
+              그대로 올라온다. 브랜드 색 하나로 두면 흰 바탕 기준 로고는 진한 색 위에서
+              뭉개지고, 밝은 브랜드 색에 흰 로고를 올리면 아예 안 보인다.
+            */}
+            <SettingsField id="launcher-background" label="챗봇 버튼 배경">
+              <span className="flex flex-wrap items-center gap-3">
+                <span className="flex flex-wrap gap-1.5">
+                  {BACKGROUNDS.map((background) => (
+                    <button
+                      key={background}
+                      type="button"
+                      aria-pressed={draft.launcherBackground === background}
+                      disabled={!editable}
+                      onClick={() => patch({ launcherBackground: background })}
+                      className={`rounded-[7px] border px-3 py-1.5 text-[12.5px] transition-colors ${
+                        draft.launcherBackground === background
+                          ? "border-ink bg-ink text-white"
+                          : "border-line bg-card hover:bg-line-2/60"
+                      }`}
+                    >
+                      {LAUNCHER_BACKGROUND_LABEL[background]}
+                    </button>
+                  ))}
+                </span>
+                <LauncherSwatch
+                  imageUrl={draft.launcherIconUrl ?? draft.logoUrl}
+                  background={draft.launcherBackground}
+                  brandColor={draft.brandColor}
+                />
+              </span>
+              {/*
+                설정이 조용히 무시되는 상태를 밝힌다. 안 밝히면 업체는 골라놓고
+                왜 안 바뀌는지 모른다 — 이번 문의가 바로 그 모양이었다.
+              */}
+              {draft.launcherIconUrl || draft.logoUrl ? null : (
+                <span className="mt-1.5 block text-[11.5px] leading-relaxed text-slate-2">
+                  올린 이미지가 없어 이 설정은 아직 쓰이지 않습니다. 기본 말풍선 아이콘은 흰 선으로
+                  그려져 흰 바탕·투명 위에서는 보이지 않기 때문입니다.
+                </span>
+              )}
+            </SettingsField>
+
             <SettingsField id="widget-position" label="화면에서의 위치">
               <span className="flex gap-1.5">
                 {(["BOTTOM_RIGHT", "BOTTOM_LEFT"] as const).map((position) => (
@@ -203,6 +251,7 @@ export function WidgetStyleView() {
             question: faq.question,
             answer: faq.answer,
             links: faq.links,
+            followUpFaqIds: faq.followUpFaqIds,
           }))}
         />
 
@@ -241,5 +290,47 @@ export function WidgetStyleView() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * 고른 배경 위에 실제 이미지를 얹어 보여준다.
+ *
+ * <p>이 설정을 만든 계기가 "PNG 인데 왜 색이 보이나"였다. 골라놓고 저장한 뒤 남의 사이트에
+ * 가서야 확인할 수 있으면 같은 질문이 다시 나온다 — 고르는 자리에서 바로 보여준다.
+ *
+ * <p>이미지가 없으면 그리지 않는다. 서버가 그때는 브랜드 색을 강제하므로,
+ * 여기서 흰 원을 보여주면 실제와 다른 말을 하는 셈이다.
+ */
+function LauncherSwatch({
+  imageUrl,
+  background,
+  brandColor,
+}: {
+  imageUrl: string | null;
+  background: LauncherBackground;
+  brandColor: string;
+}) {
+  if (!imageUrl) {
+    return null;
+  }
+  return (
+    <span
+      className={cn(
+        "grid size-11 shrink-0 place-items-center overflow-hidden rounded-full",
+        // 투명을 고르면 격자를 깔아 "비어 있음"을 보여준다. 흰 배경 위에 그냥 두면
+        // 흰색과 구분되지 않아 두 선택이 같아 보인다.
+        background === "NONE" && "bg-[repeating-conic-gradient(#e9e5de_0_25%,#fff_0_50%)] bg-[length:10px_10px]",
+        background !== "NONE" && "shadow-sm",
+      )}
+      style={background === "BRAND" ? { backgroundColor: brandColor } : undefined}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={new URL(imageUrl, env.apiBaseUrl).toString()}
+        alt=""
+        className="size-full object-cover"
+      />
+    </span>
   );
 }

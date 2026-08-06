@@ -121,7 +121,9 @@ public class AnswerService {
 
         UUID messageId = record(tenantId, conversationId, trimmed, answer, true,
                 askedAt, latencyMs, evidence);
-        return new AnswerResponse(true, false, answer, links(evidence), messageId);
+        // 자유 질문에는 후속을 붙이지 않는다 — 무엇을 물었는지에 대응하는 후속을
+        // 우리가 고를 근거가 없다. 업체가 지정한 것은 공통 질문에만 달려 있다.
+        return new AnswerResponse(true, false, answer, links(evidence), messageId, List.of());
     }
 
     /**
@@ -145,7 +147,7 @@ public class AnswerService {
                             () -> gapRepository.save(AnswerGap.of(
                                     tenantId, question, GapReason.ANSWER_FAILED, path, message)));
         }
-        return new AnswerResponse(false, false, message, List.of(), messageId);
+        return new AnswerResponse(false, false, message, List.of(), messageId, List.of());
     }
 
     /** @return 저장한 봇 메시지 id. 미리보기면 {@code null} */

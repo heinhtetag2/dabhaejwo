@@ -18,6 +18,21 @@ export const LAUNCHER_SIZE_LABEL: Record<LauncherSize, string> = {
   LARGE: "크게 (64px)",
 };
 
+/**
+ * 올린 이미지 뒤에 깔 것.
+ *
+ * PNG 의 투명은 흰색이 아니라 **아무것도 안 칠한 것**이라 뒤에 있는 게 그대로 올라온다.
+ * 브랜드 색 하나로 두면 흰 바탕 기준 로고는 진한 색 위에서 뭉개지고, 밝은 브랜드 색에
+ * 흰 로고를 올리면 아예 안 보인다.
+ */
+export type LauncherBackground = "BRAND" | "WHITE" | "NONE";
+
+export const LAUNCHER_BACKGROUND_LABEL: Record<LauncherBackground, string> = {
+  BRAND: "브랜드 색",
+  WHITE: "흰색",
+  NONE: "없음 (투명)",
+};
+
 export type WidgetPosition = "BOTTOM_RIGHT" | "BOTTOM_LEFT";
 export type PageScope = "ALL" | "INCLUDE" | "EXCLUDE";
 
@@ -41,6 +56,8 @@ export interface BotSettings {
   /** 끄면 방문자에게 위젯이 아예 뜨지 않는다. 오류를 그리지도 않는다. */
   widgetEnabled: boolean;
   launcherSize: LauncherSize;
+  /** 이미지 뒤에 깔 것. 이미지가 없으면 위젯에는 늘 `BRAND` 로 나간다. */
+  launcherBackground: LauncherBackground;
   /** 업로드한 런처 아이콘. 없으면 로고, 그것도 없으면 기본 말풍선. */
   launcherIconUrl: string | null;
   /** 업체 로고. 콘솔 사이드바와 (아이콘이 없으면) 런처에 쓰인다. */
@@ -64,6 +81,7 @@ const botSettingsSchema = z.object({
   nudgeDelaySeconds: z.number(),
   widgetEnabled: z.boolean(),
   launcherSize: z.enum(["SMALL", "MEDIUM", "LARGE"]),
+  launcherBackground: z.enum(["BRAND", "WHITE", "NONE"]),
   launcherIconUrl: z.string().nullable(),
   logoUrl: z.string().nullable(),
 });

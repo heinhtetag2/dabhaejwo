@@ -102,6 +102,44 @@ public interface AiUsageRepository extends JpaRepository<AiUsage, Long> {
                                        @Param("to") OffsetDateTime to,
                                        Pageable pageable);
 
+    /**
+     * 월별 원가. 정산 화면의 월별 추이가 쓴다.
+     *
+     * <p>하루를 <b>UTC</b> 로 끊는다 — AI 사용량 화면(§6)과 같은 기준이어야 하기 때문이다.
+     * 같은 "이번 달 모델 원가"가 두 화면에서 다르게 나오면 어느 쪽도 믿을 수 없다.
+     * 청구·가입은 {@code BusinessDay}(KST) 기준이라 두 기준이 섞여 있는데, 이는
+     * 이미 등록된 한계다 ({@code docs/IMPROVEMENTS.md} — 집계 테이블의 하루 경계).
+     * 월 단위라 경계에 걸리는 금액은 작다.
+     */
+    @Query(value = """
+            SELECT date_trunc('month', created_at AT TIME ZONE 'UTC')::date AS month,
+                   COALESCE(SUM(cost_krw), 0) AS costKrw
+            FROM ai_usage
+            WHERE created_at >= :from AND created_at < :to
+            GROUP BY 1
+            ORDER BY 1
+            """, nativeQuery = true)
+    List<MonthlyCost> aggregateMonthlyCost(@Param("from") OffsetDateTime from,
+                                           @Param("to") OffsetDateTime to);
+
+    /**
+     * 지정한 업체들의 원가 합.
+     *
+     * <p>체험 업체의 원가를 따로 세는 데 쓴다 — 매출이 0원이라 <b>전액이 손실</b>인데
+     * 원가율(정가 나누기)로는 드러나지 않는다.
+     *
+     * <p>빈 목록으로 부르지 않는다. JPQL 의 {@code IN ()} 은 문법 오류다.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(u.costKrw), 0)
+            FROM AiUsage u
+            WHERE u.createdAt >= :from AND u.createdAt < :to
+              AND u.tenantId IN :tenantIds
+            """)
+    BigDecimal sumCostKrwByTenants(@Param("from") OffsetDateTime from,
+                                   @Param("to") OffsetDateTime to,
+                                   @Param("tenantIds") List<UUID> tenantIds);
+
     /** 일 집계 배치가 읽는다. 하루치를 테넌트별로 묶는다. */
     @Query("""
             SELECT u.tenantId AS tenantId,
@@ -145,6 +183,12 @@ public interface AiUsageRepository extends JpaRepository<AiUsage, Long> {
         LocalDate getDay();
 
         String getPurpose();
+
+        BigDecimal getCostKrw();
+    }
+
+    interface MonthlyCost {
+        LocalDate getMonth();
 
         BigDecimal getCostKrw();
     }

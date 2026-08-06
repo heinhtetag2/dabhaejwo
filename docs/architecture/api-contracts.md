@@ -480,6 +480,88 @@ CHURNED → (종착)
 
 ---
 
+## 6-1. 정산 (`/api/ops/revenue`)
+
+수익성(§6)이 **원가**를 보는 화면이라면 여기는 **실제로 오간 돈**을 본다.
+`billing_records` 가 원장이고 이 영역은 그것을 읽기만 한다 — 쓰기 경로는 두지 않는다.
+
+### 매출을 한 단어로 부르지 않는다
+
+네 값은 전부 다르며 **서로 대체할 수 없다.** 한 이름으로 뭉개면 어느 화면의 숫자도 믿을 수 없다.
+
+| 키 | 정의 | 답하는 질문 |
+|---|---|---|
+| `mrrKrw` | `ACTIVE` 유료 업체의 요금제 정가 합 | 앞으로 매달 얼마가 들어오나 |
+| `billedKrw` | 그 달 `billing_records` 금액 합 | 얼마를 청구했나 |
+| `collectedKrw` | 그중 `PAID` 만의 합 | **얼마를 실제로 받았나 (진짜 매출)** |
+| `outstandingKrw` | `billed − collected − refunded` | 오늘 쫓아가야 할 돈은 얼마인가 |
+
+§6 의 `billedKrw`(수익성 항목)는 **요금제 정가**이지 청구액이 아니다 — 이름이 겹치지만
+문맥이 다르다. 정산 응답의 `billedKrw` 만이 실제 청구액이다.
+
+| Method | Path | 권한 |
+|---|---|---|
+| GET | `/api/ops/revenue/summary` | `REVENUE_READ` |
+| GET | `/api/ops/revenue/monthly?months=12` | `REVENUE_READ` |
+| GET | `/api/ops/revenue/records?period=2026-08&status=FAILED&page=0&size=20` | `REVENUE_READ` |
+
+`status`: `PAID` · `FAILED` · `PENDING` · `REFUNDED` (생략하면 전체)
+`period`: `YYYY-MM` (생략하면 이번 달)
+
+```json
+{ "period": "2026-08",
+  "mrrKrw": 1599000, "billedKrw": 1560000, "collectedKrw": 1443000,
+  "refundedKrw": 0, "outstandingKrw": 117000,
+  "paidCount": 37, "unpaidCount": 3,
+  "modelCostKrw": 421300.5, "marginKrw": 1021699.5, "marginPercent": 71,
+  "trialCostKrw": 88200.0, "trialTenantCount": 12 }
+```
+
+`marginKrw` 는 **수납액 − 모델 원가**다. 인건비·서버비는 시스템이 모르므로 빼지 않는다 —
+"영업이익"이라 부르지 않는 이유다.
+
+`marginPercent` 는 수납액이 0이면 `null` 이다. 0% 로 내리면 "남는 게 없다"로 읽히는데
+사실은 **받은 돈 자체가 없어 비율이 정의되지 않는** 것이다.
+
+`trialCostKrw` 는 체험 업체가 이번 달에 태운 모델 원가다. 매출이 0원이라
+**전액이 손실**인데, §6 의 원가율은 이들을 `0% / NORMAL` 로 표시한다(정가가 0이라
+나눌 수 없다). 그래서 정산이 별도 값으로 드러낸다 — 체험이 늘수록 커지는 유일한 지표다.
+
+### 월별 추이
+
+```json
+{ "period": "2026-07",
+  "billedKrw": 1482000, "collectedKrw": 1443000, "refundedKrw": 39000,
+  "failedCount": 2, "modelCostKrw": 388100.0, "marginKrw": 1054900.0,
+  "signupCount": 24, "convertedCount": 9, "conversionPercent": 38,
+  "churnedCount": 2, "cohortOpen": false }
+```
+
+최신 달이 배열의 **앞**에 온다.
+
+전환율은 **가입 코호트** 기준이다 — "그 달에 가입한 업체 중 지금까지 한 번이라도
+결제한 곳". "그 달에 첫 결제가 발생한 수 ÷ 그 달 가입 수"로 계산하면 분자와 분모가
+서로 다른 모집단이라 숫자가 아무 뜻도 갖지 못한다.
+
+`cohortOpen` 이 `true` 면 **그 코호트의 체험이 아직 안 끝났다**(가입 + 14일).
+아직 판정할 수 없는 달이라 전환율이 낮게 나오는 것이 정상이며, 화면이 그렇게 밝힌다.
+`signupCount` 가 0이면 `conversionPercent` 는 `null` 이다.
+
+### 청구 목록
+
+```json
+{ "id": 128, "tenant": { "id": "...", "name": "스튜디오 하우스" },
+  "planName": "스타터", "period": "2026-08", "amountKrw": 39000,
+  "status": "FAILED", "attempts": 2, "failureReason": "한도 초과",
+  "orderId": "dbz-a1b2c3d4-202608", "paymentKey": null,
+  "paidAt": null, "method": null, "receiptUrl": null }
+```
+
+`paymentKey` 는 분쟁이 생겼을 때 토스 쪽 기록과 대조할 유일한 값이라 응답에 싣는다.
+**결제를 실행할 수 있는 값이 아니다** — 실행에 필요한 빌링키는 어떤 응답에도 나가지 않는다.
+
+---
+
 ## 7. 요금제 · 모델 단가 · 안전장치
 
 ```json
@@ -886,14 +968,17 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 인증은 `X-Dabhaejwo-Key` + `Origin`. 시크릿을 받지 않는다.
 
 ```
-GET  /api/widget/config?path=…  → { enabled, widgetPosition, brandColor,
-                                    launcherImageUrl, launcherSizePx, nudgeDelayMs }
+GET  /api/widget/config?path=…  → { enabled, widgetPosition, brandColor, launcherImageUrl,
+                                    launcherSizePx, launcherBackground, nudgeDelayMs }
 POST /api/widget/session      { path }
                               → { sessionId, botName, greeting, brandColor, widgetPosition,
                                   leadCaptureEnabled, faqs: [ { id, question } ] }
 POST /api/widget/ask          { sessionId, question, path }
-                              → { answered, saved, answer, links, messageId }
-POST /api/widget/faq/{id}     { sessionId } → { answered, saved, answer, links, messageId }
+                              → { answered, saved, answer, links, messageId,
+                                  followUpFaqs: [] }
+POST /api/widget/faq/{id}     { sessionId }
+                              → { answered, saved, answer, links, messageId,
+                                  followUpFaqs: [ { id, question } ] }
 POST /api/widget/feedback     { messageId, helpful } → 204
 POST /api/widget/lead         { sessionId, name, contact, memo } → 201 { id }
 ```
@@ -911,6 +996,22 @@ POST /api/widget/lead         { sessionId, name, contact, memo } → 201 { id }
 - 위젯이 붙은 사이트의 **모든 페이지뷰마다 한 번씩** 오는 호출이라 GET 이다
 - `launcherImageUrl` 은 **서버가 이미 고른 값**이다 — 아이콘 > 로고 순. 두 필드를 내려보내 위젯이 스스로 고르게 하면 대시보드 미리보기와 실제 위젯이 다른 규칙을 갖게 된다. 없으면 위젯이 기본 말풍선 아이콘을 그린다
 - `launcherSizePx` 는 48·56·64 중 하나다. 업체는 3단계 중에서 고르고 픽셀은 서버가 정한다
+- `launcherBackground` 는 `BRAND`·`WHITE`·`NONE`. **올린 이미지 뒤에 무엇을 깔 것인가**다 — PNG 의 투명은 흰색이 아니라 아무것도 안 칠한 것이라 그 자리로 뒤에 있는 게 그대로 올라온다. 브랜드 색 하나로 두면 흰 바탕 기준 로고는 진한 색 위에서 뭉개지고, 밝은 브랜드 색에 흰 로고를 올리면 아예 안 보인다 — 한쪽으로 정할 수 없어 업체가 고른다
+- **이미지가 없으면 서버가 `BRAND` 로 강제한다.** 기본 말풍선 아이콘은 흰 선으로 그려져 흰 바탕·투명 위에서는 보이지 않는다 — 업체가 로고를 지운 뒤 런처가 통째로 사라지는 일을 서버가 막는다. 위젯이 스스로 판단하게 두면 대시보드 미리보기와 규칙이 갈린다
+- `NONE` 이면 위젯은 **그림자도 함께 없앤다.** 보이지 않는 원의 그림자만 남으면 로고가 얼룩 위에 뜬 것처럼 보인다
+
+### 10-2. `followUpFaqs` — 답변 다음에 갈 곳
+
+공통 질문 목록은 **첫 질문 전에만** 보였다. 하나라도 물어보면 목록이 사라지고 돌아갈 길이
+없었다 — 방문자는 대개 궁금한 게 하나가 아닌데 두 번째부터는 직접 타이핑해야 했고,
+그러면 저장 답변 대신 모델을 타서 원가까지 올라간다.
+
+- **업체가 지정한 것만 나간다.** 유사도로 추천하면 임베딩 호출이 붙어, 원가가 0이던 저장 답변 경로에 돈이 흐르기 시작한다
+- 순서는 **업체가 적은 순서**다. 조회 결과 순서를 그대로 쓰면 DB 가 돌려주는 순서에 좌우돼 화면에서 뒤섞인다
+- **최대 3개.** 위젯 패널이 좁아 넷을 넘으면 칩이 답변보다 커 보인다. 대시보드 편집 화면·미리보기도 같은 상한을 쓴다 — 한쪽만 다르면 업체는 다섯을 고르고 셋만 나가는데 어디에도 그 사실이 안 나온다
+- **노출을 끈(`shown=false`) 질문은 빠진다.** 숨긴 뒤에도 다른 질문의 후속 목록에는 id 가 남아 있어, 거르지 않으면 숨긴 질문이 칩으로 되살아난다. 지워진 id 도 조용히 빠진다
+- **자유 질문(`/ask`)에는 늘 빈 배열이다.** 무엇을 물었는지에 대응하는 후속을 고를 근거가 없다
+- 위젯은 이와 별개로 `다른 질문 보기`를 항상 띄운다 — **되돌아가기가 아니라 목록을 아래에 펴는 것**이다. 채팅에서 "뒤로"는 앞선 대화가 사라진다는 뜻으로 읽혀 방문자가 누르지 않는다
 
 ### 10-3. 브랜딩 이미지 (`/api/app/appearance/{logo|launcher-icon}`)
 

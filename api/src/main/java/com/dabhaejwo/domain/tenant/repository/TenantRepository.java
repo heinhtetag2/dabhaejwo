@@ -78,6 +78,58 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 
     long countByStatus(TenantStatus status);
 
+    /**
+     * 월별 가입 수. 정산 화면의 전환율 분모다.
+     *
+     * <p>월 경계는 <b>KST</b> 다 — 가입은 사람이 한 행위라 업체의 하루를 따른다
+     * ({@code BusinessDay}). 모델 원가만 UTC 로 끊는 이유는 AI 사용량 화면과
+     * 같은 숫자여야 하기 때문이다 ({@code AiUsageRepository#aggregateMonthlyCost}).
+     */
+    @Query(value = """
+            SELECT date_trunc('month', created_at AT TIME ZONE 'Asia/Seoul')::date AS month,
+                   COUNT(*) AS tenantCount
+            FROM tenants
+            WHERE created_at >= :from
+            GROUP BY 1
+            """, nativeQuery = true)
+    List<MonthlyCount> countSignupsByMonth(@Param("from") java.time.OffsetDateTime from);
+
+    /** 월별 해지 수. 가입과 나란히 놓아야 "늘고 있나 줄고 있나"에 답할 수 있다. */
+    @Query(value = """
+            SELECT date_trunc('month', churned_at AT TIME ZONE 'Asia/Seoul')::date AS month,
+                   COUNT(*) AS tenantCount
+            FROM tenants
+            WHERE churned_at IS NOT NULL AND churned_at >= :from
+            GROUP BY 1
+            """, nativeQuery = true)
+    List<MonthlyCount> countChurnsByMonth(@Param("from") java.time.OffsetDateTime from);
+
+    /**
+     * 가입월별 업체 id. 코호트 전환율의 교집합을 메모리에서 낸다.
+     *
+     * <p>SQL 로 한 번에 조인하지 않는 이유는 "한 번이라도 결제했나"가 청구 기간과
+     * 무관한 판정이라 조인 조건이 없기 때문이다. 기준은 업체 500곳이다.
+     */
+    @Query(value = """
+            SELECT id AS tenantId,
+                   date_trunc('month', created_at AT TIME ZONE 'Asia/Seoul')::date AS month
+            FROM tenants
+            WHERE created_at >= :from
+            """, nativeQuery = true)
+    List<SignupCohort> findSignupCohorts(@Param("from") java.time.OffsetDateTime from);
+
+    interface MonthlyCount {
+        java.time.LocalDate getMonth();
+
+        long getTenantCount();
+    }
+
+    interface SignupCohort {
+        UUID getTenantId();
+
+        java.time.LocalDate getMonth();
+    }
+
     /** 요금제 화면의 "사용 업체 수". 판매 중단 판단의 근거다. */
     @Query("SELECT t.planId AS planId, COUNT(t) AS count FROM Tenant t "
             + "WHERE t.status <> com.dabhaejwo.domain.tenant.entity.TenantStatus.CHURNED "

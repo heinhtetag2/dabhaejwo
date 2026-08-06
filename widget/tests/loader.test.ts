@@ -186,3 +186,215 @@ describe("readConfig", () => {
     expect(readConfig()!.nudgeDelayMs).toBe(0);
   });
 });
+
+/**
+ * 답변 뒤에 다음 갈 곳.
+ *
+ * <p>원래는 첫 질문을 던지는 순간 공통 질문 목록이 사라지고 <b>돌아갈 길이 없었다.</b>
+ * 방문자는 대개 궁금한 게 하나가 아닌데, 두 번째부터는 직접 타이핑해야 했다 —
+ * 그러면 저장 답변 대신 모델을 타서 우리 원가도 올라간다.
+ */
+describe("다음 갈 곳", () => {
+  const FAQS = [
+    { id: "f1", question: "유지보수도 해주시나요?" },
+    { id: "f2", question: "비용은 얼마인가요?" },
+    { id: "f3", question: "기간은 얼마나 걸리나요?" },
+  ];
+
+  /** 후속 질문은 <b>업체가 지정한 것만</b> 온다. 서버가 고른 결론을 그대로 흉내 낸다. */
+  function stubChat(followUpFaqs: { id: string; question: string }[]) {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes("/api/widget/config")
+        ? { enabled: true, widgetPosition: "BOTTOM_RIGHT", nudgeDelayMs: 0 }
+        : url.includes("/api/widget/session")
+          ? {
+              sessionId: "s1",
+              botName: "상담봇",
+              greeting: "안녕하세요",
+              brandColor: "#17222E",
+              widgetPosition: "BOTTOM_RIGHT",
+              leadCaptureEnabled: false,
+              faqs: FAQS,
+            }
+          : {
+              answered: true,
+              saved: true,
+              answer: "1년 무상입니다.",
+              links: [],
+              messageId: "m1",
+              followUpFaqs,
+            };
+      return { ok: true, status: 200, json: async () => body };
+    }) as unknown as typeof fetch;
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    delete (window as unknown as Record<string, unknown>).dabhaejwo;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** 패널을 열고 첫 공통 질문을 눌러 답변까지 받아둔다. */
+  async function askFirstFaq(followUpFaqs: { id: string; question: string }[] = []) {
+    stubChat(followUpFaqs);
+    (window as unknown as Record<string, unknown>).dabhaejwo = {
+      key: "pk_live_x",
+      apiBaseUrl: "https://api.example.com",
+    };
+    const host = mount()!;
+    await settle();
+    const root = host.shadowRoot!;
+    root.querySelector<HTMLButtonElement>(".bubble")!.click();
+    await settle();
+    root.querySelector<HTMLButtonElement>(".sugg button")!.click();
+    await settle();
+    return root;
+  }
+
+  const chipTexts = (root: ShadowRoot) =>
+    [...root.querySelectorAll(".sugg button")].map((node) => node.textContent);
+
+  it("답변을 받은 뒤에도 다른 질문으로 갈 길이 남는다", async () => {
+    const root = await askFirstFaq();
+    // 여기가 원래 막혀 있던 곳이다 — 첫 답변 뒤에는 어떤 버튼도 남지 않았다.
+    expect(chipTexts(root)).toContain("다른 질문 보기");
+  });
+
+  it("업체가 지정한 후속 질문이 답변 아래에 붙는다", async () => {
+    const root = await askFirstFaq([FAQS[1]!]);
+    expect(chipTexts(root)).toEqual(["비용은 얼마인가요?", "다른 질문 보기"]);
+  });
+
+  it("`다른 질문 보기` 는 대화를 지우지 않고 목록을 아래에 편다", async () => {
+    const root = await askFirstFaq();
+    const before = root.querySelectorAll(".msg").length;
+
+    root.querySelector<HTMLButtonElement>(".sugg .more")!.click();
+    await settle();
+
+    // 앞선 대화가 그대로 남아야 한다. 되돌아가기가 아니라 쌓이는 것이다.
+    expect(root.querySelectorAll(".msg").length).toBe(before);
+    expect([...root.querySelectorAll(".sugg.list button")].map((n) => n.textContent))
+      .toEqual(FAQS.map((faq) => faq.question));
+  });
+
+  it("이미 물어본 질문은 목록에서 흐리게 남는다 — 지우지 않는다", async () => {
+    const root = await askFirstFaq();
+    root.querySelector<HTMLButtonElement>(".sugg .more")!.click();
+    await settle();
+
+    const done = [...root.querySelectorAll(".sugg.list button.done")].map((n) => n.textContent);
+    expect(done).toEqual(["유지보수도 해주시나요?"]);
+  });
+
+  it("목록에서 질문을 고르면 목록은 닫힌다 — 새 답변 아래로 따라다니지 않는다", async () => {
+    const root = await askFirstFaq();
+    root.querySelector<HTMLButtonElement>(".sugg .more")!.click();
+    await settle();
+
+    [...root.querySelectorAll<HTMLButtonElement>(".sugg.list button")]
+      .find((node) => node.textContent === "비용은 얼마인가요?")!
+      .click();
+    await settle();
+
+    expect(root.querySelector(".sugg.list")).toBeNull();
+  });
+});
+
+/**
+ * 작성 중 표시.
+ *
+ * <p>실 모델 호출은 몇 초가 걸린다. 그동안 아무것도 안 보이면 방문자는 보낸 게 맞나 싶어
+ * 같은 질문을 다시 던지고, 그만큼 <b>원가가 두 번 나간다.</b>
+ */
+describe("작성 중", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    delete (window as unknown as Record<string, unknown>).dabhaejwo;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("답을 기다리는 동안 점 세 개가 뜨고, 답이 오면 사라진다", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/widget/config")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ enabled: true, widgetPosition: "BOTTOM_RIGHT", nudgeDelayMs: 0 }),
+        };
+      }
+      if (url.includes("/api/widget/session")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            sessionId: "s1",
+            botName: "상담봇",
+            greeting: "안녕하세요",
+            brandColor: "#17222E",
+            widgetPosition: "BOTTOM_RIGHT",
+            leadCaptureEnabled: false,
+            faqs: [],
+          }),
+        };
+      }
+      // 답변만 붙잡아 둔다 — 진짜 모델 호출이 느린 상황을 그대로 만든다.
+      await held;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          answered: true,
+          saved: false,
+          answer: "그건 이렇습니다.",
+          links: [],
+          messageId: "m1",
+          followUpFaqs: [],
+        }),
+      };
+    }) as unknown as typeof fetch;
+
+    (window as unknown as Record<string, unknown>).dabhaejwo = {
+      key: "pk_live_x",
+      apiBaseUrl: "https://api.example.com",
+    };
+    const root = mount()!.shadowRoot!;
+    await settle();
+    root.querySelector<HTMLButtonElement>(".bubble")!.click();
+    await settle();
+
+    const input = root.querySelector<HTMLInputElement>(".foot input")!;
+    input.value = "언제 오나요?";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+    root.querySelector<HTMLFormElement>(".foot")!.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    );
+    await settle();
+
+    const typing = root.querySelector(".typing");
+    expect(typing).not.toBeNull();
+    // 눈으로만 읽히는 신호라 스크린리더에도 말해줘야 한다.
+    expect(typing!.getAttribute("role")).toBe("status");
+    expect(typing!.querySelectorAll("span").length).toBe(3);
+
+    release();
+    await settle();
+
+    expect(root.querySelector(".typing")).toBeNull();
+    expect(root.textContent).toContain("그건 이렇습니다.");
+  });
+});

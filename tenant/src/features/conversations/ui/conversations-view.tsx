@@ -99,7 +99,7 @@ export function ConversationsView() {
                   >
                     <span className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
-                        방문자{conversation.visitorRegion ? ` · ${conversation.visitorRegion}` : ""}
+                        방문자 {conversation.visitorNumber}{conversation.visitorRegion ? ` · ${conversation.visitorRegion}` : ""}
                       </span>
                       <span className="tabular shrink-0 text-[11px] text-slate-2">
                         {time(conversation.startedAt)}
@@ -140,7 +140,7 @@ export function ConversationsView() {
         ) : (
           <>
             <CardHeader
-              title={`방문자${detail.data.visitorRegion ? ` · ${detail.data.visitorRegion}` : ""}`}
+              title={`방문자 ${detail.data.visitorNumber}${detail.data.visitorRegion ? ` · ${detail.data.visitorRegion}` : ""}`}
               aside={
                 <span className="text-[11.5px] text-slate-2">
                   {dateTime(detail.data.startedAt)}

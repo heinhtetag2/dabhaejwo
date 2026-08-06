@@ -99,6 +99,29 @@
   transform: translateY(0);
 }
 
+/*
+ * 업로드한 로고 뒤에 깔 것. 업체가 고른다.
+ *
+ * PNG 의 투명은 흰색이 아니라 아무것도 안 칠한 것이라, 그 자리로 아래 배경이 그대로
+ * 올라온다. 브랜드 색 하나로 두면 흰 바탕 기준 로고는 진한 색 위에서 뭉개지고,
+ * 밝은 브랜드 색에 흰 로고를 올리면 아예 안 보인다.
+ *
+ * `BRAND` 는 기본값이라 규칙을 따로 두지 않는다 — 위 `.bubble` 이 그대로 이긴다.
+ */
+.bubble[data-bg="WHITE"] {
+  background: #fff;
+}
+
+.bubble[data-bg="NONE"] {
+  background: transparent;
+  /* 그림자도 없앤다. 보이지 않는 원의 그림자만 남으면 로고가 얼룩 위에 뜬 것처럼 보인다. */
+  box-shadow: none;
+}
+
+.bubble[data-bg="NONE"]:hover {
+  box-shadow: none;
+}
+
 /* 업로드한 로고·아이콘. 원형 안에 꽉 채우되 비율은 지킨다 —
    `fill` 로 늘리면 업체 로고가 찌그러져 보인다. */
 .bubble img {
@@ -197,6 +220,53 @@
   color: #fff;
 }
 
+/*
+ * 답변을 만드는 중.
+ *
+ * 실 모델 호출은 몇 초가 걸린다. 그동안 아무것도 안 보이면 방문자는 <b>보낸 게
+ * 맞나</b> 싶어 같은 질문을 다시 던지고, 그만큼 원가가 두 번 나간다.
+ *
+ * 점은 쉬는 상태에서도 보이게 둔다 — 호스트가 `prefers-reduced-motion` 이면 아래 전역
+ * 규칙이 애니메이션을 통째로 끄는데, 그때 투명하면 빈 말풍선만 남는다.
+ */
+.typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dw-muted);
+  opacity: 0.45;
+  animation: dw-typing 1.2s ease-in-out infinite;
+}
+
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dw-typing {
+  0%,
+  70%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
 .saved-tag {
   margin-bottom: 4px;
   font-size: 10.5px;
@@ -218,6 +288,40 @@
   padding: 6px 11px;
   font-size: 12.5px;
   cursor: pointer;
+}
+
+/*
+ * `다른 질문 보기`. 업체가 지정한 후속 질문과 **다르게 보여야 한다** —
+ * 같은 모양이면 방문자는 이것도 질문인 줄 알고 누르고, 답 대신 목록이 나와 당황한다.
+ */
+.sugg .more {
+  border-style: dashed;
+  color: var(--dw-muted);
+}
+
+/* 전체 목록은 칩을 세로로 쌓는다. 좁은 패널에서 가로로 흐르면 잘린 칩은 아무도 안 누른다. */
+.sugg.list {
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid var(--dw-line);
+  border-radius: 10px;
+  padding: 9px;
+}
+
+.sugg.list button {
+  border-radius: 8px;
+  text-align: left;
+}
+
+/* 이미 물어본 것. 지우지 않는다 — 사라지면 "내가 잘못 봤나" 싶어진다. */
+.sugg.list button.done {
+  color: var(--dw-muted);
+}
+
+.sugg-title {
+  margin-bottom: 6px;
+  color: var(--dw-muted);
+  font-size: 11.5px;
 }
 
 .foot {

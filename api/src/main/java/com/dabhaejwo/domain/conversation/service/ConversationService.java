@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,18 +53,49 @@ public class ConversationService {
         Pageable pageable = PageRequest.of(Math.max(page, 0), PageResponse.clampSize(size));
 
         Page<Conversation> conversations = (q == null || q.isBlank())
-                ? conversationRepository.findAllByTenantIdOrderByStartedAtDesc(tenantId, pageable)
+                ? conversationRepository.findAnsweredByTenantId(tenantId, pageable)
                 : conversationRepository.search(tenantId, q.strip(), pageable);
 
         List<UUID> ids = conversations.getContent().stream().map(Conversation::getId).toList();
         Map<UUID, String> previews = previews(tenantId, ids);
         Set<UUID> failed = failedConversationIds(tenantId, ids);
 
+        Map<UUID, Integer> numbers = visitorNumbers(tenantId);
+
         return PageResponse.of(conversations, conversation ->
                 ConversationSummaryResponse.of(
                         conversation,
                         previews.get(conversation.getId()),
-                        failed.contains(conversation.getId())));
+                        failed.contains(conversation.getId()),
+                        numbers.getOrDefault(conversation.getId(), 0)));
+    }
+
+    /**
+     * 방문자 번호. <b>같은 IP 해시는 같은 번호</b>다.
+     *
+     * <p>순번을 그냥 매기면 한 사람이 세 번 열었을 때 방문자 1·2·3 으로 보여 실제보다 많아
+     * 보인다. 우리는 IP 원문을 저장하지 않으므로(해시만 남는다) 이 번호로도 그가 누구인지는
+     * 알 수 없다 — 업체 안에서 "같은 사람인가"만 답한다.
+     *
+     * <p>번호는 <b>처음 온 순서</b>다. 오래된 방문자가 1번이라 나중에 대화가 늘어도 번호가
+     * 바뀌지 않는다 — 최근 순으로 매기면 새 방문자가 올 때마다 전부 밀린다.
+     *
+     * <p>업체 전체를 훑는다. 페이지 단위로 매기면 2페이지의 같은 방문자가 다른 번호를 받는다.
+     */
+    private Map<UUID, Integer> visitorNumbers(UUID tenantId) {
+        Map<String, Integer> byVisitor = new LinkedHashMap<>();
+        Map<UUID, Integer> byConversation = new LinkedHashMap<>();
+
+        for (Conversation conversation : conversationRepository
+                .findAllByTenantIdOrderByStartedAtAsc(tenantId)) {
+            // 해시가 없는 옛 대화는 각각 다른 방문자로 본다 — 묶을 근거가 없다.
+            String visitor = conversation.getVisitorIpHash() == null
+                    ? "conversation:" + conversation.getId()
+                    : conversation.getVisitorIpHash();
+            int number = byVisitor.computeIfAbsent(visitor, key -> byVisitor.size() + 1);
+            byConversation.put(conversation.getId(), number);
+        }
+        return byConversation;
     }
 
     @Transactional
@@ -82,7 +114,9 @@ public class ConversationService {
 
         return ConversationDetailResponse.of(conversation,
                 messageRepository.findAllByTenantIdAndConversationIdOrderByCreatedAtAsc(
-                        user.tenantId(), conversationId));
+                        user.tenantId(), conversationId),
+                // 목록과 같은 번호여야 한다 — 같은 규칙으로 다시 매긴다.
+                visitorNumbers(user.tenantId()).getOrDefault(conversationId, 0));
     }
 
     /** 목록의 미리보기 — 각 대화의 첫 방문자 발화. 한 번의 질의로 모아 N+1 을 피한다. */

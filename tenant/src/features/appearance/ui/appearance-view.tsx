@@ -143,6 +143,7 @@ export function AppearanceView() {
             question: faq.question,
             answer: faq.answer,
             links: faq.links,
+            followUpFaqIds: faq.followUpFaqIds,
           }))}
         />
 

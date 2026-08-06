@@ -3,6 +3,7 @@ package com.dabhaejwo.global.security;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,6 +53,20 @@ class OperatorRoleTest {
         }
         assertTrue(OperatorRole.OPS_ADMIN.can(Permission.TENANT_STATUS_WRITE));
         assertTrue(OperatorRole.OPS_ADMIN.can(Permission.AUDIT_READ));
+    }
+
+    @Test
+    @DisplayName("정산 조회는 수익성과 같은 등급이다 — 관리자·영업만")
+    void revenueMatchesProfitability() {
+        // 미수금을 쫓는 일이 영업의 일이라 수익성과 같이 준다. 둘이 갈리면
+        // "업체별 금액은 볼 수 있는데 받았는지는 못 보는" 반쪽 권한이 된다.
+        for (OperatorRole role : OperatorRole.values()) {
+            assertEquals(role.can(Permission.PROFITABILITY_READ), role.can(Permission.REVENUE_READ),
+                    role + " 의 정산 권한은 수익성 권한과 같아야 한다");
+        }
+        assertTrue(OperatorRole.SALES.can(Permission.REVENUE_READ));
+        assertFalse(OperatorRole.CS.can(Permission.REVENUE_READ));
+        assertFalse(OperatorRole.DEV.can(Permission.REVENUE_READ));
     }
 
     @Test

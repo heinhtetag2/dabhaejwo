@@ -12,6 +12,8 @@ export type MessageRole = "VISITOR" | "BOT";
 export interface ConversationSummary {
   id: string;
   visitorRegion: string | null;
+  /** 업체 안에서만 뜻이 있는 방문자 번호. 같은 방문자는 같은 번호다. */
+  visitorNumber: number;
   startedPath: string | null;
   startedAt: string;
   /** 첫 방문자 발화. 열기만 하고 닫은 대화는 null 이다. */
@@ -37,6 +39,7 @@ export interface ConversationDetail extends Omit<ConversationSummary, "preview" 
 const summarySchema = z.object({
   id: z.string(),
   visitorRegion: z.string().nullable(),
+  visitorNumber: z.number(),
   startedPath: z.string().nullable(),
   startedAt: z.string(),
   preview: z.string().nullable(),
@@ -56,6 +59,7 @@ const summaryPageSchema = z.object({
 const detailSchema = z.object({
   id: z.string(),
   visitorRegion: z.string().nullable(),
+  visitorNumber: z.number(),
   startedPath: z.string().nullable(),
   startedAt: z.string(),
   endedAt: z.string().nullable(),

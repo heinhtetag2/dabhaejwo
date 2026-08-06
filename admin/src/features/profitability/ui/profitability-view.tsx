@@ -40,9 +40,11 @@ export function ProfitabilityView() {
 
       <div className="mb-4 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
-          label="이번 달 매출"
+          label="계약 정가 합계"
           value={count(stats.revenueKrw)}
-          detail={`${content.length}개 업체`}
+          // 이 값은 요금제 정가의 합이지 받은 돈이 아니다 — 결제가 실패한 업체의 금액도 들어 있다.
+          // "매출"이라 부르면 정산 화면의 수납액과 다른 숫자가 같은 이름을 갖게 된다.
+          detail={`${content.length}개 업체 · 수납액은 정산에서`}
         />
         <Stat
           label="이번 달 모델 원가"

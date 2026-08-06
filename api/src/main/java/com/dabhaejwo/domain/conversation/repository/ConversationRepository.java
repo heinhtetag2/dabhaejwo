@@ -13,19 +13,56 @@ import java.util.UUID;
 
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
 
-    Page<Conversation> findAllByTenantIdOrderByStartedAtDesc(UUID tenantId, Pageable pageable);
+    /**
+     * 대화 로그 목록. <b>메시지가 하나도 없는 대화는 빼고</b> 준다.
+     *
+     * <p>대화는 패널을 <b>열 때</b> 만들어진다 — 열어보고 안 물어본 방문자도 알아야 하기
+     * 때문이다. 다만 목록에서는 그것들이 "메시지 없음"으로 대부분을 차지해, 정작 읽어야 할
+     * 대화를 밀어낸다. 만드는 것은 그대로 두고 <b>보여줄 때만</b> 거른다.
+     */
+    @Query("""
+            SELECT c FROM Conversation c
+            WHERE c.tenantId = :tenantId
+              AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
+            ORDER BY c.startedAt DESC
+            """)
+    Page<Conversation> findAnsweredByTenantId(@Param("tenantId") UUID tenantId, Pageable pageable);
+
+    /** 방문자 번호를 매기려면 업체 전체를 처음 온 순서로 봐야 한다 (ConversationService 참조). */
+    java.util.List<Conversation> findAllByTenantIdOrderByStartedAtAsc(UUID tenantId);
 
     Optional<Conversation> findByIdAndTenantId(UUID id, UUID tenantId);
 
-    long countByTenantIdAndStartedAtBetween(UUID tenantId, OffsetDateTime from, OffsetDateTime to);
+    /**
+     * 월 한도 판정. <b>질문이 오간 대화만</b> 센다.
+     *
+     * <p>전에는 만들어진 대화를 전부 셌다. 그러면 패널을 열기만 해도 한도가 깎여,
+     * 방문자가 호기심에 백 번 열면 질문 한 번 없이 그 달 한도가 끝난다 — 봇이면 더 빠르다.
+     * 원가가 나가는 것은 질문이므로 한도도 거기에 맞춘다.
+     */
+    @Query("""
+            SELECT COUNT(c) FROM Conversation c
+            WHERE c.tenantId = :tenantId
+              AND c.startedAt >= :from AND c.startedAt < :to
+              AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
+            """)
+    long countAnsweredByTenantIdBetween(@Param("tenantId") UUID tenantId,
+                                        @Param("from") OffsetDateTime from,
+                                        @Param("to") OffsetDateTime to);
 
     /** 전 업체 대화 수. 운영 콘솔 전용 — 테넌트 조건이 없는 유일한 집계다. */
     long countByStartedAtGreaterThanEqualAndStartedAtLessThan(OffsetDateTime from, OffsetDateTime to);
 
-    /** 일 집계 배치가 읽는다. 하루치를 테넌트별로 묶는다. */
+    /**
+     * 일 집계 배치가 읽는다. 하루치를 테넌트별로 묶는다.
+     *
+     * <p>한도 판정과 <b>같은 정의</b>를 써야 한다 — 화면이 보여주는 "12 / 100" 과 실제로
+     * 막히는 시점이 다르면 업체는 둘 중 무엇도 믿지 못한다.
+     */
     @Query("""
             SELECT c.tenantId AS tenantId, COUNT(c) AS count FROM Conversation c
             WHERE c.startedAt >= :from AND c.startedAt < :to
+              AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
             GROUP BY c.tenantId
             """)
     java.util.List<TenantCount> countByTenantBetween(@Param("from") OffsetDateTime from,

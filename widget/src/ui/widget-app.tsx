@@ -1,7 +1,8 @@
+import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { WidgetApi, WidgetApiError } from "../api/client";
-import type { Faq, Message, WidgetConfig } from "../types";
+import type { AskResponse, Faq, Message, WidgetConfig } from "../types";
 
 /**
  * 위젯 본체. Shadow Root 안에서만 산다 — document 를 직접 만지지 않는다.
@@ -27,6 +28,11 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
   const [launcherImageUrl, setLauncherImageUrl] = useState<string | null>(null);
   const [launcherSizePx, setLauncherSizePx] = useState<number | null>(null);
   /**
+   * 이미지 뒤에 깔 것. 서버가 이미 결론을 내려준 값이라 위젯은 그리기만 한다 —
+   * 여기서 다시 판단하면 대시보드 미리보기와 규칙이 갈린다.
+   */
+  const [launcherBg, setLauncherBg] = useState<"BRAND" | "WHITE" | "NONE">("BRAND");
+  /**
    * 업체가 정한 버블 색. 스타일에 그대로 들어가는 값이라 <b>형식이 맞을 때만</b> 쓴다 —
    * 서버가 저장할 때 막고 있지만, 여기서도 보는 이유는 이 값이 남의 사이트의
    * style 속성으로 들어가기 때문이다. 한 겹으로 막는 걸 믿지 않는다.
@@ -47,6 +53,14 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
   const [leadOpen, setLeadOpen] = useState(false);
   const [leadDone, setLeadDone] = useState(false);
   const [voted, setVoted] = useState<Record<string, boolean>>({});
+  /**
+   * 이미 눌러본 공통 질문. 목록을 다시 열었을 때 흐리게 표시한다 —
+   * 지우지는 않는다. 방문자가 답을 다시 읽고 싶을 수 있고, 목록에서 항목이
+   * 사라지면 "내가 잘못 봤나" 싶어진다.
+   */
+  const [asked, setAsked] = useState<string[]>([]);
+  /** `다른 질문 보기` 로 연 전체 목록. 질문을 하나 던지면 닫는다. */
+  const [listOpen, setListOpen] = useState(false);
 
   const api = useRef(new WidgetApi(config)).current;
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -66,6 +80,7 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
         setRemotePosition(remote.widgetPosition === "BOTTOM_LEFT" ? "left" : "right");
         setLauncherImageUrl(remote.launcherImageUrl ?? null);
         setLauncherSizePx(remote.launcherSizePx ?? null);
+        setLauncherBg(remote.launcherBackground ?? "BRAND");
         setBrandColor(HEX_COLOR.test(remote.brandColor) ? remote.brandColor : null);
       })
       .catch(() => {
@@ -110,7 +125,7 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
     if (bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [messages, greeting, leadOpen]);
+  }, [messages, greeting, leadOpen, listOpen, busy]);
 
   function openPanel() {
     setNudging(false);
@@ -120,6 +135,8 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
 
   async function run(question: string, send: () => Promise<void>) {
     if (!sessionId || busy) return;
+    // 물어봤으면 목록은 역할을 다했다. 열어둔 채로 두면 새 답변 아래에 계속 따라다닌다.
+    setListOpen(false);
     setMessages((prev) => [...prev, { role: "visitor", text: question }]);
     setBusy(true);
     try {
@@ -131,13 +148,7 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
     }
   }
 
-  function receive(result: {
-    answer: string;
-    saved: boolean;
-    links: string[];
-    messageId: string | null;
-    answered: boolean;
-  }) {
+  function receive(result: AskResponse) {
     setMessages((prev) => [
       ...prev,
       {
@@ -146,6 +157,8 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
         saved: result.saved,
         links: result.links,
         messageId: result.messageId,
+        // 업체가 지정한 후속 질문. 없으면 빈 배열이라 칩 줄에는 `다른 질문 보기` 만 남는다.
+        suggestions: result.followUpFaqs,
       },
     ]);
     // 못 답했을 때만 연락처를 제안한다. 업체가 꺼 뒀으면 제안하지 않는다.
@@ -159,6 +172,7 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
   }
 
   async function askFaq(faq: Faq) {
+    setAsked((prev) => (prev.includes(faq.id) ? prev : [...prev, faq.id]));
     await run(faq.question, async () => receive(await api.askFaq(sessionId!, faq.id)));
   }
 
@@ -259,45 +273,102 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
             ) : null}
 
             {messages.map((message, index) => (
-              <div key={index} class={`msg ${message.role}`}>
-                {/* 저장 답변은 모델을 거치지 않은 것이다. 방문자에게도 즉답임을 알린다 */}
-                {message.role === "bot" && message.saved ? (
-                  <div class="saved-tag">저장된 답변</div>
-                ) : null}
-                {message.text}
+              <Fragment key={index}>
+                <div class={`msg ${message.role}`}>
+                  {/* 저장 답변은 모델을 거치지 않은 것이다. 방문자에게도 즉답임을 알린다 */}
+                  {message.role === "bot" && message.saved ? (
+                    <div class="saved-tag">저장된 답변</div>
+                  ) : null}
+                  {message.text}
 
-                {message.role === "bot" && message.links.length > 0 ? (
-                  <div class="links">
-                    {message.links.map((link) => (
-                      <a key={link} href={link} target="_blank" rel="noopener noreferrer">
-                        {link}
-                      </a>
+                  {message.role === "bot" && message.links.length > 0 ? (
+                    <div class="links">
+                      {message.links.map((link) => (
+                        <a key={link} href={link} target="_blank" rel="noopener noreferrer">
+                          {link}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {message.role === "bot" && message.messageId ? (
+                    <div class="vote">
+                      <button
+                        onClick={() => vote(message.messageId!, true)}
+                        aria-label="도움이 됐어요"
+                        aria-pressed={voted[message.messageId] === true}
+                        disabled={message.messageId in voted}
+                      >
+                        👍
+                      </button>
+                      <button
+                        onClick={() => vote(message.messageId!, false)}
+                        aria-label="도움이 안 됐어요"
+                        aria-pressed={voted[message.messageId] === false}
+                        disabled={message.messageId in voted}
+                      >
+                        👎
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/*
+                  다음 갈 곳은 **마지막 답변 아래에만** 그린다. 지난 말풍선마다 붙이면
+                  스크롤을 올릴 때마다 옛 제안이 다시 나타나 지금 무엇을 하면 되는지가 흐려진다.
+                */}
+                {message.role === "bot" && index === messages.length - 1 && !busy ? (
+                  <div class="sugg">
+                    {message.suggestions.map((faq) => (
+                      <button key={faq.id} onClick={() => void askFaq(faq)}>
+                        {faq.question}
+                      </button>
                     ))}
+                    {faqs.length > 0 && !listOpen ? (
+                      <button class="more" onClick={() => setListOpen(true)}>
+                        다른 질문 보기
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
-
-                {message.role === "bot" && message.messageId ? (
-                  <div class="vote">
-                    <button
-                      onClick={() => vote(message.messageId!, true)}
-                      aria-label="도움이 됐어요"
-                      aria-pressed={voted[message.messageId] === true}
-                      disabled={message.messageId in voted}
-                    >
-                      👍
-                    </button>
-                    <button
-                      onClick={() => vote(message.messageId!, false)}
-                      aria-label="도움이 안 됐어요"
-                      aria-pressed={voted[message.messageId] === false}
-                      disabled={message.messageId in voted}
-                    >
-                      👎
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+              </Fragment>
             ))}
+
+            {/*
+              `다른 질문 보기` 로 편 전체 목록.
+
+              되돌아가기 버튼을 만들지 않은 이유는, 채팅에서 "뒤로"는 앞선 대화가 사라진다는
+              뜻으로 읽히기 때문이다. 방문자는 방금 받은 답을 잃을까 봐 누르지 않는다.
+              아래로 쌓이면 그 망설임이 없다.
+            */}
+            {listOpen ? (
+              <div class="sugg list">
+                <div class="sugg-title">이런 것들을 물어보실 수 있어요</div>
+                {faqs.map((faq) => (
+                  <button
+                    key={faq.id}
+                    class={asked.includes(faq.id) ? "done" : undefined}
+                    onClick={() => void askFaq(faq)}
+                  >
+                    {faq.question}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {/*
+              작성 중.
+
+              `role="status"` 라 스크린리더에도 알린다 — 점 세 개는 눈으로만 읽히는 신호다.
+              점 자체는 aria-hidden 이다. 하나씩 읽어봐야 뜻이 없다.
+            */}
+            {busy ? (
+              <div class="msg bot typing" role="status" aria-label="답변을 작성하고 있습니다">
+                <span aria-hidden="true" />
+                <span aria-hidden="true" />
+                <span aria-hidden="true" />
+              </div>
+            ) : null}
 
             {leadOpen ? (
               <form class="lead" onSubmit={submitLead}>
@@ -346,7 +417,12 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
       ) : null}
 
       {!open ? (
-        <button class="bubble" onClick={openPanel} aria-label="채팅 열기">
+        <button
+          class="bubble"
+          data-bg={launcherBg}
+          onClick={openPanel}
+          aria-label="채팅 열기"
+        >
           {launcherImageUrl ? (
             // alt 를 비운다. 옆의 aria-label 이 이미 "채팅 열기"라고 말하므로
             // 로고 이름까지 읽으면 스크린리더가 같은 버튼을 두 번 설명하게 된다.
@@ -389,7 +465,7 @@ function LauncherIcon() {
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 function botMessage(text: string): Message {
-  return { role: "bot", text, saved: false, links: [], messageId: null };
+  return { role: "bot", text, saved: false, links: [], messageId: null, suggestions: [] };
 }
 
 /**

@@ -75,6 +75,13 @@ public class Conversation {
         return visitorRegion;
     }
 
+    /**
+     * 원문 IP 가 아니라 해시다. 같은 방문자인지 묶는 데만 쓰고 되돌릴 수 없다.
+     */
+    public String getVisitorIpHash() {
+        return visitorIpHash;
+    }
+
     public OffsetDateTime getStartedAt() {
         return startedAt;
     }

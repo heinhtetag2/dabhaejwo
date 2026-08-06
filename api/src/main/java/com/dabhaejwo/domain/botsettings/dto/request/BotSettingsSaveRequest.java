@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.botsettings.dto.request;
 
+import com.dabhaejwo.domain.botsettings.entity.LauncherBackground;
 import com.dabhaejwo.domain.botsettings.entity.LauncherSize;
 
 import com.dabhaejwo.domain.botsettings.entity.PageScope;
@@ -39,5 +40,6 @@ public record BotSettingsSaveRequest(
         List<@Size(max = 200) String> pagePatterns,
         @Min(0) @Max(600) int nudgeDelaySeconds,
         boolean widgetEnabled,
-        LauncherSize launcherSize) {
+        LauncherSize launcherSize,
+        LauncherBackground launcherBackground) {
 }

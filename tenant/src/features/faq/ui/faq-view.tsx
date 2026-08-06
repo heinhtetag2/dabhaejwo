@@ -149,6 +149,7 @@ export function FaqView() {
         {selected || composing ? (
           <FaqEditor
             faq={selected}
+            allFaqs={faqs}
             editable={editable}
             pending={pending}
             onSubmit={handleSubmit}
@@ -177,6 +178,7 @@ export function FaqView() {
             question: faq.question,
             answer: faq.answer,
             links: faq.links,
+            followUpFaqIds: faq.followUpFaqIds,
           }))}
         />
       </div>

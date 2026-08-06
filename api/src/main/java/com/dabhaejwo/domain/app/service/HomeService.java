@@ -65,10 +65,12 @@ public class HomeService {
         OffsetDateTime weekStart = todayStart.minusDays(7);
         OffsetDateTime twoWeeksStart = todayStart.minusDays(14);
 
+        // 한도 판정과 같은 정의를 쓴다 — 홈이 보여주는 "오늘 대화"와 실제로 깎이는 수가
+        // 다르면 업체는 둘 중 무엇도 믿지 못한다.
         long todayConv = conversationRepository
-                .countByTenantIdAndStartedAtBetween(tenantId, todayStart, tomorrowStart);
+                .countAnsweredByTenantIdBetween(tenantId, todayStart, tomorrowStart);
         long yesterdayConv = conversationRepository
-                .countByTenantIdAndStartedAtBetween(tenantId, yesterdayStart, todayStart);
+                .countAnsweredByTenantIdBetween(tenantId, yesterdayStart, todayStart);
 
         return new HomeSummaryResponse(
                 todayConv,

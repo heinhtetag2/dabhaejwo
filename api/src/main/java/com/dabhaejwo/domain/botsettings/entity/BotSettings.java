@@ -102,6 +102,11 @@ public class BotSettings {
     @Column(name = "launcher_size", nullable = false)
     private LauncherSize launcherSize;
 
+    /** 올린 이미지 뒤에 무엇을 깔 것인가. 이미지가 없으면 쓰이지 않는다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "launcher_background", nullable = false)
+    private LauncherBackground launcherBackground;
+
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
@@ -121,6 +126,7 @@ public class BotSettings {
         settings.agentHandoffEnabled = false;
         settings.widgetEnabled = true;
         settings.launcherSize = LauncherSize.MEDIUM;
+        settings.launcherBackground = LauncherBackground.BRAND;
         settings.widgetPosition = WidgetPosition.BOTTOM_RIGHT;
         settings.pageScope = PageScope.ALL;
         settings.nudgeDelaySeconds = 15;
@@ -158,12 +164,15 @@ public class BotSettings {
                               List<String> patterns,
                               int nudgeDelaySeconds,
                               boolean widgetEnabled,
-                              LauncherSize launcherSize) {
+                              LauncherSize launcherSize,
+                              LauncherBackground launcherBackground) {
         if (nudgeDelaySeconds < 0) {
             throw new IllegalArgumentException("nudgeDelaySeconds must be >= 0");
         }
         this.widgetEnabled = widgetEnabled;
         this.launcherSize = launcherSize == null ? LauncherSize.MEDIUM : launcherSize;
+        this.launcherBackground =
+                launcherBackground == null ? LauncherBackground.BRAND : launcherBackground;
         this.widgetPosition = position;
         this.pageScope = scope;
         this.pagePatterns = patterns == null ? new ArrayList<>() : new ArrayList<>(patterns);
@@ -249,6 +258,21 @@ public class BotSettings {
 
     public LauncherSize getLauncherSize() {
         return launcherSize;
+    }
+
+    public LauncherBackground getLauncherBackground() {
+        return launcherBackground;
+    }
+
+    /**
+     * 위젯에 내려보낼 런처 배경.
+     *
+     * <p><b>이미지가 없으면 무조건 {@code BRAND} 다.</b> 기본 아이콘은 흰 선으로 그려져
+     * 흰 바탕·투명 위에서는 보이지 않는다 — 업체가 로고를 지운 뒤 런처가 통째로 사라지는
+     * 일을 여기서 막는다. 위젯이 스스로 판단하게 두면 대시보드 미리보기와 규칙이 갈린다.
+     */
+    public LauncherBackground effectiveLauncherBackground() {
+        return effectiveLauncherImageUrl() == null ? LauncherBackground.BRAND : launcherBackground;
     }
 
     /**

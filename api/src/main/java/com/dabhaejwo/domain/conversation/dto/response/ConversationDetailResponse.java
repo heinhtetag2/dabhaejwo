@@ -17,6 +17,8 @@ import java.util.UUID;
 public record ConversationDetailResponse(
         UUID id,
         String visitorRegion,
+        /** 목록과 <b>같은 번호</b>여야 한다 — 다르면 같은 대화가 다른 사람으로 보인다. */
+        int visitorNumber,
         String startedPath,
         OffsetDateTime startedAt,
         OffsetDateTime endedAt,
@@ -45,10 +47,12 @@ public record ConversationDetailResponse(
         }
     }
 
-    public static ConversationDetailResponse of(Conversation conversation, List<Message> messages) {
+    public static ConversationDetailResponse of(Conversation conversation, List<Message> messages,
+                                                int visitorNumber) {
         return new ConversationDetailResponse(
                 conversation.getId(),
                 conversation.getVisitorRegion(),
+                visitorNumber,
                 conversation.getStartedPath(),
                 conversation.getStartedAt(),
                 conversation.getEndedAt(),
