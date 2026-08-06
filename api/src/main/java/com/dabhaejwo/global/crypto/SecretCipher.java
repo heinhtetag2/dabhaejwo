@@ -3,6 +3,7 @@ package com.dabhaejwo.global.crypto;
 import com.dabhaejwo.global.config.AppProperties;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -35,8 +36,30 @@ public class SecretCipher {
 
     private final SecretKey key;
 
+    /**
+     * 스프링이 쓰는 생성자.
+     *
+     * <p><b>{@code @Autowired} 를 지우지 말 것.</b> 생성자가 둘 이상이면 스프링은 어느 것을
+     * 쓸지 고르지 못하고 기본 생성자를 찾다가 기동에 실패한다
+     * ({@code No default constructor found}) — 아래 테스트용 생성자가 생겼을 때 실제로 났다.
+     * 생성자가 하나뿐일 때만 자동으로 선택된다.
+     */
+    @Autowired
     public SecretCipher(AppProperties properties) {
-        this.key = resolveKey(properties.security().encryptionKey());
+        this(properties.security());
+    }
+
+    /**
+     * 쓰는 것만 받는 형태.
+     *
+     * <p>{@code AppProperties} 전체를 받으면 테스트가 <b>모든 컴포넌트를 위치로 채워야</b> 하고,
+     * 설정 항목이 늘 때마다 관계없는 테스트가 깨진다(실제로 세 번 깨졌다).
+     *
+     * <p>package-private 다 — public 이면 생성자가 둘이 되어 Spring 이 어느 쪽으로
+     * 빈을 만들지 못한다. 같은 패키지의 테스트만 쓴다.
+     */
+    SecretCipher(AppProperties.Security security) {
+        this.key = resolveKey(security == null ? null : security.encryptionKey());
     }
 
     /**
