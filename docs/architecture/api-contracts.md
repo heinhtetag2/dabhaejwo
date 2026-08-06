@@ -801,6 +801,39 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 | GET · PUT | `/api/app/appearance` |
 | GET · POST · DELETE | `/api/app/allowed-origins` |
 | GET | `/api/app/plan` — 요금제·사용량·결제 내역 |
+| GET · POST · DELETE | `/api/app/billing/method` — 결제수단(카드). **OWNER 전용**, 대리 접속 중 금지 |
+
+### 9-5. 결제 (토스페이먼츠 자동결제)
+
+```json
+{ "registered": true, "cardCompany": "31", "cardNumberMasked": "43301234****123*",
+  "cardType": "신용", "registeredAt": "2026-08-06T01:20:00Z" }
+```
+
+카드를 한 번 등록해 **빌링키**를 받아두고 매달 그 키로 청구한다.
+
+| 규칙 | 이유 |
+|---|---|
+| **카드번호가 이 서버를 지나지 않는다** | 결제창이 토스와 직접 주고받고 우리에게는 일회용 인증키만 온다. 카드 정보 취급 책임을 지지 않는다 |
+| **빌링키는 암호문으로만 저장한다**(AES-256-GCM) | 그 자체로 돈을 뺄 수 있는 값이다. 평문이면 DB 를 읽는 것만으로 남의 카드에 청구할 수 있다 |
+| **응답에 빌링키가 없다** | 화면이 알아야 할 것은 "어느 카드인지"뿐이다 |
+| **금액은 서버가 요금제에서 정한다** | 클라이언트가 보낸 금액으로 청구하면 1원짜리 요청이 온다 |
+| **주문번호는 업체 + 청구월로 결정된다** | 재시도해도 같은 값이라 이중 청구가 막힌다. 토스 멱등키(`Idempotent-Key`)로도 함께 보내고, `billing_records.order_id` 에 UNIQUE 를 건다 |
+| `customerKey` 를 클라이언트에서 받지만 **신뢰하지 않는다** | 토큰의 업체와 대조해 다르면 403. 안 그러면 남의 업체에 카드를 붙일 수 있다 |
+| 미설정 시 `FEATURE_NOT_READY`(503) | 가짜로 성공시키면 업체는 유료 전환이 끝난 줄 알고, 우리는 받지 않은 돈을 받은 것으로 기록한다 |
+| 실패도 `billing_records` 에 남긴다 | 남기지 않으면 왜 못 받았는지 알 방법이 없다. 카드사 문구를 그대로 담는다("한도 초과"는 업체가 바로 조치할 수 있다) |
+
+등록 흐름 — 결제창은 **브라우저가** 띄운다.
+
+```
+① 화면: TossPayments(clientKey).payment({customerKey: 업체id}).requestBillingAuth({method:"CARD", successUrl, failUrl})
+② 토스: successUrl?customerKey=…&authKey=… 로 되돌려보냄
+③ 화면: POST /api/app/billing/method { authKey, customerKey }
+④ 서버: POST https://api.tosspayments.com/v1/billing/authorizations/issue → billingKey 받아 암호화 저장
+```
+
+`authKey` 는 **일회용**이다. 화면은 한 번만 보내고 주소창에서 즉시 지운다 —
+새로고침으로 다시 보내면 반드시 실패하는데, 그 실패가 "등록 실패"로 보이면 사용자는 멀쩡한데도 다시 시도한다.
 | POST | `/api/app/plan/upgrade-request` — 유료 전환 신청 → `tickets` 적재. **OWNER 전용** |
 
 ### 9-4. 홈 요약 · 챗봇 설정

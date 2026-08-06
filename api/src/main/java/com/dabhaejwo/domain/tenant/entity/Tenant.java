@@ -49,6 +49,16 @@ public class Tenant {
     @Column(name = "trial_ends_at")
     private OffsetDateTime trialEndsAt;
 
+    /**
+     * 청구 기준일(1~31).
+     *
+     * <p><b>{@code nextBillingDate} 에서 파생하지 않는다.</b> 31일 기준인 업체가 2월에
+     * 28일로 청구되면, 그 값에서 한 달을 더하는 순간 28일에 눌러앉아 매년 앞당겨진다.
+     * 원래 기준일을 따로 기억해야 3월에 다시 31일로 돌아온다.
+     */
+    @Column(name = "billing_day")
+    private Integer billingDay;
+
     @Column(name = "next_billing_date")
     private LocalDate nextBillingDate;
 
@@ -100,10 +110,25 @@ public class Tenant {
 
     public void suspend() {
         transitionTo(TenantStatus.SUSPENDED);
+        // 정지된 업체를 계속 청구하면 매일 실패가 쌓이고 카드사 쪽 거절 기록만 늘어난다.
+        stopBilling();
     }
 
+    /**
+     * 정지 해제.
+     *
+     * <p><b>청구도 함께 되살린다.</b> {@link #suspend()} 가 청구일을 지우는데 여기서 되돌리지
+     * 않으면, 결제 실패로 정지됐다가 해제된 업체는 <b>영영 청구되지 않는다</b> —
+     * 서비스는 다시 쓰면서 돈은 안 내는 상태가 되고, 아무도 눈치채지 못한다.
+     *
+     * <p>오늘로 잡는 이유는 밀린 달이 있기 때문이다. 기준일은 그대로 두어 다음 달부터
+     * 원래 날짜로 돌아간다.
+     */
     public void activate() {
         transitionTo(TenantStatus.ACTIVE);
+        if (billingDay != null && nextBillingDate == null) {
+            this.nextBillingDate = LocalDate.now();
+        }
     }
 
     /**
@@ -124,6 +149,55 @@ public class Tenant {
         OffsetDateTime base = trialEndsAt == null ? OffsetDateTime.now() : trialEndsAt;
         this.trialEndsAt = base.plusDays(days);
         touch();
+    }
+
+    /**
+     * 자동 청구를 시작한다. <b>결제한 날이 기준이 된다</b> — 8월 3일이면 매달 3일이다.
+     *
+     * <p>이미 기준일이 있으면 건드리지 않는다. 카드를 바꿨다고 청구일이 옮겨가면
+     * 업체는 언제 빠져나갈지 예측할 수 없다.
+     */
+    public void startBillingOn(LocalDate firstDate) {
+        if (billingDay == null) {
+            this.billingDay = firstDate.getDayOfMonth();
+        }
+        this.nextBillingDate = firstDate;
+        touch();
+    }
+
+    /** 청구 성공. 다음 달 같은 날로 옮긴다 — 그 달에 없는 날짜면 말일로 당긴다. */
+    public void advanceBilling() {
+        LocalDate base = nextBillingDate == null ? LocalDate.now() : nextBillingDate;
+        this.nextBillingDate = onDay(base.plusMonths(1), billingDay);
+        touch();
+    }
+
+    /** 청구 실패. 며칠 뒤 다시 시도한다. */
+    public void retryBillingOn(LocalDate retryDate) {
+        this.nextBillingDate = retryDate;
+        touch();
+    }
+
+    /** 더 이상 청구하지 않는다(해지·정지). 남겨 두면 배치가 매일 실패를 반복한다. */
+    public void stopBilling() {
+        this.nextBillingDate = null;
+        touch();
+    }
+
+    /**
+     * 그 달의 기준일. 없는 날짜면 말일로 당긴다.
+     *
+     * <p>1/31 → 2/28(윤년이면 29) → 3/31. 기준일을 따로 들고 있어야 3월에 되돌아온다.
+     */
+    static LocalDate onDay(LocalDate month, Integer day) {
+        if (day == null) {
+            return month;
+        }
+        return month.withDayOfMonth(Math.min(day, month.lengthOfMonth()));
+    }
+
+    public Integer getBillingDay() {
+        return billingDay;
     }
 
     private void transitionTo(TenantStatus target) {

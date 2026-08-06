@@ -3,11 +3,7 @@
 import { useState } from "react";
 
 import { useAppContextQuery } from "@/entities/auth/session";
-import {
-  useBillingMethodQuery,
-  useRegisterBillingMethod,
-  useRemoveBillingMethod,
-} from "@/entities/tenant/billing";
+import { useBillingMethodQuery, useRemoveBillingMethod } from "@/entities/tenant/billing";
 import { ApiError } from "@/shared/api/http-client";
 import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader } from "@/shared/common/card";

@@ -20,14 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SecretCipherTest {
 
-    /**
-     * 이 테스트가 쓰는 건 {@code security} 하나뿐이다. 나머지는 자리를 채우기 위한 null 이라
-     * <b>AppProperties 에 항목이 늘 때마다 여기가 깨진다.</b> 그때는 null 을 하나 더 넣으면 된다.
-     */
+    /** 쓰는 것만 넘긴다 — AppProperties 에 항목이 늘어도 이 테스트는 안 깨진다. */
     private SecretCipher cipher(String key) {
-        return new SecretCipher(new AppProperties(
-                null, null, null, null, null, null, null, null, null, null,
-                new AppProperties.Security(key)));
+        return new SecretCipher(new AppProperties.Security(key));
     }
 
     @Test

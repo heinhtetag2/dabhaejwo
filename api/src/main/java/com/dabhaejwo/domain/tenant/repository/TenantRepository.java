@@ -14,6 +14,25 @@ import java.util.UUID;
 
 public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 
+    /**
+     * 오늘까지 청구할 업체.
+     *
+     * <p>{@code TRIAL} 은 제외한다 — 체험 중에는 받을 것이 없다. 정지·해지도 제외한다.
+     *
+     * <p>날짜가 <b>지난</b> 것도 집는다({@code <=}). 배치가 하루 멈췄다고 그 날 청구가
+     * 영영 사라지면 안 된다.
+     */
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT t FROM Tenant t
+            WHERE t.nextBillingDate IS NOT NULL
+              AND t.nextBillingDate <= :today
+              AND t.status = com.dabhaejwo.domain.tenant.entity.TenantStatus.ACTIVE
+            ORDER BY t.nextBillingDate ASC
+            """)
+    java.util.List<Tenant> findDueForBilling(
+            @org.springframework.data.repository.query.Param("today") java.time.LocalDate today,
+            org.springframework.data.domain.Limit limit);
+
     Optional<Tenant> findByPublishableKey(String publishableKey);
 
     /**
