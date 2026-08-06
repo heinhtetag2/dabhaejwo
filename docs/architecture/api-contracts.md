@@ -834,7 +834,22 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 
 `authKey` 는 **일회용**이다. 화면은 한 번만 보내고 주소창에서 즉시 지운다 —
 새로고침으로 다시 보내면 반드시 실패하는데, 그 실패가 "등록 실패"로 보이면 사용자는 멀쩡한데도 다시 시도한다.
-| POST | `/api/app/plan/upgrade-request` — 유료 전환 신청 → `tickets` 적재. **OWNER 전용** |
+| POST | `/api/app/plan/change` — 요금제 변경. **고르면 즉시 결제된다.** OWNER 전용 |
+| POST | `/api/app/plan/upgrade-request` — 협의 요금제 문의 → `tickets`. **OWNER 전용** |
+
+`plan/change` 는 언제 돈이 나가는지를 응답으로 밝힌다.
+
+```json
+{ "planName": "스타터", "charged": true, "amountKrw": 39000,
+  "receiptUrl": "https://...", "nextBillingDate": "2026-09-06" }
+```
+
+| 상황 | 동작 |
+|---|---|
+| 무료·체험 → 유료 | **지금 결제한다.** 결제가 성공해야 요금제가 바뀐다 — 실패했는데 요금제만 올라가면 돈은 안 받고 한도만 열어준 셈이다 |
+| 유료 → 유료 | **추가 청구 없음**(`charged: false`). 이번 달치는 이미 받았다. 다시 받으면 같은 달을 두 번 받는 것이고, 비례 배분은 "왜 이 금액이냐"는 문의를 매번 만든다. 새 금액은 다음 청구일부터 |
+| 카드 미등록 | `BILLING_KEY_MISSING`(400). 화면이 카드 등록으로 안내한다 |
+| 협의 요금제 | 400. 금액이 없어 자동 결제할 수 없다 — `upgrade-request` 로 간다 |
 
 ### 9-4. 홈 요약 · 챗봇 설정
 

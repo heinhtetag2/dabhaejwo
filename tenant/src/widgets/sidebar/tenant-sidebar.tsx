@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { useAppContextQuery } from "@/entities/auth/session";
 import { useBotSettingsQuery } from "@/entities/chatbot/bot-settings";
+import { useAllowedOriginsQuery } from "@/entities/tenant/allowed-origin";
 import { env } from "@/shared/config/env";
 import { LogoutButton } from "@/features/auth/logout";
 import { NAV_GROUPS, ROUTES } from "@/shared/config/routes";
@@ -14,6 +15,20 @@ export function TenantSidebar() {
   const pathname = usePathname();
   const { data } = useAppContextQuery();
   const { data: settings } = useBotSettingsQuery();
+  const { data: origins } = useAllowedOriginsQuery();
+
+  /**
+   * 위젯이 실제로 도는지. 초록 불은 **확인된 사실**일 때만 켠다.
+   *
+   * `lastCalledAt` 은 그 주소에서 위젯이 서버를 부른 적이 있다는 뜻이다 —
+   * 코드를 붙였는지 우리가 알 수 있는 유일한 신호다.
+   */
+  const called = (origins ?? []).some((origin) => origin.lastCalledAt !== null);
+  const widgetState = !settings?.widgetEnabled
+    ? { tone: "off" as const, label: "챗봇을 꺼둔 상태입니다" }
+    : called
+      ? { tone: "ok" as const, label: "사이트에서 작동 중" }
+      : { tone: "off" as const, label: "아직 설치가 확인되지 않았습니다" };
   const usage = data?.usage;
   const usedPercent =
     usage && usage.convLimit > 0
@@ -84,12 +99,26 @@ export function TenantSidebar() {
 
       <div className="border-t border-white/8 p-3.5">
         <div className="rounded-lg bg-white/5 px-3 py-[11px]">
+          {/*
+            전에는 무조건 "사이트에서 작동 중"이라고 찍었다. 아무것도 보지 않는 문구라,
+            설치가 안 됐거나 챗봇을 꺼둔 업체에게도 초록 불이 켜져 있었다 —
+            "작동 중이라는데 사이트엔 안 보인다"가 여기서 나온다.
+
+            판단 근거는 둘이다: 업체가 켜뒀는가(`widgetEnabled`), 그리고 등록한 주소로
+            실제 호출이 온 적이 있는가(`lastCalledAt`). 색만으로 구분하지 않고
+            문구를 함께 바꾼다 (WCAG 2.1 AA).
+          */}
           <div className="flex items-center gap-[7px] text-[12.5px] text-[#dde6eb]">
             <span
               aria-hidden
-              className="size-[7px] rounded-full bg-[#3fd9a8] shadow-[0_0_0_3px_rgba(63,217,168,0.18)]"
+              className={cn(
+                "size-[7px] rounded-full",
+                widgetState.tone === "ok"
+                  ? "bg-[#3fd9a8] shadow-[0_0_0_3px_rgba(63,217,168,0.18)]"
+                  : "bg-[#8b9aa6]",
+              )}
             />
-            사이트에서 작동 중
+            {widgetState.label}
           </div>
           {/* 한도는 색만으로 알리지 않는다 — 숫자를 함께 적는다 (WCAG 2.1 AA) */}
           <div className="mt-2.5 h-1 overflow-hidden rounded-[3px] bg-white/12">

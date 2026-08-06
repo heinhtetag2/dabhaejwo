@@ -65,6 +65,35 @@ export const planKeys = {
  * 유료 전환 신청. PG 연동 전까지 문의로 접수된다 (tenant-public-plan.md §5.2).
  * 결제가 일어나지 않으므로 성공해도 요금제가 바뀌지 않는다 — 화면이 그 사실을 알린다.
  */
+/**
+ * 요금제 변경 — <b>고르면 즉시 결제된다.</b>
+ *
+ * 무료·체험에서 올라올 때만 지금 돈이 나간다. 유료끼리는 요금제만 바뀌고
+ * 새 금액은 다음 청구일부터다 — 이번 달치를 두 번 받지 않기 위해서다.
+ */
+export function usePlanChange() {
+  const queryClient = useQueryClient();
+  return useMutation<PlanChangeResult, unknown, string>({
+    mutationFn: (planCode: string) =>
+      api<PlanChangeResult>("/api/app/plan/change", { method: "POST", body: { planCode } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: planKeys.overview });
+      void queryClient.invalidateQueries({ queryKey: ["billing"] });
+      // 요금제가 바뀌면 사이드바의 한도 표시도 달라진다.
+      void queryClient.invalidateQueries({ queryKey: ["session"] });
+    },
+  });
+}
+
+export interface PlanChangeResult {
+  planName: string;
+  /** true 면 이번에 실제로 돈이 나갔다. 화면이 문구를 갈라 써야 한다. */
+  charged: boolean;
+  amountKrw: number;
+  receiptUrl: string | null;
+  nextBillingDate: string | null;
+}
+
 export function useUpgradeRequest() {
   const queryClient = useQueryClient();
   return useMutation({

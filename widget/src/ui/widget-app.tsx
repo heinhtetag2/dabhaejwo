@@ -350,7 +350,10 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
           {launcherImageUrl ? (
             // alt 를 비운다. 옆의 aria-label 이 이미 "채팅 열기"라고 말하므로
             // 로고 이름까지 읽으면 스크린리더가 같은 버튼을 두 번 설명하게 된다.
-            <img src={launcherImageUrl} alt="" />
+            // **API 기준으로 절대 경로를 만든다.** 서버는 `/api/public/assets/...` 라는
+            // 상대 경로를 준다. 그대로 넣으면 브라우저가 <b>호스트 사이트</b> 기준으로
+            // 풀어서 `업체도메인/api/public/...` 을 찾고 404 가 난다 — 우리 도메인이 아니다.
+            <img src={new URL(launcherImageUrl, config.apiBaseUrl).toString()} alt="" />
           ) : (
             <LauncherIcon />
           )}

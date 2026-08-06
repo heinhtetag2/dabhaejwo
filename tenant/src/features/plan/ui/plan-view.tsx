@@ -4,8 +4,8 @@ import { useState } from "react";
 
 import {
   BILLING_STATUS_LABEL,
+  usePlanChange,
   usePlanOverviewQuery,
-  useUpgradeRequest,
   type BillingStatus,
 } from "@/entities/tenant/plan";
 import { ApiError } from "@/shared/api/http-client";
@@ -18,6 +18,7 @@ import { StatusBadge, type Tone } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
 import { BillingMethodCard } from "./billing-method-card";
 import { BillingReturn } from "./billing-return";
+import { useBillingMethodQuery } from "@/entities/tenant/billing";
 
 const TONE: Record<BillingStatus, Tone> = {
   PAID: "ok",
@@ -89,11 +90,11 @@ export function PlanView() {
               </Notice>
             ) : null}
 
-            <UpgradeRequest currentPlanCode={data.plan.id} />
+            <PlanChange currentPlanCode={data.plan.id} currentIsFree={data.plan.monthlyFee <= 0} />
 
             <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">
-              카드를 등록해 두시면 매달 자동으로 결제됩니다. 세금계산서가 필요하시면
-              신청할 때 함께 알려주세요.
+              요금제를 바꾸면 등록된 카드로 바로 결제되고, 이후 매달 같은 날짜에 자동으로
+              결제됩니다. 세금계산서가 필요하시면 문의로 남겨 주세요.
             </p>
           </CardBody>
         </Card>
@@ -133,12 +134,18 @@ export function PlanView() {
  * <p>요금제 목록은 <b>공개 엔드포인트</b>에서 읽는다 — 소개 페이지와 같은 목록을 보여줘야
  * "봤던 요금제가 여기 없다"는 일이 안 생긴다.
  */
-function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
+function PlanChange({
+  currentPlanCode,
+  currentIsFree,
+}: {
+  currentPlanCode: string;
+  currentIsFree: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [plans, setPlans] = useState<PublicPlanOption[] | null>(null);
   const [planCode, setPlanCode] = useState("");
-  const [note, setNote] = useState("");
-  const request = useUpgradeRequest();
+  const change = usePlanChange();
+  const method = useBillingMethodQuery();
 
   const load = () => {
     setOpen(true);
@@ -148,6 +155,7 @@ function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
     void fetch(new URL("/api/public/plans", env.apiBaseUrl))
       .then((response) => (response.ok ? response.json() : []))
       .then((rows: PublicPlanOption[]) => {
+        // 협의 요금제는 금액이 없어 자동 결제할 수 없다. 체험은 되돌아갈 수 없다.
         const sellable = rows.filter((row) => !row.negotiable && row.code !== "TRIAL");
         setPlans(sellable);
         setPlanCode(sellable[0]?.code ?? "");
@@ -155,29 +163,48 @@ function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
       .catch(() => setPlans([]));
   };
 
-  if (request.isSuccess) {
+  if (change.isSuccess) {
     return (
       <Notice tone="info" className="mt-4.5">
-        신청을 접수했습니다. 1영업일 안에 담당자가 연락드립니다. 그때까지 요금제는 그대로입니다.
+        {change.data.charged
+          ? `${change.data.planName} 요금제로 바꾸고 ${change.data.amountKrw.toLocaleString()}원이 결제되었습니다.`
+          : `${change.data.planName} 요금제로 바꿨습니다. 새 금액은 다음 청구일부터 적용됩니다.`}
+        {change.data.receiptUrl ? (
+          <>
+            {" "}
+            <a
+              href={change.data.receiptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              영수증 보기
+            </a>
+          </>
+        ) : null}
       </Notice>
     );
   }
 
+  const cardMissing = method.data?.registered === false;
+
   if (!open) {
     return (
       <Button variant="accent" size="sm" className="mt-4.5" onClick={load}>
-        요금제 변경 신청
+        요금제 변경
       </Button>
     );
   }
 
+  const selected = (plans ?? []).find((plan) => plan.code === planCode);
+
   return (
     <div className="mt-4.5 rounded-[7px] border border-line bg-paper p-3.5">
-      <label htmlFor="upgrade-plan" className="mb-1.5 block text-[12.5px] font-medium">
-        원하는 요금제
+      <label htmlFor="plan-change" className="mb-1.5 block text-[12.5px] font-medium">
+        바꿀 요금제
       </label>
       <select
-        id="upgrade-plan"
+        id="plan-change"
         value={planCode}
         onChange={(event) => setPlanCode(event.target.value)}
         className={controlClass("sm")}
@@ -189,21 +216,24 @@ function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
         ))}
       </select>
 
-      <label htmlFor="upgrade-note" className="mt-3 mb-1.5 block text-[12.5px] font-medium">
-        남길 말 (선택)
-      </label>
-      <textarea
-        id="upgrade-note"
-        rows={2}
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        placeholder="연락 가능한 시간, 세금계산서 필요 여부 등"
-        className={controlClass("sm", "resize-y")}
-      />
+      {/* 누르기 전에 얼마가 나가는지 알려준다. 눌렀더니 결제됐다는 상황을 만들지 않는다. */}
+      {selected ? (
+        <p className="mt-2.5 text-[12px] leading-relaxed text-slate">
+          {currentIsFree
+            ? `지금 ${selected.monthlyFee.toLocaleString()}원이 결제되고, 매달 오늘 날짜에 자동으로 결제됩니다.`
+            : "이번 달은 이미 결제되어 추가로 청구되지 않습니다. 새 금액은 다음 청구일부터 적용됩니다."}
+        </p>
+      ) : null}
 
-      {request.isError ? (
+      {cardMissing ? (
+        <Notice tone="warn" className="mt-3">
+          카드를 먼저 등록해 주세요. 오른쪽 결제수단에서 등록할 수 있습니다.
+        </Notice>
+      ) : null}
+
+      {change.isError ? (
         <Notice tone="error" className="mt-3">
-          {request.error instanceof ApiError ? request.error.message : "신청하지 못했습니다"}
+          {change.error instanceof ApiError ? change.error.message : "요금제를 바꾸지 못했습니다"}
         </Notice>
       ) : null}
 
@@ -211,17 +241,22 @@ function UpgradeRequest({ currentPlanCode }: { currentPlanCode: string }) {
         <Button
           variant="accent"
           size="sm"
-          disabled={planCode.length === 0 || request.isPending}
-          onClick={() => request.mutate({ planCode, note: note.trim() || undefined })}
+          disabled={planCode.length === 0 || cardMissing || change.isPending}
+          onClick={() => change.mutate(planCode)}
         >
-          {request.isPending ? "보내는 중…" : "신청"}
+          {change.isPending
+            ? "결제하는 중…"
+            : currentIsFree
+              ? "결제하고 바꾸기"
+              : "요금제 바꾸기"}
         </Button>
         <Button size="sm" onClick={() => setOpen(false)}>
           취소
         </Button>
       </div>
       <p className="mt-2 text-[11px] text-slate-2">
-        신청만 접수됩니다. 결제는 담당자 안내 후 진행됩니다. (현재 요금제 id {currentPlanCode.slice(0, 8)})
+        협의가 필요한 기업 요금제는 문의로 남겨 주세요. (현재 요금제 id{" "}
+        {currentPlanCode.slice(0, 8)})
       </p>
     </div>
   );

@@ -1,6 +1,8 @@
 package com.dabhaejwo.domain.member.controller;
 
 import com.dabhaejwo.domain.billing.dto.request.UpgradeRequestBody;
+import com.dabhaejwo.domain.billing.dto.response.PlanChangeResponse;
+import com.dabhaejwo.domain.billing.service.PlanChangeService;
 import com.dabhaejwo.domain.billing.dto.response.PlanOverviewResponse;
 import com.dabhaejwo.domain.billing.service.PlanOverviewService;
 import com.dabhaejwo.domain.impersonation.dto.response.ImpersonationHistoryResponse;
@@ -32,13 +34,16 @@ public class MemberController {
 
     private final MemberService memberService;
     private final PlanOverviewService planOverviewService;
+    private final PlanChangeService planChangeService;
     private final ImpersonationSessionRepository sessionRepository;
 
     public MemberController(MemberService memberService,
                             PlanOverviewService planOverviewService,
+                            PlanChangeService planChangeService,
                             ImpersonationSessionRepository sessionRepository) {
         this.memberService = memberService;
         this.planOverviewService = planOverviewService;
+        this.planChangeService = planChangeService;
         this.sessionRepository = sessionRepository;
     }
 
@@ -48,6 +53,17 @@ public class MemberController {
     }
 
     /** 유료 전환 신청. PG 연동 전까지 문의로 접수된다 (tenant-public-plan.md §5.2). */
+    /**
+     * 요금제 변경 — <b>고르면 즉시 결제된다.</b>
+     *
+     * <p>카드가 없으면 {@code BILLING_KEY_MISSING}(400) 이다. 화면은 그때 카드 등록으로 안내한다.
+     * 협의 요금제는 금액이 없어 자동 결제할 수 없으므로 아래 문의 경로로 간다.
+     */
+    @PostMapping("/plan/change")
+    public PlanChangeResponse changePlan(@Valid @RequestBody UpgradeRequestBody request) {
+        return planChangeService.change(request.planCode());
+    }
+
     @PostMapping("/plan/upgrade-request")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void requestUpgrade(@Valid @RequestBody UpgradeRequestBody request) {

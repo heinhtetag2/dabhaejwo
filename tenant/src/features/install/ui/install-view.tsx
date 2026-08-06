@@ -132,6 +132,20 @@ export function InstallView() {
             <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">
               이 키는 공개돼도 괜찮습니다. 아래에 등록한 주소에서만 작동하기 때문입니다.
             </p>
+
+            {/*
+              가장 흔한 이탈 지점이다. 등록되지 않은 주소에서는 위젯이 **아무것도 그리지 않고
+              사라진다** — 남의 사이트에 우리 오류를 그리지 않기 위해서다. 그래서 업체 눈에는
+              "코드를 붙였는데 안 뜬다"로만 보이고, 원인이 화면 어디에도 없었다.
+            */}
+            {connected ? null : (
+              <Notice tone="info" className="mt-3">
+                <b>코드를 붙였는데 안 보이나요?</b> 주소가 아래 목록과 정확히 같아야 합니다 —{" "}
+                <code className="font-mono">www.</code> 가 붙은 주소는 <b>별도로 등록</b>해야
+                하고, 하위 도메인도 각각 등록해야 합니다. 등록되지 않은 주소에서는 챗봇이
+                오류 없이 그냥 나타나지 않습니다.
+              </Notice>
+            )}
           </CardBody>
         </Card>
 
