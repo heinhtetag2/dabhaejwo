@@ -30,9 +30,11 @@ import { SIGNUP_TEXT } from "./signup-content";
 export function SignupForm({
   language,
   onSuccess,
+  onSwitchToLogin,
 }: {
   language: Language;
   onSuccess: () => void;
+  onSwitchToLogin?: () => void;
 }) {
   const t = SIGNUP_TEXT[language];
   const signup = useSignupMutation();
@@ -157,9 +159,19 @@ export function SignupForm({
 
       <p className="mt-7 text-center text-[14px] text-slate">
         {t.hasAccount}{" "}
-        <Link href={ROUTES.login} className="font-semibold text-ink underline underline-offset-2">
-          {t.logIn}
-        </Link>
+        {onSwitchToLogin ? (
+          <button
+            type="button"
+            onClick={onSwitchToLogin}
+            className="font-semibold text-ink underline underline-offset-2"
+          >
+            {t.logIn}
+          </button>
+        ) : (
+          <Link href={ROUTES.login} className="font-semibold text-ink underline underline-offset-2">
+            {t.logIn}
+          </Link>
+        )}
       </p>
     </>
   );

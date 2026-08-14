@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/shared/common/modal";
 import { ROUTES } from "@/shared/config/routes";
 import type { Language } from "@/shared/lib/language";
+import { useLoginModalStore } from "@/shared/lib/login-modal-store";
 import { useSignupModalStore } from "@/shared/lib/signup-modal-store";
 
 import { SIGNUP_TEXT } from "./signup-content";
@@ -22,10 +23,20 @@ export function SignupModal({ language }: { language: Language }) {
   const router = useRouter();
   const isOpen = useSignupModalStore((state) => state.isOpen);
   const close = useSignupModalStore((state) => state.close);
+  const openLogin = useLoginModalStore((state) => state.open);
+
+  function switchToLogin() {
+    close();
+    openLogin();
+  }
 
   return (
     <Modal open={isOpen} onOpenChange={(open) => (open ? undefined : close())} title={t.title}>
-      <SignupForm language={language} onSuccess={() => router.replace(ROUTES.home)} />
+      <SignupForm
+        language={language}
+        onSuccess={() => router.replace(ROUTES.home)}
+        onSwitchToLogin={switchToLogin}
+      />
     </Modal>
   );
 }

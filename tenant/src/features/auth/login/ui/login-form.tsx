@@ -32,9 +32,11 @@ const PRIMARY_BUTTON_CLASS =
 export function LoginPasswordForm({
   language,
   onIssued,
+  onSwitchToSignup,
 }: {
   language: Language;
   onIssued: (challenge: OtpChallenge) => void;
+  onSwitchToSignup?: () => void;
 }) {
   const t = LOGIN_TEXT[language];
   const router = useRouter();
@@ -117,9 +119,19 @@ export function LoginPasswordForm({
       </p>
       <p className="mt-7 text-center text-[14px] text-slate">
         {t.noAccount}{" "}
-        <Link href={ROUTES.signup} className="font-semibold text-ink underline underline-offset-2">
-          {t.startFree}
-        </Link>
+        {onSwitchToSignup ? (
+          <button
+            type="button"
+            onClick={onSwitchToSignup}
+            className="font-semibold text-ink underline underline-offset-2"
+          >
+            {t.startFree}
+          </button>
+        ) : (
+          <Link href={ROUTES.signup} className="font-semibold text-ink underline underline-offset-2">
+            {t.startFree}
+          </Link>
+        )}
       </p>
       <p className="mt-2.5 text-center text-[13px] leading-relaxed text-slate-2">{t.invitedNote}</p>
     </>

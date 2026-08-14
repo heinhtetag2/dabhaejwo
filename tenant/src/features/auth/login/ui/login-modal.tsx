@@ -8,6 +8,7 @@ import { Modal } from "@/shared/common/modal";
 import { ROUTES } from "@/shared/config/routes";
 import type { Language } from "@/shared/lib/language";
 import { useLoginModalStore } from "@/shared/lib/login-modal-store";
+import { useSignupModalStore } from "@/shared/lib/signup-modal-store";
 
 import { LOGIN_TEXT } from "./login-content";
 import { LoginOtpForm, LoginPasswordForm } from "./login-form";
@@ -29,7 +30,14 @@ export function LoginModal({ language }: { language: Language }) {
   const router = useRouter();
   const isOpen = useLoginModalStore((state) => state.isOpen);
   const close = useLoginModalStore((state) => state.close);
+  const openSignup = useSignupModalStore((state) => state.open);
   const [challenge, setChallenge] = useState<OtpChallenge | null>(null);
+
+  function switchToSignup() {
+    close();
+    setChallenge(null);
+    openSignup();
+  }
 
   function handleOpenChange(open: boolean) {
     if (open) return;
@@ -56,7 +64,7 @@ export function LoginModal({ language }: { language: Language }) {
       ) : (
         <>
           <p className="text-[15.5px] leading-[1.7] text-slate">{t.subtitle}</p>
-          <LoginPasswordForm language={language} onIssued={setChallenge} />
+          <LoginPasswordForm language={language} onIssued={setChallenge} onSwitchToSignup={switchToSignup} />
         </>
       )}
     </Modal>
