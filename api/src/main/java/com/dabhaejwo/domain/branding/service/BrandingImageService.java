@@ -7,6 +7,8 @@ import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.CurrentAuth;
 import com.dabhaejwo.global.storage.FileStorage;
+import com.dabhaejwo.domain.bot.service.BotContext;
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,15 +46,18 @@ public class BrandingImageService {
     }
 
     private final BotSettingsRepository settingsRepository;
+    private final BotContext botContext;
     private final TenantRepository tenantRepository;
     private final FileStorage fileStorage;
 
     public BrandingImageService(BotSettingsRepository settingsRepository,
                                 TenantRepository tenantRepository,
-                                FileStorage fileStorage) {
+                                FileStorage fileStorage,
+                                 BotContext botContext) {
         this.settingsRepository = settingsRepository;
         this.tenantRepository = tenantRepository;
         this.fileStorage = fileStorage;
+        this.botContext = botContext;
     }
 
     /** @return 저장된 이미지의 공개 경로 */
@@ -84,9 +89,10 @@ public class BrandingImageService {
     }
 
     private void apply(UUID tenantId, Kind kind, String url) {
-        BotSettings settings = settingsRepository.findById(tenantId)
+        BotScope scope = botContext.scope();
+        BotSettings settings = settingsRepository.findByBotId(scope.botId())
                 .orElseGet(() -> settingsRepository.save(BotSettings.defaults(
-                        tenantId,
+                        scope,
                         tenantRepository.findById(tenantId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.TENANT_NOT_FOUND))
                                 .getName())));

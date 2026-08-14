@@ -19,7 +19,7 @@ import java.util.Map;
  * 멀티파트다. 한 엔드포인트에 섞으면 설정 한 줄을 고칠 때마다 이미지를 다시 올려야 한다.
  */
 @RestController
-@RequestMapping("/api/app/appearance")
+@RequestMapping("/api/app/bots/{botId}/appearance")
 public class BrandingAppController {
 
     private final BrandingImageService service;
