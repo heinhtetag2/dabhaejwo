@@ -240,7 +240,7 @@ access token 은 **메모리에만** 보관한다 (`kickoff-prompt.md` §1.3). l
   "id": "a8f3...",
   "name": "노르드하임 가구",
   "primaryDomain": "nordheim.co.kr",
-  "publishableKey": "pk_live_a8f3k2m9x7q1",
+
   "status": "ACTIVE",
   "currency": "KRW",
   "plan": { "id": "p2...", "name": "비즈니스", "monthlyFee": 89000 },
@@ -707,6 +707,41 @@ DB 트리거가 `UPDATE`/`DELETE` 자체를 막고 있다 — 앱이 뚫려도 �
 
 ## 9. 업체 대시보드 (`/api/app`)
 
+### 9-Bot. 서비스 — 화면은 "서비스", 코드·API 는 `bot`
+
+한 업체가 챗봇을 여럿 운영한다. **이름이 갈리는 것은 의도다** — `domain/{도메인}/service/` 가
+레이어 관례라 도메인을 `service` 로 만들면 `domain/service/service/ServiceService` 가 나온다.
+이 프로젝트는 원래 화면 용어와 스키마 용어가 다르다(`leads` → "남긴 연락처").
+
+```
+GET    /api/app/bots            → [ Bot ]
+POST   /api/app/bots            { name, primaryDomain } → Bot (201)   OWNER
+GET    /api/app/bots/{botId}    → Bot
+PATCH  /api/app/bots/{botId}    { name, primaryDomain } → Bot          OWNER·EDITOR
+
+/api/app/bots/{botId}/{리소스}   ← 홈·지식·공통질문·대화·연락처·개선·설정·허용주소·미리보기
+/api/app/{리소스}                ← me · plan · members · billing · notifications (업체 단위)
+```
+
+```jsonc
+{
+  "id": "b1…", "name": "쇼핑몰", "primaryDomain": "shop.example.com",
+  "publishableKey": "pk_live_a8f3k2m9x7q1",   // 설치 스니펫에 들어간다. 서비스마다 다르다
+  "status": "ACTIVE",                          // ACTIVE | PAUSED | DELETING
+  "defaultBot": true,                          // 서비스를 지목하지 않는 옛 경로의 착지점
+  "lastCalledAt": null,                        // null 이면 설치가 확인되지 않았다
+  "createdAt": "2026-08-13T05:49:36Z"
+}
+```
+
+- **범위는 경로에 둔다.** 헤더·쿼리는 빼먹을 수 있고, 빼먹으면 기본 서비스로 조용히 떨어진다 — 이 프로젝트가 반복해서 당한 사고가 그 종류다. 경로면 빠질 수가 없고 접근 로그만으로 어느 서비스 요청인지 안다
+- **남의 업체 `botId` 는 404** 다(`BOT_NOT_FOUND`). 403 으로 주면 "그 id 는 존재한다"를 알려주는 셈이라 id 를 훑어 남의 서비스를 알아낼 수 있다
+- **상한 초과는 409 `BOT_LIMIT_REACHED`** 다. `QUOTA_EXCEEDED`(429)를 재사용하지 않는다 — 429 는 "기다리면 풀린다"는 뜻인데 이건 기다려도 안 풀리고, 화면이 안내할 다음 행동(요금제 변경)이 다르다
+- **한도(대화·문서·원가)는 서비스가 여럿이어도 업체 합산이다.** 계약의 단위가 업체다. 화면은 범위를 밝혀야 한다 — "이 서비스 40 / 업체 전체 248 / 한도 500"
+- 대표 도메인 변경이 **허용 주소를 건드리지 않는다.** 위젯이 실제로 도는 주소는 허용 목록이 정하므로, 같이 바꾸면 이름만 고쳤는데 위젯이 죽는다
+- **`/api/widget/**` 계약은 한 글자도 바뀌지 않았다.** 키 하나가 서비스를 정하므로 남의 사이트에 이미 박힌 스니펫이 그대로 동작한다
+
+
 ### 9-0. 로그인과 컨텍스트
 
 ```json
@@ -728,7 +763,7 @@ GET  /api/app/me           → { member, tenant, usage, impersonation }
 {
   "member": { "id": "m1...", "name": "정OO", "role": "OWNER" },
   "tenant": { "id": "a8f3...", "name": "노르드하임 가구", "primaryDomain": "nordheim.co.kr",
-              "publishableKey": "pk_live_a8f3k2m9x7q1", "status": "ACTIVE",
+             "status": "ACTIVE",
               "plan": { "id": "p2...", "name": "비즈니스", "monthlyFee": 89000 } },
   "usage": { "convCount": 1142, "convLimit": 3000, "docCount": 248, "docLimit": 500 },
   "impersonation": null
