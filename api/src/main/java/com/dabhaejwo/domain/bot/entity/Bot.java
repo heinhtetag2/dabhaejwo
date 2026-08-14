@@ -107,6 +107,43 @@ public class Bot {
         return new BotScope(tenantId, id);
     }
 
+    /**
+     * 삭제 예약.
+     *
+     * <p><b>위젯은 즉시 멈추고 데이터는 유예 기간 뒤에 지운다.</b> 바로 지우면 실수로 누른
+     * 업체를 되살릴 수 없다 — 지식·대화·연락처가 함께 사라지는 행위다.
+     */
+    public void scheduleDeletion(int graceDays) {
+        this.status = BotStatus.DELETING;
+        this.deletedAt = OffsetDateTime.now();
+        this.purgeAfter = this.deletedAt.plusDays(graceDays);
+        touch();
+    }
+
+    /** 유예 중 되돌리기. 아직 아무것도 지워지지 않았으므로 그대로 살아난다. */
+    public void restore() {
+        this.status = BotStatus.ACTIVE;
+        this.deletedAt = null;
+        this.purgeAfter = null;
+        touch();
+    }
+
+    /** 유예가 끝났는가. 지날 때까지는 되돌릴 수 있다. */
+    public boolean purgeDue(OffsetDateTime now) {
+        return status == BotStatus.DELETING && purgeAfter != null && !purgeAfter.isAfter(now);
+    }
+
+    /**
+     * 기본 서비스 자리를 넘긴다.
+     *
+     * <p>기본 서비스를 지우려면 먼저 다른 것이 그 자리를 받아야 한다 — 옛 경로
+     * ({@code /app/leads})와 대리 접속이 착지할 곳이 없어지면 안 된다.
+     */
+    public void makeDefault(boolean value) {
+        this.isDefault = value;
+        touch();
+    }
+
     public void rename(String name, String primaryDomain) {
         this.name = name.strip();
         this.primaryDomain = HostName.normalize(primaryDomain);
@@ -147,6 +184,10 @@ public class Bot {
 
     public OffsetDateTime getDeletedAt() {
         return deletedAt;
+    }
+
+    public OffsetDateTime getPurgeAfter() {
+        return purgeAfter;
     }
 
     public OffsetDateTime getCreatedAt() {

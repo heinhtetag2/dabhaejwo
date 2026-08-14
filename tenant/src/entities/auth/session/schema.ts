@@ -65,6 +65,9 @@ export const botSchema = z.object({
   status: botStatusSchema,
   defaultBot: z.boolean(),
   lastCalledAt: z.string().nullable(),
+  /** DELETING 일 때만 채워진다. 남은 날짜는 `purgeAfter` 로 센다 — 화면이 유예 일수를 몰라도 된다. */
+  deletedAt: z.string().nullable(),
+  purgeAfter: z.string().nullable(),
   createdAt: z.string(),
 });
 

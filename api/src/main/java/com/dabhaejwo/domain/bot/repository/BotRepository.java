@@ -28,6 +28,9 @@ public interface BotRepository extends JpaRepository<Bot, UUID> {
      */
     Optional<Bot> findFirstByTenantIdAndIsDefaultTrue(UUID tenantId);
 
+    /** purge 워커가 유예 끝난 것을 찾는다. */
+    List<Bot> findAllByStatus(com.dabhaejwo.domain.bot.entity.BotStatus status);
+
     /** 요금제 상한 검사용. 삭제 유예 중인 것도 센다 — 지우자마자 새로 만들어 우회하지 못하게. */
     long countByTenantId(UUID tenantId);
 }

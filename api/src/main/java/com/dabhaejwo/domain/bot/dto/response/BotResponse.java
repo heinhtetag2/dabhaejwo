@@ -15,6 +15,9 @@ import java.util.UUID;
  * @param publishableKey 설치 스니펫에 들어가는 값. <b>서비스마다 다르다</b>
  * @param lastCalledAt   위젯이 실제로 호출한 시각. null 이면 아직 설치가 확인되지 않았다 —
  *                       화면은 이걸로 "작동 중"을 판정한다
+ * @param purgeAfter     이 시각이 지나면 되돌릴 수 없다. <b>남은 날짜를 화면이 말하려면
+ *                       서버가 이 값을 줘야 한다</b> — 유예 일수는 안전장치 설정이라
+ *                       화면이 계산하면 설정을 바꾼 날부터 둘이 어긋난다
  */
 public record BotResponse(
         UUID id,
@@ -24,11 +27,13 @@ public record BotResponse(
         BotStatus status,
         boolean defaultBot,
         OffsetDateTime lastCalledAt,
+        OffsetDateTime deletedAt,
+        OffsetDateTime purgeAfter,
         OffsetDateTime createdAt) {
 
     public static BotResponse from(Bot bot, OffsetDateTime lastCalledAt) {
         return new BotResponse(bot.getId(), bot.getName(), bot.getPrimaryDomain(),
                 bot.getPublishableKey(), bot.getStatus(), bot.isDefault(),
-                lastCalledAt, bot.getCreatedAt());
+                lastCalledAt, bot.getDeletedAt(), bot.getPurgeAfter(), bot.getCreatedAt());
     }
 }

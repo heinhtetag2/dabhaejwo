@@ -718,6 +718,8 @@ GET    /api/app/bots            → [ Bot ]
 POST   /api/app/bots            { name, primaryDomain } → Bot (201)   OWNER
 GET    /api/app/bots/{botId}    → Bot
 PATCH  /api/app/bots/{botId}    { name, primaryDomain } → Bot          OWNER·EDITOR
+DELETE /api/app/bots/{botId}    → 204 (유예 후 파기)                    OWNER
+POST   /api/app/bots/{botId}/restore → Bot                             OWNER
 
 /api/app/bots/{botId}/{리소스}   ← 홈·지식·공통질문·대화·연락처·개선·설정·허용주소·미리보기
 /api/app/{리소스}                ← me · plan · members · billing · notifications (업체 단위)
@@ -730,6 +732,8 @@ PATCH  /api/app/bots/{botId}    { name, primaryDomain } → Bot          OWNER·
   "status": "ACTIVE",                          // ACTIVE | PAUSED | DELETING
   "defaultBot": true,                          // 서비스를 지목하지 않는 옛 경로의 착지점
   "lastCalledAt": null,                        // null 이면 설치가 확인되지 않았다
+  "deletedAt": null,                           // DELETING 일 때만 채워진다
+  "purgeAfter": null,                          // 이 시각이 지나면 되돌릴 수 없다
   "createdAt": "2026-08-13T05:49:36Z"
 }
 ```

@@ -43,6 +43,10 @@ export interface Bot {
   defaultBot: boolean;
   /** null 이면 위젯이 아직 한 번도 호출되지 않았다 — 설치가 확인되지 않았다는 뜻이다. */
   lastCalledAt: string | null;
+  /** `DELETING` 일 때만 채워진다. */
+  deletedAt: string | null;
+  /** 이 시각이 지나면 되돌릴 수 없다. 남은 날짜는 화면이 아니라 이 값이 정한다. */
+  purgeAfter: string | null;
   createdAt: string;
 }
 

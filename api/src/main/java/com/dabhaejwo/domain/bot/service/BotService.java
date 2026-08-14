@@ -3,6 +3,7 @@ package com.dabhaejwo.domain.bot.service;
 import com.dabhaejwo.domain.bot.dto.request.BotSaveRequest;
 import com.dabhaejwo.domain.bot.dto.response.BotResponse;
 import com.dabhaejwo.domain.bot.entity.Bot;
+import com.dabhaejwo.domain.bot.entity.BotStatus;
 import com.dabhaejwo.domain.bot.repository.BotRepository;
 import com.dabhaejwo.domain.plan.entity.Plan;
 import com.dabhaejwo.domain.plan.repository.PlanRepository;
@@ -39,17 +40,20 @@ public class BotService {
     private final TenantRepository tenantRepository;
     private final PlanRepository planRepository;
     private final AllowedOriginRepository originRepository;
+    private final com.dabhaejwo.domain.guard.repository.CostGuardRepository guardRepository;
 
     public BotService(BotRepository botRepository,
                       BotProvisioner provisioner,
                       TenantRepository tenantRepository,
                       PlanRepository planRepository,
-                      AllowedOriginRepository originRepository) {
+                      AllowedOriginRepository originRepository,
+                      com.dabhaejwo.domain.guard.repository.CostGuardRepository guardRepository) {
         this.botRepository = botRepository;
         this.provisioner = provisioner;
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
         this.originRepository = originRepository;
+        this.guardRepository = guardRepository;
     }
 
     /**
@@ -120,6 +124,60 @@ public class BotService {
         Bot bot = find(botId);
         requireUniqueName(bot.getTenantId(), request.name().strip(), botId);
         bot.rename(request.name(), requireHost(request.primaryDomain()));
+        return BotResponse.from(bot, lastCalledByBot(List.of(bot)).get(bot.getId()));
+    }
+
+    /**
+     * 서비스 삭제 예약.
+     *
+     * <p><b>마지막 서비스는 지울 수 없다.</b> 지우면 업체는 챗봇이 하나도 없는 상태가 되고
+     * 사이드바 아홉 항목이 전부 갈 곳을 잃는다 — 허용 주소의 "마지막 주소는 지울 수
+     * 없습니다"와 같은 원리다.
+     *
+     * <p>기본 서비스를 지우려면 남은 것 중 하나가 그 자리를 받는다. 옛 경로와 대리 접속이
+     * 착지할 곳이 없어지면 안 된다.
+     *
+     * <p>대리 접속 중에는 막는다 — 운영자가 남의 서비스를 통째로 지우는 일은 없어야 한다.
+     */
+    @Transactional
+    public void delete(UUID botId) {
+        CurrentAuth.requireOwner();
+        CurrentAuth.rejectIfImpersonating();
+
+        UUID tenantId = CurrentAuth.tenantUser().tenantId();
+        List<Bot> alive = botRepository.findAllByTenantIdOrderByCreatedAtAsc(tenantId).stream()
+                .filter(bot -> bot.getStatus() != BotStatus.DELETING)
+                .toList();
+        if (alive.size() <= 1) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "마지막 서비스는 지울 수 없습니다. 지우면 챗봇이 어디에서도 뜨지 않습니다");
+        }
+
+        Bot target = find(botId);
+        if (target.getStatus() == BotStatus.DELETING) {
+            return;
+        }
+        if (target.isDefault()) {
+            // 기본 자리를 먼저 넘긴다. 넘기지 않으면 옛 경로가 착지할 곳을 잃는다.
+            Bot heir = alive.stream().filter(bot -> !bot.getId().equals(botId)).findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_FAILED));
+            target.makeDefault(false);
+            heir.makeDefault(true);
+        }
+        target.scheduleDeletion(guardRepository.current().getChurnPurgeGraceDays());
+    }
+
+    /** 유예 중 되돌리기. 아직 아무것도 지워지지 않았으므로 그대로 살아난다. */
+    @Transactional
+    public BotResponse restore(UUID botId) {
+        CurrentAuth.requireOwner();
+        CurrentAuth.rejectIfImpersonating();
+
+        Bot bot = find(botId);
+        if (bot.getStatus() != BotStatus.DELETING) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "삭제 예정이 아닌 서비스입니다");
+        }
+        bot.restore();
         return BotResponse.from(bot, lastCalledByBot(List.of(bot)).get(bot.getId()));
     }
 

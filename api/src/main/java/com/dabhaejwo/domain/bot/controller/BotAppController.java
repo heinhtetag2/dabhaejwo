@@ -5,6 +5,7 @@ import com.dabhaejwo.domain.bot.dto.response.BotResponse;
 import com.dabhaejwo.domain.bot.service.BotService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,6 +54,23 @@ public class BotAppController {
     @GetMapping("/{botId}")
     public BotResponse get(@PathVariable UUID botId) {
         return botService.get(botId);
+    }
+
+    /**
+     * 삭제 예약. 위젯은 즉시 멈추고 데이터는 유예 기간 뒤에 지운다.
+     *
+     * <p>{@code 204} 다 — 지워진 것을 돌려줄 이유가 없다.
+     */
+    @DeleteMapping("/{botId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID botId) {
+        botService.delete(botId);
+    }
+
+    /** 유예 중 되돌리기. */
+    @PostMapping("/{botId}/restore")
+    public BotResponse restore(@PathVariable UUID botId) {
+        return botService.restore(botId);
     }
 
     @PatchMapping("/{botId}")

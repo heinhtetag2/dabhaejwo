@@ -55,3 +55,31 @@ export function useUpdateBot() {
     },
   });
 }
+
+/**
+ * 서비스 삭제 예약.
+ *
+ * 위젯은 즉시 멈추고 데이터는 유예 기간 뒤에 지워진다 — 그때까지는 되돌릴 수 있다.
+ */
+export function useDeleteBot() {
+  const queryClient = useQueryClient();
+  return useMutation<void, unknown, string>({
+    mutationFn: (id) => api(`/api/app/bots/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: botKeys.list });
+      void queryClient.invalidateQueries({ queryKey: sessionKeys.context });
+    },
+  });
+}
+
+export function useRestoreBot() {
+  const queryClient = useQueryClient();
+  return useMutation<Bot, unknown, string>({
+    mutationFn: async (id) =>
+      botSchema.parse(await api(`/api/app/bots/${id}/restore`, { method: "POST" })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: botKeys.list });
+      void queryClient.invalidateQueries({ queryKey: sessionKeys.context });
+    },
+  });
+}
