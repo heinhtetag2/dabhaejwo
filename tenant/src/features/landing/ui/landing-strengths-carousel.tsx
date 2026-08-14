@@ -40,7 +40,7 @@ export function LandingStrengthsCarousel({ language }: { language: Language }) {
         <div
           role="tablist"
           aria-label={t.strengthsTitle}
-          className="flex flex-wrap items-center justify-center gap-1 rounded-[999px] bg-[#f7f5f2] px-[5px] py-[6px]"
+          className="flex w-full items-center gap-1 overflow-x-auto rounded-[999px] bg-[#f7f5f2] px-[5px] py-[6px] [-ms-overflow-style:none] [scrollbar-width:none] sm:w-auto sm:flex-wrap sm:justify-center sm:overflow-visible [&::-webkit-scrollbar]:hidden"
         >
           {t.strengths.map((item, index) => (
             <button
@@ -50,7 +50,7 @@ export function LandingStrengthsCarousel({ language }: { language: Language }) {
               aria-selected={index === active}
               onClick={() => setActive(index)}
               className={cn(
-                "rounded-full px-[24px] py-[13px] text-[15px] font-semibold whitespace-nowrap transition-colors sm:px-[35px] sm:text-[16px]",
+                "shrink-0 rounded-full px-[24px] py-[13px] text-[15px] font-semibold whitespace-nowrap transition-colors sm:px-[35px] sm:text-[16px]",
                 index === active ? "bg-[#313130] text-white" : "text-[#716f6d] hover:text-ink",
               )}
             >

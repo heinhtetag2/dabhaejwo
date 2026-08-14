@@ -80,7 +80,7 @@ export async function PublicHeader() {
               {text.login}
             </LoginCtaLink>
           </span>
-          <SignupCtaLink className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-3.5 py-2 text-[14.5px] font-semibold text-white transition-colors hover:border-ink-2 hover:bg-ink-2">
+          <SignupCtaLink className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[10px] border border-mark bg-mark px-3.5 py-2 text-[14.5px] font-semibold text-white transition-colors hover:border-[#15374a] hover:bg-[#15374a]">
             {text.startFree}
           </SignupCtaLink>
         </div>
