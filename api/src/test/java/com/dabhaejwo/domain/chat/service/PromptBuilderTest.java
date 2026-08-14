@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.dabhaejwo.global.security.BotScope;
 
 /**
  * 프롬프트는 답변 품질의 뿌리다. 모델을 부르지 않고 확인할 수 있어야
@@ -17,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PromptBuilderTest {
 
     private BotSettings settings() {
-        return BotSettings.defaults(UUID.randomUUID(), "노르드하임");
+        return BotSettings.defaults(new BotScope(UUID.randomUUID(), UUID.randomUUID()), "노르드하임");
     }
 
     private KnowledgeChunkRepository.Match match(String content) {

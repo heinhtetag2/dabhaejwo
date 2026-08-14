@@ -185,7 +185,7 @@ public class AiUsageQueryService {
             // 대화당 원가를 내려면 **원가가 나간 대화**로 나눠야 한다. 열기만 한 방문을
             // 분모에 넣으면 대화당 원가가 실제보다 싸 보인다.
             long convCount = conversationRepository
-                    .countAnsweredByTenantIdBetween(row.getTenantId(), from, to);
+                    .countAnsweredAcrossBotsBetween(row.getTenantId(), from, to);
             return new TopTenantUsageResponse(
                     new TopTenantUsageResponse.TenantRef(
                             row.getTenantId(),

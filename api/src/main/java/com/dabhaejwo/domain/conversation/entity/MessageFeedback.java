@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.conversation.entity;
 
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -28,6 +29,10 @@ public class MessageFeedback {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    /** 어느 서비스의 것인가. 조회는 전부 이 값으로 좁힌다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
+
     @Column(nullable = false)
     private boolean helpful;
 
@@ -37,10 +42,11 @@ public class MessageFeedback {
     protected MessageFeedback() {
     }
 
-    public static MessageFeedback of(UUID messageId, UUID tenantId, boolean helpful) {
+    public static MessageFeedback of(UUID messageId, BotScope scope, boolean helpful) {
         MessageFeedback feedback = new MessageFeedback();
         feedback.messageId = messageId;
-        feedback.tenantId = tenantId;
+        feedback.tenantId = scope.tenantId();
+        feedback.botId = scope.botId();
         feedback.helpful = helpful;
         feedback.createdAt = OffsetDateTime.now();
         return feedback;

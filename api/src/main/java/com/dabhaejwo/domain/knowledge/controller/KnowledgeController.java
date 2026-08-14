@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/app/knowledge")
+@RequestMapping("/api/app/bots/{botId}/knowledge")
 public class KnowledgeController {
 
     private final KnowledgeService knowledgeService;

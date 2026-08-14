@@ -7,12 +7,17 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import com.dabhaejwo.global.security.BotScope;
 
 /**
  * 이 묶기 규칙이 "업체가 실제로 몇 번 놓쳤는가"를 결정한다.
  * 틀리면 같은 질문이 목록에 여러 줄로 쌓여 업체가 지친다.
  */
 class AnswerGapTest {
+
+    /** 시험용 범위. 두 값을 따로 넘기지 않는 것이 규약이다. */
+    private static final BotScope SCOPE =
+            new BotScope(UUID.randomUUID(), UUID.randomUUID());
 
     @Test
     @DisplayName("공백·문장부호 차이는 같은 질문으로 묶는다")
@@ -52,7 +57,7 @@ class AnswerGapTest {
     @Test
     @DisplayName("넘어간 질문이 다시 들어오면 목록에 되살아난다")
     void dismissedGapRevivesOnRecurrence() {
-        AnswerGap gap = AnswerGap.of(UUID.randomUUID(), "쿠폰 두 개 같이 쓸 수 있나요",
+        AnswerGap gap = AnswerGap.of(SCOPE, "쿠폰 두 개 같이 쓸 수 있나요",
                 GapReason.ANSWER_FAILED, "/cart", "확인이 어렵습니다");
         gap.dismiss();
         assertEquals(GapStatus.DISMISSED, gap.getStatus());
@@ -66,7 +71,7 @@ class AnswerGapTest {
     @Test
     @DisplayName("해결된 질문은 다시 물어봐도 OPEN 으로 돌아가지 않는다")
     void resolvedGapStaysResolved() {
-        AnswerGap gap = AnswerGap.of(UUID.randomUUID(), "배송 며칠", GapReason.ANSWER_FAILED, "/", "몰라요");
+        AnswerGap gap = AnswerGap.of(SCOPE, "배송 며칠", GapReason.ANSWER_FAILED, "/", "몰라요");
         gap.resolveWith(UUID.randomUUID());
 
         gap.recur("배송 며칠", "/", "몰라요");

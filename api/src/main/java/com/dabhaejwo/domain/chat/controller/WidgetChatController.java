@@ -9,6 +9,7 @@ import com.dabhaejwo.domain.chat.dto.response.AnswerResponse;
 import com.dabhaejwo.domain.chat.dto.response.WidgetConfigResponse;
 import com.dabhaejwo.domain.chat.dto.response.WidgetSessionResponse;
 import com.dabhaejwo.domain.chat.service.WidgetChatService;
+import com.dabhaejwo.global.security.BotScope;
 import com.dabhaejwo.global.security.CurrentAuth;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -53,41 +54,45 @@ public class WidgetChatController {
      */
     @GetMapping("/config")
     public WidgetConfigResponse config(@RequestParam(required = false) String path) {
-        return chatService.config(tenantId(), path);
+        return chatService.config(scope(), path);
     }
 
     @PostMapping("/session")
     public WidgetSessionResponse start(@Valid @RequestBody SessionStartRequest request,
                                        HttpServletRequest http) {
-        return chatService.start(tenantId(), request.path(), visitorIpHash(http));
+        return chatService.start(scope(), request.path(), visitorIpHash(http));
     }
 
     @PostMapping("/ask")
     public AnswerResponse ask(@Valid @RequestBody AskRequest request, HttpServletRequest http) {
-        return chatService.ask(tenantId(), request, visitorIpHash(http));
+        return chatService.ask(scope(), request, visitorIpHash(http));
     }
 
     @PostMapping("/faq/{id}")
     public AnswerResponse faq(@PathVariable UUID id,
                               @Valid @RequestBody FaqAskRequest request,
                               HttpServletRequest http) {
-        return chatService.answerFaq(tenantId(), id, request.sessionId(), visitorIpHash(http));
+        return chatService.answerFaq(scope(), id, request.sessionId(), visitorIpHash(http));
     }
 
     @PostMapping("/feedback")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void feedback(@Valid @RequestBody FeedbackRequest request) {
-        chatService.feedback(tenantId(), request);
+        chatService.feedback(scope(), request);
     }
 
     @PostMapping("/lead")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, UUID> lead(@Valid @RequestBody LeadRequest request) {
-        return Map.of("id", chatService.lead(tenantId(), request));
+        return Map.of("id", chatService.lead(scope(), request));
     }
 
-    private UUID tenantId() {
-        return CurrentAuth.visitor().tenantId();
+    /**
+     * 방문자가 다루는 범위. <b>필터가 검증한 키에서만 온다</b> —
+     * 본문에서 받으면 남의 서비스를 사칭해 원가를 태울 수 있다.
+     */
+    private BotScope scope() {
+        return CurrentAuth.visitor().scope();
     }
 
     /**

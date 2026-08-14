@@ -191,7 +191,8 @@ public class NotificationSweeper {
     }
 
     private void checkAnswerGaps(Tenant tenant) {
-        long open = gapRepository.countByTenantIdAndStatus(tenant.getId(), GapStatus.OPEN);
+        // 업체에 보내는 알림이다. 서비스를 가리지 않고 전부 센다.
+        long open = gapRepository.countAcrossBotsAndStatus(tenant.getId(), GapStatus.OPEN);
         if (open >= GAP_THRESHOLD) {
             events.answerGapsPiling(tenant.getId(), open);
         }

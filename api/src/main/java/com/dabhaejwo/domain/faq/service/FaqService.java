@@ -8,6 +8,8 @@ import com.dabhaejwo.domain.faq.repository.FaqRepository;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.domain.bot.service.BotContext;
+import com.dabhaejwo.global.security.BotScope;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,29 +33,32 @@ import java.util.stream.Collectors;
 public class FaqService {
 
     private final FaqRepository faqRepository;
+    private final BotContext botContext;
 
-    public FaqService(FaqRepository faqRepository) {
+    public FaqService(FaqRepository faqRepository,
+                       BotContext botContext) {
         this.faqRepository = faqRepository;
+        this.botContext = botContext;
     }
 
     @Transactional(readOnly = true)
     public List<FaqResponse> list() {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
-        return faqRepository.findAllByTenantIdOrderBySortOrderAsc(tenantId).stream()
+        return faqRepository.findAllByBotIdOrderBySortOrderAsc(botContext.scope().botId()).stream()
                 .map(FaqResponse::from)
                 .toList();
     }
 
     @Transactional
     public FaqResponse create(FaqSaveRequest request) {
-        AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
+        CurrentAuth.requireEditor();
+        BotScope scope = botContext.scope();
         // 새 항목은 맨 뒤로. 기존 순서를 흔들지 않는다.
-        int nextOrder = faqRepository.findAllByTenantIdOrderBySortOrderAsc(user.tenantId()).stream()
+        int nextOrder = faqRepository.findAllByBotIdOrderBySortOrderAsc(scope.botId()).stream()
                 .mapToInt(Faq::getSortOrder)
                 .max()
                 .orElse(0) + 1;
 
-        Faq faq = Faq.of(user.tenantId(), request.question().strip(), request.answer().strip(),
+        Faq faq = Faq.of(scope, request.question().strip(), request.answer().strip(),
                 request.links(), request.followUpFaqIds(), request.shown(), nextOrder);
         return FaqResponse.from(faqRepository.save(faq));
     }
@@ -61,7 +66,7 @@ public class FaqService {
     @Transactional
     public FaqResponse update(UUID faqId, FaqSaveRequest request) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        Faq faq = find(faqId, user.tenantId());
+        Faq faq = find(faqId, botContext.scope().botId());
         faq.edit(request.question().strip(), request.answer().strip(), request.links(),
                 request.followUpFaqIds(), request.shown());
         return FaqResponse.from(faq);
@@ -70,7 +75,7 @@ public class FaqService {
     @Transactional
     public void delete(UUID faqId) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        faqRepository.delete(find(faqId, user.tenantId()));
+        faqRepository.delete(find(faqId, botContext.scope().botId()));
     }
 
     /**
@@ -82,7 +87,7 @@ public class FaqService {
     @Transactional
     public List<FaqResponse> reorder(FaqOrderRequest request) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        List<Faq> existing = faqRepository.findAllByTenantIdOrderBySortOrderAsc(user.tenantId());
+        List<Faq> existing = faqRepository.findAllByBotIdOrderBySortOrderAsc(botContext.scope().botId());
 
         if (existing.size() != request.faqIds().size()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
@@ -101,8 +106,8 @@ public class FaqService {
         return list();
     }
 
-    private Faq find(UUID faqId, UUID tenantId) {
-        return faqRepository.findByIdAndTenantId(faqId, tenantId)
+    private Faq find(UUID faqId, UUID botId) {
+        return faqRepository.findByIdAndBotId(faqId, botId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FAQ_NOT_FOUND));
     }
 }

@@ -21,6 +21,7 @@ import com.dabhaejwo.global.llm.GenerateRequest;
 import com.dabhaejwo.global.llm.GenerateResult;
 import com.dabhaejwo.global.llm.LlmGateway;
 import com.dabhaejwo.global.llm.UsagePurpose;
+import com.dabhaejwo.global.security.BotScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -79,23 +80,23 @@ public class AnswerService {
      * @param path           방문자가 있던 페이지. 답변 개선 목록에서 "어느 페이지에서 물었나"로 쓰인다
      */
     @Transactional
-    public AnswerResponse answer(UUID tenantId, UUID conversationId, String question,
+    public AnswerResponse answer(BotScope scope, UUID conversationId, String question,
                                  String path, CostGuard guard) {
         String trimmed = question == null ? "" : question.strip();
         if (trimmed.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "질문을 입력해 주세요");
         }
 
-        Tenant tenant = tenantRepository.findById(tenantId)
+        Tenant tenant = tenantRepository.findById(scope.tenantId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TENANT_NOT_FOUND));
-        BotSettings settings = botSettingsRepository.findById(tenantId)
-                .orElseGet(() -> BotSettings.defaults(tenantId, tenant.getName()));
+        BotSettings settings = botSettingsRepository.findByBotId(scope.botId())
+                .orElseGet(() -> BotSettings.defaults(scope, tenant.getName()));
         PlanModelAssignment assignment = assignment(tenant);
 
         OffsetDateTime askedAt = OffsetDateTime.now();
         long startedAt = System.nanoTime();
         List<KnowledgeChunkRepository.Match> evidence =
-                searchService.searchEvidence(tenantId, trimmed, chunkCount(assignment, guard));
+                searchService.searchEvidence(scope, trimmed, chunkCount(assignment, guard));
 
         double best = evidence.isEmpty() ? 0.0 : evidence.getFirst().similarity();
         double threshold = guard.getAnswerFailSimilarity().doubleValue();
@@ -103,11 +104,11 @@ public class AnswerService {
         if (evidence.isEmpty() || best < threshold) {
             // 근거가 없다. 모델을 부르지 않는다 — 부르면 지어낸 답에 돈까지 나간다.
             log.info("근거를 찾지 못해 답하지 않습니다 — tenant={}, 최고유사도={}, 기준={}",
-                    tenantId, String.format("%.4f", best), threshold);
-            return fail(tenantId, conversationId, trimmed, path, settings, askedAt, elapsedMs(startedAt));
+                    scope.botId(), String.format("%.4f", best), threshold);
+            return fail(scope, conversationId, trimmed, path, settings, askedAt, elapsedMs(startedAt));
         }
 
-        GenerateResult result = llmGateway.generate(tenantId, UsagePurpose.ANSWER,
+        GenerateResult result = llmGateway.generate(scope, UsagePurpose.ANSWER,
                 assignment.getProvider(),
                 new GenerateRequest(
                         assignment.getModel(),
@@ -119,7 +120,7 @@ public class AnswerService {
         String answer = truncate(result.text(), guard.getAnswerMaxLength());
         int latencyMs = elapsedMs(startedAt);
 
-        UUID messageId = record(tenantId, conversationId, trimmed, answer, true,
+        UUID messageId = record(scope, conversationId, trimmed, answer, true,
                 askedAt, latencyMs, evidence);
         // 자유 질문에는 후속을 붙이지 않는다 — 무엇을 물었는지에 대응하는 후속을
         // 우리가 고를 근거가 없다. 업체가 지정한 것은 공통 질문에만 달려 있다.
@@ -132,35 +133,35 @@ public class AnswerService {
      * <p>여기서 아무 말이나 지어내면 방문자는 틀린 답을 받고, 업체는 놓친 질문이 있다는
      * 사실조차 모른다. <b>못 답한 것을 못 답했다고 하는 것이 이 제품의 핵심 기능이다.</b>
      */
-    private AnswerResponse fail(UUID tenantId, UUID conversationId, String question,
+    private AnswerResponse fail(BotScope scope, UUID conversationId, String question,
                                 String path, BotSettings settings,
                                 OffsetDateTime askedAt, int latencyMs) {
         String message = settings.getFallbackMessage();
-        UUID messageId = record(tenantId, conversationId, question, message, false,
+        UUID messageId = record(scope, conversationId, question, message, false,
                 askedAt, latencyMs, List.of());
 
         // 미리보기(대화 없음)는 실제 방문자가 물은 게 아니므로 개선 목록을 오염시키지 않는다.
         if (conversationId != null) {
-            gapRepository.findByTenantIdAndQuestionNorm(tenantId, AnswerGap.normalize(question))
+            gapRepository.findByBotIdAndQuestionNorm(scope.botId(), AnswerGap.normalize(question))
                     .ifPresentOrElse(
                             gap -> gap.recur(question, path, message),
                             () -> gapRepository.save(AnswerGap.of(
-                                    tenantId, question, GapReason.ANSWER_FAILED, path, message)));
+                                    scope, question, GapReason.ANSWER_FAILED, path, message)));
         }
         return new AnswerResponse(false, false, message, List.of(), messageId, List.of());
     }
 
     /** @return 저장한 봇 메시지 id. 미리보기면 {@code null} */
-    private UUID record(UUID tenantId, UUID conversationId, String question, String answer,
+    private UUID record(BotScope scope, UUID conversationId, String question, String answer,
                         boolean answered, OffsetDateTime askedAt, int latencyMs,
                         List<KnowledgeChunkRepository.Match> evidence) {
         if (conversationId == null) {
             return null;
         }
-        messageRepository.save(Message.fromVisitor(tenantId, conversationId, question, askedAt));
+        messageRepository.save(Message.fromVisitor(scope, conversationId, question, askedAt));
 
         // 답변 시각은 질문 시각 + 걸린 시간이다. 둘 다 now() 로 찍으면 동률이 되어 순서가 뒤집힌다.
-        Message bot = Message.fromBot(tenantId, conversationId, answer, answered, false, null,
+        Message bot = Message.fromBot(scope, conversationId, answer, answered, false, null,
                 askedAt.plusNanos(Math.max(latencyMs, 1) * 1_000_000L));
         bot.measured(latencyMs);
         messageRepository.save(bot);

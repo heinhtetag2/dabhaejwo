@@ -14,6 +14,7 @@ import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.llm.LlmProviderName;
 import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.domain.bot.service.BotContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -39,26 +40,29 @@ public class KnowledgeService {
     private static final Logger log = LoggerFactory.getLogger(KnowledgeService.class);
 
     private final KnowledgeSourceRepository sourceRepository;
+    private final BotContext botContext;
     private final KnowledgeDocumentRepository documentRepository;
     private final DocumentIndexer indexer;
 
     public KnowledgeService(KnowledgeSourceRepository sourceRepository,
                             KnowledgeDocumentRepository documentRepository,
-                            DocumentIndexer indexer) {
+                            DocumentIndexer indexer,
+                            BotContext botContext) {
         this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
         this.indexer = indexer;
+        this.botContext = botContext;
     }
 
     @Transactional(readOnly = true)
     public List<KnowledgeSourceResponse> listSources() {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
+        UUID botId = botContext.scope().botId();
 
         Map<UUID, Long> counts = new HashMap<>();
-        for (KnowledgeDocumentRepository.SourceCount row : documentRepository.countBySource(tenantId)) {
+        for (KnowledgeDocumentRepository.SourceCount row : documentRepository.countBySource(botId)) {
             counts.put(row.getSourceId(), row.getCount());
         }
-        return sourceRepository.findAllByTenantIdOrderByCreatedAtAsc(tenantId).stream()
+        return sourceRepository.findAllByBotIdOrderByCreatedAtAsc(botId).stream()
                 .map(source -> KnowledgeSourceResponse.of(source, counts.getOrDefault(source.getId(), 0L)))
                 .toList();
     }
@@ -69,24 +73,24 @@ public class KnowledgeService {
                                                                  String q,
                                                                  int page,
                                                                  Integer size) {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
+        UUID botId = botContext.scope().botId();
         Pageable pageable = PageRequest.of(Math.max(page, 0), PageResponse.clampSize(size));
         // 빈 문자열이 "필터 없음"이다 — 위 쿼리 주석 참조.
         String query = (q == null) ? "" : q.strip();
 
         return PageResponse.of(
-                documentRepository.search(tenantId, sourceId, status, query, pageable),
+                documentRepository.search(botId, sourceId, status, query, pageable),
                 KnowledgeDocumentResponse::from);
     }
 
     @Transactional
     public KnowledgeSourceResponse changeAutoRefresh(UUID sourceId, boolean autoRefresh) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        KnowledgeSource source = sourceRepository.findByIdAndTenantId(sourceId, user.tenantId())
+        KnowledgeSource source = sourceRepository.findByIdAndBotId(sourceId, botContext.scope().botId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOURCE_NOT_FOUND));
         source.changeAutoRefresh(autoRefresh);
 
-        long count = documentRepository.countBySource(user.tenantId()).stream()
+        long count = documentRepository.countBySource(botContext.scope().botId()).stream()
                 .filter(row -> row.getSourceId().equals(sourceId))
                 .mapToLong(KnowledgeDocumentRepository.SourceCount::getCount)
                 .findFirst()
@@ -101,7 +105,7 @@ public class KnowledgeService {
     @Transactional
     public KnowledgeDocumentResponse changeExcluded(UUID documentId, boolean excluded) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        KnowledgeDocument document = find(documentId, user.tenantId());
+        KnowledgeDocument document = find(documentId, botContext.scope().botId());
 
         if (excluded) {
             document.exclude();
@@ -120,11 +124,11 @@ public class KnowledgeService {
     @Transactional(readOnly = true)
     public void recrawl(UUID sourceId) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        sourceRepository.findByIdAndTenantId(sourceId, user.tenantId())
+        sourceRepository.findByIdAndBotId(sourceId, botContext.scope().botId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SOURCE_NOT_FOUND));
 
         log.warn("recrawl 요청을 받았으나 크롤러가 연결되어 있지 않습니다 (tenant={}, source={})",
-                user.tenantId(), sourceId);
+                botContext.scope().botId(), sourceId);
         throw new BusinessException(ErrorCode.FEATURE_NOT_READY,
                 "사이트 다시 읽기는 아직 연결되지 않았습니다. 준비되면 안내드리겠습니다");
     }
@@ -142,16 +146,16 @@ public class KnowledgeService {
     public int retryFailed(UUID sourceId) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
 
-        List<KnowledgeDocument> targets = relearnTargets(user.tenantId(), sourceId);
+        List<KnowledgeDocument> targets = relearnTargets(botContext.scope().botId(), sourceId);
 
         if (targets.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "다시 학습할 문서가 없습니다");
         }
         for (KnowledgeDocument document : targets) {
-            indexer.requeue(user.tenantId(), document.getId());
+            indexer.requeue(botContext.scope(), document.getId());
         }
 
-        log.info("{}건을 다시 학습 대기로 되돌렸습니다 (tenant={})", targets.size(), user.tenantId());
+        log.info("{}건을 다시 학습 대기로 되돌렸습니다 (bot={})", targets.size(), botContext.scope().botId());
         return targets.size();
     }
 
@@ -165,9 +169,9 @@ public class KnowledgeService {
      * <p>공급사 설정을 읽지 못하면(단가 미등록 등) 실패분만 대상으로 삼는다 —
      * 설정 문제로 업체의 "다시 학습"이 통째로 막히면 안 된다.
      */
-    private List<KnowledgeDocument> relearnTargets(UUID tenantId, UUID sourceId) {
+    private List<KnowledgeDocument> relearnTargets(UUID botId, UUID sourceId) {
         List<KnowledgeDocument> failed =
-                documentRepository.findAllByTenantIdAndStatus(tenantId, DocumentStatus.FAILED).stream()
+                documentRepository.findAllByBotIdAndStatus(botId, DocumentStatus.FAILED).stream()
                         .filter(document -> sourceId == null || sourceId.equals(document.getSourceId()))
                         .toList();
 
@@ -176,12 +180,12 @@ public class KnowledgeService {
             LlmProviderName provider = indexer.embeddingProvider();
             String model = indexer.embeddingModel(provider);
             stale = documentRepository
-                    .findAllByTenantIdAndStatus(tenantId, DocumentStatus.INDEXED).stream()
+                    .findAllByBotIdAndStatus(botId, DocumentStatus.INDEXED).stream()
                     .filter(document -> sourceId == null || sourceId.equals(document.getSourceId()))
                     .filter(document -> document.staleEmbedding(provider.name(), model))
                     .toList();
         } catch (RuntimeException e) {
-            log.warn("임베딩 설정을 읽지 못해 실패분만 다시 학습합니다 (tenant={})", tenantId, e);
+            log.warn("임베딩 설정을 읽지 못해 실패분만 다시 학습합니다 (bot={})", botId, e);
             stale = List.of();
         }
 
@@ -190,10 +194,11 @@ public class KnowledgeService {
         return targets;
     }
 
-    private KnowledgeDocument find(UUID documentId, UUID tenantId) {
+    private KnowledgeDocument find(UUID documentId, UUID botId) {
         KnowledgeDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND));
-        if (!document.getTenantId().equals(tenantId)) {
+        // 서비스로 좁힌다 — 업체로만 좁히면 옆 서비스의 문서가 열린다.
+        if (!document.getBotId().equals(botId)) {
             // 남의 문서다. 존재 여부를 알려주지 않기 위해 없는 것과 같은 응답을 낸다.
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
         }

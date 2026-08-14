@@ -10,6 +10,8 @@ import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.domain.bot.service.BotContext;
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +28,15 @@ import java.util.UUID;
 public class BotSettingsService {
 
     private final BotSettingsRepository settingsRepository;
+    private final BotContext botContext;
     private final TenantRepository tenantRepository;
 
     public BotSettingsService(BotSettingsRepository settingsRepository,
-                              TenantRepository tenantRepository) {
+                              TenantRepository tenantRepository,
+                               BotContext botContext) {
         this.settingsRepository = settingsRepository;
         this.tenantRepository = tenantRepository;
+        this.botContext = botContext;
     }
 
     @Transactional
@@ -59,10 +64,11 @@ public class BotSettingsService {
     }
 
     private BotSettings findOrCreate(UUID tenantId) {
-        return settingsRepository.findById(tenantId).orElseGet(() -> {
+        BotScope scope = botContext.scope();
+        return settingsRepository.findByBotId(scope.botId()).orElseGet(() -> {
             Tenant tenant = tenantRepository.findById(tenantId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.TENANT_NOT_FOUND));
-            return settingsRepository.save(BotSettings.defaults(tenantId, tenant.getName()));
+            return settingsRepository.save(BotSettings.defaults(scope, tenant.getName()));
         });
     }
 

@@ -98,7 +98,7 @@ public class PlanOverviewService {
         LocalDate today = LocalDate.now();
         LocalDate from = today.withDayOfMonth(1);
         long convCount = dailyUsageRepository.sumConvCount(tenantId, from, today);
-        long docCount = documentRepository.countActive(tenantId);
+        long docCount = documentRepository.countActiveAcrossBots(tenantId);
 
         return new PlanOverviewResponse(
                 new PlanOverviewResponse.Plan(plan.getId(), plan.getName(), plan.getMonthlyFee()),

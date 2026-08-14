@@ -8,6 +8,7 @@ import com.dabhaejwo.global.common.PageResponse;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.domain.bot.service.BotContext;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,24 +30,27 @@ import java.util.UUID;
 public class LeadService {
 
     private final LeadRepository leadRepository;
+    private final BotContext botContext;
 
-    public LeadService(LeadRepository leadRepository) {
+    public LeadService(LeadRepository leadRepository,
+                       BotContext botContext) {
         this.leadRepository = leadRepository;
+        this.botContext = botContext;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<LeadResponse> list(int page, Integer size) {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
+        UUID botId = botContext.scope().botId();
         Pageable pageable = PageRequest.of(Math.max(page, 0), PageResponse.clampSize(size));
         return PageResponse.of(
-                leadRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId, pageable),
+                leadRepository.findAllByBotIdOrderByCreatedAtDesc(botId, pageable),
                 LeadResponse::from);
     }
 
     @Transactional
     public LeadResponse changeStatus(UUID leadId, LeadStatus status) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        Lead lead = leadRepository.findByIdAndTenantId(leadId, user.tenantId())
+        Lead lead = leadRepository.findByIdAndBotId(leadId, botContext.scope().botId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.LEAD_NOT_FOUND));
         lead.changeStatus(status);
         return LeadResponse.from(lead);
@@ -61,7 +65,7 @@ public class LeadService {
     @Transactional(readOnly = true)
     public String exportCsv() {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        List<Lead> leads = leadRepository.findAllByTenantIdOrderByCreatedAtDesc(user.tenantId());
+        List<Lead> leads = leadRepository.findAllByBotIdOrderByCreatedAtDesc(botContext.scope().botId());
 
         StringBuilder csv = new StringBuilder("이름,연락처,남긴 이유,상태,시각\n");
         for (Lead lead : leads) {

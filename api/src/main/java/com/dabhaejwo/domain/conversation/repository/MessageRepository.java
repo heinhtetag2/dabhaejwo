@@ -12,16 +12,16 @@ import java.util.UUID;
 
 public interface MessageRepository extends JpaRepository<Message, UUID> {
 
-    List<Message> findAllByTenantIdAndConversationIdOrderByCreatedAtAsc(UUID tenantId, UUID conversationId);
+    List<Message> findAllByBotIdAndConversationIdOrderByCreatedAtAsc(UUID botId, UUID conversationId);
 
     /** 대화 목록의 미리보기 — 각 대화의 첫 방문자 발화. */
     @Query("""
             SELECT m FROM Message m
-            WHERE m.tenantId = :tenantId AND m.conversationId IN :conversationIds
+            WHERE m.botId = :botId AND m.conversationId IN :conversationIds
               AND m.role = com.dabhaejwo.domain.conversation.entity.MessageRole.VISITOR
             ORDER BY m.createdAt ASC
             """)
-    List<Message> findVisitorMessages(@Param("tenantId") UUID tenantId,
+    List<Message> findVisitorMessages(@Param("botId") UUID botId,
                                       @Param("conversationIds") List<UUID> conversationIds);
 
     /**
@@ -30,12 +30,12 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      */
     @Query("""
             SELECT COUNT(m) FROM Message m
-            WHERE m.tenantId = :tenantId
+            WHERE m.botId = :botId
               AND m.role = com.dabhaejwo.domain.conversation.entity.MessageRole.BOT
               AND m.createdAt >= :from AND m.createdAt < :to
               AND (:answeredOnly = false OR m.answered = true)
             """)
-    long countBotMessages(@Param("tenantId") UUID tenantId,
+    long countBotMessages(@Param("botId") UUID botId,
                           @Param("from") OffsetDateTime from,
                           @Param("to") OffsetDateTime to,
                           @Param("answeredOnly") boolean answeredOnly);
@@ -43,12 +43,12 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /** 홈의 "많이 물어본 질문". 방문자 발화를 그대로 묶는다. */
     @Query("""
             SELECT m.content AS question, COUNT(m) AS askCount FROM Message m
-            WHERE m.tenantId = :tenantId
+            WHERE m.botId = :botId
               AND m.role = com.dabhaejwo.domain.conversation.entity.MessageRole.VISITOR
               AND m.createdAt >= :from
             GROUP BY m.content ORDER BY COUNT(m) DESC
             """)
-    List<TopQuestion> findTopQuestions(@Param("tenantId") UUID tenantId,
+    List<TopQuestion> findTopQuestions(@Param("botId") UUID botId,
                                        @Param("from") OffsetDateTime from,
                                        org.springframework.data.domain.Pageable pageable);
 
@@ -60,10 +60,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      */
     @Query("""
             SELECT AVG(m.latencyMs) FROM Message m
-            WHERE m.tenantId = :tenantId AND m.latencyMs IS NOT NULL AND m.saved = false
+            WHERE m.botId = :botId AND m.latencyMs IS NOT NULL AND m.saved = false
               AND m.createdAt >= :from
             """)
-    Double averageLatency(@Param("tenantId") UUID tenantId, @Param("from") OffsetDateTime from);
+    Double averageLatency(@Param("botId") UUID botId, @Param("from") OffsetDateTime from);
 
     /**
      * 답변 실패가 하나라도 있는 대화. 목록에 배지를 달아 개선으로 유도한다.
@@ -71,10 +71,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      */
     @Query("""
             SELECT DISTINCT m.conversationId FROM Message m
-            WHERE m.tenantId = :tenantId AND m.conversationId IN :conversationIds
+            WHERE m.botId = :botId AND m.conversationId IN :conversationIds
               AND m.answered = false
             """)
-    List<UUID> findFailedConversationIds(@Param("tenantId") UUID tenantId,
+    List<UUID> findFailedConversationIds(@Param("botId") UUID botId,
                                          @Param("conversationIds") List<UUID> conversationIds);
 
     /**

@@ -1,6 +1,7 @@
 package com.dabhaejwo.domain.notification.service;
 
 import com.dabhaejwo.domain.notification.entity.NotificationType;
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -128,27 +129,27 @@ public class NotificationEvents {
                 "TRIAL_TENANT:" + tenantId + ":" + LocalDate.now());
     }
 
-    public void indexingDone(UUID tenantId, String title, int chunkCount) {
-        publisher.publish(NotificationType.INDEXING_DONE, tenantId,
+    public void indexingDone(BotScope scope, String title, int chunkCount) {
+        publisher.publish(NotificationType.INDEXING_DONE, scope.tenantId(),
                 "문서 학습이 끝났습니다",
                 title + " — 이제 이 내용으로 답할 수 있습니다 (" + chunkCount + "조각)",
-                "/app/sources",
+                botPath(scope, "sources"),
                 null);
     }
 
-    public void indexingFailed(UUID tenantId, String title, String errorCode) {
-        publisher.publish(NotificationType.INDEXING_FAILED, tenantId,
+    public void indexingFailed(BotScope scope, String title, String errorCode) {
+        publisher.publish(NotificationType.INDEXING_FAILED, scope.tenantId(),
                 "문서 학습에 실패했습니다",
                 title + " — " + describe(errorCode),
-                "/app/sources",
+                botPath(scope, "sources"),
                 null);
     }
 
-    public void leadReceived(UUID tenantId, String name) {
-        publisher.publish(NotificationType.LEAD_RECEIVED, tenantId,
+    public void leadReceived(BotScope scope, String name) {
+        publisher.publish(NotificationType.LEAD_RECEIVED, scope.tenantId(),
                 "새 연락처가 도착했습니다",
                 name + " 님이 연락처를 남겼습니다",
-                "/app/leads",
+                botPath(scope, "leads"),
                 null);
     }
 
@@ -158,6 +159,18 @@ public class NotificationEvents {
                 "공통 질문으로 등록하면 다음부터 바로 답합니다",
                 "/app/improve",
                 "GAPS:" + tenantId + ":" + LocalDate.now());
+    }
+
+    /**
+     * 서비스별 화면의 프론트 경로.
+     *
+     * <p><b>서버가 만든다.</b> admin·tenant 두 프로젝트가 각자 URL 규칙을 적기 시작하면
+     * 갈리고, 알림은 저장된 뒤에는 고칠 수 없다.
+     *
+     * <p>업체 단위 알림(팀원·요금제)은 서비스를 가리지 않으므로 이 함수를 쓰지 않는다.
+     */
+    private String botPath(BotScope scope, String screen) {
+        return "/app/s/" + scope.botId() + "/" + screen;
     }
 
     /** 오류 코드는 업체에게 그대로 보여주지 않는다 — 업체는 `pdf_no_text` 를 모른다. */

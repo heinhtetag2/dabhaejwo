@@ -9,12 +9,17 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import com.dabhaejwo.global.security.BotScope;
 
 /**
  * 마스킹이 뚫리면 방문자 개인정보가 화면에 그대로 나간다.
  * 되돌릴 수 없는 종류의 사고라 테스트로 고정한다.
  */
 class LeadTest {
+
+    /** 시험용 범위. 두 값을 따로 넘기지 않는 것이 규약이다. */
+    private static final BotScope SCOPE =
+            new BotScope(UUID.randomUUID(), UUID.randomUUID());
 
     @Test
     @DisplayName("휴대폰 번호는 가운데를 가린다")
@@ -48,7 +53,7 @@ class LeadTest {
     @Test
     @DisplayName("종료된 리드는 되돌릴 수 없다")
     void closedIsTerminal() {
-        Lead lead = Lead.of(UUID.randomUUID(), null, "김OO", "010-2847-3391", "문의");
+        Lead lead = Lead.of(SCOPE, null, "김OO", "010-2847-3391", "문의");
         lead.changeStatus(LeadStatus.CONTACTED);
         lead.changeStatus(LeadStatus.CLOSED);
 
@@ -58,7 +63,7 @@ class LeadTest {
     @Test
     @DisplayName("연락함은 대기로 되돌릴 수 있다 — 잘못 눌렀을 때 손쓸 방법이 있어야 한다")
     void contactedIsReversible() {
-        Lead lead = Lead.of(UUID.randomUUID(), null, "김OO", "010-2847-3391", "문의");
+        Lead lead = Lead.of(SCOPE, null, "김OO", "010-2847-3391", "문의");
         lead.changeStatus(LeadStatus.CONTACTED);
         lead.changeStatus(LeadStatus.NEW);
 

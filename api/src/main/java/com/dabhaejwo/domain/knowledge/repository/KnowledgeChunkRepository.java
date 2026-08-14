@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.knowledge.repository;
 
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -28,37 +29,45 @@ public class KnowledgeChunkRepository {
      * <p>다시 학습할 때 이전 조각이 남아 있으면 옛 내용이 계속 검색된다 —
      * 업체는 문서를 고쳤는데 챗봇이 옛말을 하는 상황이 된다.
      */
-    public void replaceForDocument(UUID tenantId, UUID documentId, List<String> contents,
+    public void replaceForDocument(BotScope scope, UUID documentId, List<String> contents,
                                    List<float[]> embeddings) {
         if (contents.size() != embeddings.size()) {
             throw new IllegalArgumentException("조각 수와 벡터 수가 다릅니다");
         }
-        deleteByDocument(tenantId, documentId);
+        deleteByDocument(scope, documentId);
 
         for (int i = 0; i < contents.size(); i++) {
             jdbc.update("""
-                    INSERT INTO knowledge_chunks (tenant_id, document_id, ordinal, content, embedding, created_at)
-                    VALUES (?, ?, ?, ?, ?::vector, now())
-                    """, tenantId, documentId, i, contents.get(i), toVectorLiteral(embeddings.get(i)));
+                    INSERT INTO knowledge_chunks
+                        (tenant_id, bot_id, document_id, ordinal, content, embedding, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?::vector, now())
+                    """, scope.tenantId(), scope.botId(), documentId, i, contents.get(i),
+                    toVectorLiteral(embeddings.get(i)));
         }
     }
 
-    public void deleteByDocument(UUID tenantId, UUID documentId) {
-        jdbc.update("DELETE FROM knowledge_chunks WHERE tenant_id = ? AND document_id = ?",
-                tenantId, documentId);
+    public void deleteByDocument(BotScope scope, UUID documentId) {
+        jdbc.update("DELETE FROM knowledge_chunks WHERE bot_id = ? AND document_id = ?",
+                scope.botId(), documentId);
     }
 
-    public long countByTenant(UUID tenantId) {
+    /** 서비스 하나가 학습한 조각 수. 화면의 "학습된 조각"이 이 값이다. */
+    public long countByBot(UUID botId) {
         Long count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM knowledge_chunks WHERE tenant_id = ?", Long.class, tenantId);
+                "SELECT COUNT(*) FROM knowledge_chunks WHERE bot_id = ?", Long.class, botId);
         return count == null ? 0 : count;
     }
 
     /**
      * 질문 벡터와 가까운 조각을 찾는다.
      *
-     * <p><b>{@code tenant_id} 조건은 절대 빠지지 않는다.</b> 타 업체 자료가 답변 근거로
-     * 섞이면 그 순간 서비스가 끝난다 (tenant-plan.md §7.1).
+     * <p><b>{@code bot_id} 조건은 절대 빠지지 않는다.</b> 타 업체 자료가 답변 근거로 섞이면
+     * 그 순간 서비스가 끝나고(tenant-plan.md §7.1), <b>같은 업체 안에서 서비스가 섞이면
+     * 쇼핑몰 질문에 회사소개 문서로 답한다.</b> 뒤쪽은 오류도 로그도 없이 "답이 이상하다"로만
+     * 보이는 종류라 더 나쁘다.
+     *
+     * <p>{@code bot_id} 로 좁히면 {@code tenant_id} 는 자동으로 좁혀진다 —
+     * 복합 FK 가 두 값이 어긋난 행을 애초에 못 들어오게 막기 때문이다(V16).
      *
      * <p>이 조건 때문에 HNSW 인덱스를 못 탈 수 있다 — 벡터 인덱스는 필터 없는
      * {@code ORDER BY ... LIMIT} 에서 가장 잘 동작한다. <b>그래도 필터를 뺄 수는 없다.</b>
@@ -66,13 +75,13 @@ public class KnowledgeChunkRepository {
      *
      * <p>{@code <=>} 는 코사인 거리다 — 0에 가까울수록 비슷하다. 유사도로 뒤집어 돌려준다.
      */
-    public List<Match> search(UUID tenantId, float[] queryEmbedding, int limit) {
+    public List<Match> search(BotScope scope, float[] queryEmbedding, int limit) {
         return jdbc.query("""
                 SELECT c.document_id, c.content, d.title, d.path,
                        1 - (c.embedding <=> ?::vector) AS similarity
                 FROM knowledge_chunks c
                 JOIN knowledge_documents d ON d.id = c.document_id
-                WHERE c.tenant_id = ?
+                WHERE c.bot_id = ?
                   AND d.status = 'INDEXED'
                 ORDER BY c.embedding <=> ?::vector
                 LIMIT ?
@@ -83,7 +92,7 @@ public class KnowledgeChunkRepository {
                         rs.getString("path"),
                         rs.getString("content"),
                         rs.getDouble("similarity")),
-                toVectorLiteral(queryEmbedding), tenantId, toVectorLiteral(queryEmbedding), limit);
+                toVectorLiteral(queryEmbedding), scope.botId(), toVectorLiteral(queryEmbedding), limit);
     }
 
     /**

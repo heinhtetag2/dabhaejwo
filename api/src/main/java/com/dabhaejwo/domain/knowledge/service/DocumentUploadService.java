@@ -16,6 +16,8 @@ import com.dabhaejwo.global.config.AppProperties;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.domain.bot.service.BotContext;
+import com.dabhaejwo.global.security.BotScope;
 import com.dabhaejwo.global.security.CurrentAuth;
 import com.dabhaejwo.global.storage.FileStorage;
 import org.slf4j.Logger;
@@ -51,6 +53,7 @@ public class DocumentUploadService {
     private static final String FILE_SOURCE_LABEL = "업로드 파일";
 
     private final KnowledgeSourceRepository sourceRepository;
+    private final BotContext botContext;
     private final KnowledgeDocumentRepository documentRepository;
     private final TenantRepository tenantRepository;
     private final PlanRepository planRepository;
@@ -64,7 +67,8 @@ public class DocumentUploadService {
                                  PlanRepository planRepository,
                                  FileStorage fileStorage,
                                  DocumentIndexer indexer,
-                                 AppProperties properties) {
+                                 AppProperties properties,
+                                 BotContext botContext) {
         this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
         this.tenantRepository = tenantRepository;
@@ -72,37 +76,38 @@ public class DocumentUploadService {
         this.fileStorage = fileStorage;
         this.indexer = indexer;
         this.storageConfig = properties.storage();
+        this.botContext = botContext;
     }
 
     @Transactional
     public KnowledgeDocumentResponse upload(MultipartFile file) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        UUID tenantId = user.tenantId();
+        BotScope scope = botContext.scope();
 
         validate(file);
-        requireQuota(tenantId);
+        requireQuotaAcrossBots(scope.tenantId());
 
         byte[] content = read(file);
         String sha256 = sha256(content);
 
         // 같은 파일을 또 올리면 문서가 두 벌 생기고 한도만 깎인다.
         Optional<KnowledgeDocument> existing =
-                documentRepository.findFirstByTenantIdAndContentSha256(tenantId, sha256);
+                documentRepository.findFirstByBotIdAndContentSha256(scope.botId(), sha256);
         if (existing.isPresent()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                     "이미 올린 파일입니다: " + existing.get().getTitle());
         }
 
-        KnowledgeSource source = fileSource(tenantId);
+        KnowledgeSource source = fileSource(scope);
         String displayName = UploadPolicy.safeDisplayName(file.getOriginalFilename());
         String contentType = UploadPolicy.contentTypeFor(file.getOriginalFilename());
 
         KnowledgeDocument document = KnowledgeDocument.of(
-                tenantId, source.getId(), displayName, null, DocumentStatus.PENDING);
+                scope, source.getId(), displayName, null, DocumentStatus.PENDING);
         // 키에 문서 id 가 필요하므로 먼저 저장해 id 를 받는다.
         documentRepository.save(document);
 
-        String key = storageKey(tenantId, document.getId());
+        String key = storageKey(scope, document.getId());
         try (InputStream stream = new java.io.ByteArrayInputStream(content)) {
             fileStorage.put(key, stream, content.length, contentType);
         } catch (IOException e) {
@@ -111,8 +116,8 @@ public class DocumentUploadService {
 
         document.attachFile(key, contentType, displayName, content.length, sha256);
 
-        log.info("파일을 저장했습니다 — tenant={}, key={}, {}bytes. 학습 대기열에 들어갑니다",
-                tenantId, key, content.length);
+        log.info("파일을 저장했습니다 — bot={}, key={}, {}bytes. 학습 대기열에 들어갑니다",
+                scope.botId(), key, content.length);
 
         return KnowledgeDocumentResponse.from(document);
     }
@@ -129,11 +134,12 @@ public class DocumentUploadService {
         CurrentAuth.rejectIfImpersonating();
 
         KnowledgeDocument document = documentRepository.findById(documentId)
-                .filter(found -> found.getTenantId().equals(user.tenantId()))
+                // 서비스로 좁힌다 — 업체로만 좁히면 옆 서비스의 문서를 지울 수 있다.
+                .filter(found -> found.getBotId().equals(botContext.scope().botId()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND));
 
         // 조각을 먼저 지운다. 남으면 없는 문서의 내용이 계속 검색된다.
-        indexer.removeChunks(user.tenantId(), documentId);
+        indexer.removeChunks(botContext.scope(), documentId);
         if (document.getStorageKey() != null) {
             fileStorage.delete(document.getStorageKey());
         }
@@ -164,33 +170,49 @@ public class DocumentUploadService {
         }
     }
 
-    /** 요금제 문서 한도. 넘으면 올리기 전에 막는다 — 올리고 나서 지우라고 하면 늦다. */
-    private void requireQuota(UUID tenantId) {
+    /**
+     * 요금제 문서 한도. 넘으면 올리기 전에 막는다 — 올리고 나서 지우라고 하면 늦다.
+     *
+     * <p><b>업체 합산이다.</b> 서비스가 셋이어도 문서 한도는 하나를 나눠 쓴다 —
+     * 계약의 단위가 업체이기 때문이다. 이름의 {@code AcrossBots} 가 그 사실을 말한다.
+     * 그래서 화면은 "이 서비스 40 / 업체 전체 248 / 한도 500" 처럼 범위를 밝혀야 한다.
+     */
+    private void requireQuotaAcrossBots(UUID tenantId) {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TENANT_NOT_FOUND));
         Plan plan = planRepository.findById(tenant.getPlanId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLAN_NOT_FOUND));
 
-        if (documentRepository.countActive(tenantId) >= plan.getDocLimit()) {
+        if (documentRepository.countActiveAcrossBots(tenantId) >= plan.getDocLimit()) {
             throw new BusinessException(ErrorCode.QUOTA_EXCEEDED,
                     "학습 문서 한도(" + plan.getDocLimit() + "개)에 도달했습니다. "
                             + "요금제를 올리거나 쓰지 않는 문서를 지워 주세요");
         }
     }
 
-    /** 업체별 파일 소스. 없으면 만든다 — 업로드하려고 소스를 먼저 만들게 하지 않는다. */
-    private KnowledgeSource fileSource(UUID tenantId) {
-        return sourceRepository.findFirstByTenantIdAndType(tenantId, SourceType.FILE)
+    /**
+     * <b>서비스별</b> 파일 소스. 없으면 만든다 — 업로드하려고 소스를 먼저 만들게 하지 않는다.
+     *
+     * <p>업체별로 두면 모든 서비스의 업로드가 한 소스에 쌓여, 지식 소스 화면이
+     * 옆 서비스 문서를 자기 것으로 보여준다.
+     */
+    private KnowledgeSource fileSource(BotScope scope) {
+        return sourceRepository.findFirstByBotIdAndType(scope.botId(), SourceType.FILE)
                 .orElseGet(() -> sourceRepository.save(
-                        KnowledgeSource.of(tenantId, SourceType.FILE, FILE_SOURCE_LABEL, false)));
+                        KnowledgeSource.of(scope, SourceType.FILE, FILE_SOURCE_LABEL, false)));
     }
 
     /**
-     * 저장소 키. 테넌트를 경로에 넣어 해지 시 접두사로 한 번에 지울 수 있게 한다.
+     * 저장소 키. 테넌트·<b>서비스</b>를 경로에 넣어 접두사로 한 번에 지울 수 있게 한다 —
+     * 업체 해지든 서비스 삭제든 그 접두사만 지우면 된다.
      * 사용자가 올린 파일명은 키에 넣지 않는다 — 경로 조작과 충돌이 동시에 생긴다.
+     *
+     * <p><b>기존 키는 옮기지 않는다.</b> {@code storage_key} 컬럼에 실제 값이 들어 있어
+     * 개별 삭제는 그대로 동작한다. 옮기면 그동안 올라간 파일을 잃는다.
      */
-    private String storageKey(UUID tenantId, UUID documentId) {
-        return "tenants/" + tenantId + "/documents/" + documentId;
+    private String storageKey(BotScope scope, UUID documentId) {
+        return "tenants/" + scope.tenantId() + "/bots/" + scope.botId()
+                + "/documents/" + documentId;
     }
 
     private byte[] read(MultipartFile file) {

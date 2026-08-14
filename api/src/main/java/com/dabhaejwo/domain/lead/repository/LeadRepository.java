@@ -13,13 +13,13 @@ import java.util.UUID;
 
 public interface LeadRepository extends JpaRepository<Lead, UUID> {
 
-    Page<Lead> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId, Pageable pageable);
+    Page<Lead> findAllByBotIdOrderByCreatedAtDesc(UUID botId, Pageable pageable);
 
-    List<Lead> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId);
+    List<Lead> findAllByBotIdOrderByCreatedAtDesc(UUID botId);
 
-    Optional<Lead> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<Lead> findByIdAndBotId(UUID id, UUID botId);
 
-    long countByTenantIdAndCreatedAtBetween(UUID tenantId, OffsetDateTime from, OffsetDateTime to);
+    long countByBotIdAndCreatedAtBetween(UUID botId, OffsetDateTime from, OffsetDateTime to);
 
-    long countByTenantIdAndStatus(UUID tenantId, LeadStatus status);
+    long countByBotIdAndStatus(UUID botId, LeadStatus status);
 }

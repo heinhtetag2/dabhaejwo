@@ -12,9 +12,15 @@ import java.util.UUID;
 
 public interface AllowedOriginRepository extends JpaRepository<AllowedOrigin, UUID> {
 
-    List<AllowedOrigin> findAllByTenantId(UUID tenantId);
+    /**
+     * 서비스 범위로만 조회한다.
+     *
+     * <p>{@code findAllByTenantId} 를 <b>일부러 두지 않았다.</b> 남겨두면 언젠가 쓰이고,
+     * 그러면 A 서비스 키가 B 서비스 도메인에서 통과한다 — 컴파일러가 못 잡는 종류다.
+     */
+    List<AllowedOrigin> findAllByBotId(UUID botId);
 
-    boolean existsByTenantIdAndOrigin(UUID tenantId, String origin);
+    boolean existsByBotIdAndOrigin(UUID botId, String origin);
 
     /**
      * "설치됐다"는 신호. 위젯이 실제로 호출한 시각을 남긴다.
@@ -29,10 +35,10 @@ public interface AllowedOriginRepository extends JpaRepository<AllowedOrigin, UU
     @Modifying
     @Query("""
             UPDATE AllowedOrigin o SET o.lastCalledAt = :now
-            WHERE o.tenantId = :tenantId AND LOWER(o.origin) = LOWER(:origin)
+            WHERE o.botId = :botId AND LOWER(o.origin) = LOWER(:origin)
               AND (o.lastCalledAt IS NULL OR o.lastCalledAt < :threshold)
             """)
-    int markCalled(@Param("tenantId") UUID tenantId,
+    int markCalled(@Param("botId") UUID botId,
                    @Param("origin") String origin,
                    @Param("now") OffsetDateTime now,
                    @Param("threshold") OffsetDateTime threshold);

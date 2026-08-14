@@ -2,6 +2,7 @@ package com.dabhaejwo.global.llm;
 
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -42,31 +43,31 @@ public class LlmGateway {
      * 답변 생성. {@code purpose} 를 필수 인자로 받는 이유는, 용도를 나누지 않으면
      * 같은 모델이 답변용인지 요약용인지 구분되지 않아 절감 지점을 찾을 수 없기 때문이다.
      */
-    public GenerateResult generate(UUID tenantId,
+    public GenerateResult generate(BotScope scope,
                                    UsagePurpose purpose,
                                    LlmProviderName providerName,
                                    GenerateRequest request,
                                    UUID conversationId) {
         LlmProvider provider = require(providerName);
         GenerateResult result = provider.generate(request);
-        recordUsage(tenantId, purpose, providerName, result.model(),
+        recordUsage(scope, purpose, providerName, result.model(),
                 result.inputTokens(), result.outputTokens(), conversationId);
         return result;
     }
 
-    public EmbedResult embed(UUID tenantId,
+    public EmbedResult embed(BotScope scope,
                              UsagePurpose purpose,
                              LlmProviderName providerName,
                              List<String> texts,
                              String model) {
         LlmProvider provider = require(providerName);
         EmbedResult result = provider.embed(texts, model);
-        recordUsage(tenantId, purpose, providerName, result.model(),
+        recordUsage(scope, purpose, providerName, result.model(),
                 result.inputTokens(), 0, null);
         return result;
     }
 
-    private void recordUsage(UUID tenantId,
+    private void recordUsage(BotScope scope,
                              UsagePurpose purpose,
                              LlmProviderName providerName,
                              String model,
@@ -76,7 +77,7 @@ public class LlmGateway {
         OffsetDateTime now = OffsetDateTime.now();
         ModelPriceLookup.ResolvedPrice price = priceLookup.resolve(providerName, model, now);
         BigDecimal cost = price.costOf(inputTokens, outputTokens);
-        usageRecorder.record(tenantId, purpose, providerName, model,
+        usageRecorder.record(scope, purpose, providerName, model,
                 price.modelPriceId(), inputTokens, outputTokens, cost, conversationId);
     }
 

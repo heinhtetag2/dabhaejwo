@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.knowledge.entity;
 
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,6 +24,10 @@ public class KnowledgeSource {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    /** 어느 서비스의 것인가. 조회는 전부 이 값으로 좁힌다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SourceType type;
@@ -43,9 +48,10 @@ public class KnowledgeSource {
     protected KnowledgeSource() {
     }
 
-    public static KnowledgeSource of(UUID tenantId, SourceType type, String origin, boolean autoRefresh) {
+    public static KnowledgeSource of(BotScope scope, SourceType type, String origin, boolean autoRefresh) {
         KnowledgeSource source = new KnowledgeSource();
-        source.tenantId = tenantId;
+        source.tenantId = scope.tenantId();
+        source.botId = scope.botId();
         source.type = type;
         source.origin = origin;
         source.autoRefresh = autoRefresh;
@@ -67,6 +73,10 @@ public class KnowledgeSource {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBotId() {
+        return botId;
     }
 
     public SourceType getType() {

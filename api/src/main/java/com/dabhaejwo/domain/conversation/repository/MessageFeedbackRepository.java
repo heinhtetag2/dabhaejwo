@@ -7,5 +7,5 @@ import java.util.UUID;
 
 public interface MessageFeedbackRepository extends JpaRepository<MessageFeedback, UUID> {
 
-    long countByTenantIdAndHelpfulFalse(UUID tenantId);
+    long countByBotIdAndHelpfulFalse(UUID botId);
 }

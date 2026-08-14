@@ -10,6 +10,7 @@ import com.dabhaejwo.global.llm.LlmGateway;
 import com.dabhaejwo.global.llm.LlmProviderName;
 import com.dabhaejwo.global.llm.UsagePurpose;
 import com.dabhaejwo.global.storage.FileStorage;
+import com.dabhaejwo.global.security.BotScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -102,15 +103,18 @@ public class DocumentIndexer {
 
             LlmProviderName provider = embeddingProvider();
             String model = embeddingModel(provider);
-            List<float[]> vectors = embedAll(document.getTenantId(), chunks, provider, model);
-            chunkRepository.replaceForDocument(document.getTenantId(), documentId, chunks, vectors);
+            List<float[]> vectors = embedAll(new BotScope(document.getTenantId(), document.getBotId()), chunks, provider, model);
+            chunkRepository.replaceForDocument(
+                    new BotScope(document.getTenantId(), document.getBotId()),
+                    documentId, chunks, vectors);
             // 무엇으로 학습했는지 함께 남긴다 — 공급사를 바꿨을 때 무엇을 다시 해야 하는지의 근거다.
             document.markIndexed(chunks.size(), provider.name(), model);
 
             log.info("학습 완료 — document={}, 조각={}", documentId, chunks.size());
             // 업로드하고 나면 언제 끝나는지 알 수 없다. 끝난 순간을 알려준다.
             notificationEvents.indexingDone(
-                    document.getTenantId(), document.getTitle(), chunks.size());
+                    new BotScope(document.getTenantId(), document.getBotId()),
+                    document.getTitle(), chunks.size());
             return chunks.size();
 
         } catch (IOException e) {
@@ -131,7 +135,8 @@ public class DocumentIndexer {
     private int fail(KnowledgeDocument document, String errorCode) {
         document.markFailed(errorCode);
         notificationEvents.indexingFailed(
-                document.getTenantId(), document.getTitle(), errorCode);
+                new BotScope(document.getTenantId(), document.getBotId()),
+                document.getTitle(), errorCode);
         return -1;
     }
 
@@ -144,14 +149,14 @@ public class DocumentIndexer {
     }
 
     /** 배치로 나눠 임베딩한다. 게이트웨이가 호출마다 {@code ai_usage} 를 적재한다. */
-    private List<float[]> embedAll(UUID tenantId, List<String> chunks,
+    private List<float[]> embedAll(BotScope scope, List<String> chunks,
                                    LlmProviderName provider, String model) {
         List<float[]> vectors = new java.util.ArrayList<>(chunks.size());
 
         for (int from = 0; from < chunks.size(); from += EMBED_BATCH) {
             List<String> batch = chunks.subList(from, Math.min(from + EMBED_BATCH, chunks.size()));
             EmbedResult result = llmGateway.embed(
-                    tenantId, UsagePurpose.EMBED_DOC, provider, batch, model);
+                    scope, UsagePurpose.EMBED_DOC, provider, batch, model);
 
             if (result.vectors().size() != batch.size()) {
                 throw new IllegalStateException(
@@ -176,17 +181,17 @@ public class DocumentIndexer {
 
     /** 문서를 지울 때 조각도 함께 지운다. 남으면 없는 문서의 내용이 계속 검색된다. */
     @Transactional
-    public void removeChunks(UUID tenantId, UUID documentId) {
-        chunkRepository.deleteByDocument(tenantId, documentId);
+    public void removeChunks(BotScope scope, UUID documentId) {
+        chunkRepository.deleteByDocument(scope, documentId);
     }
 
     /** 다시 학습 대상으로 되돌린다. */
     @Transactional
-    public void requeue(UUID tenantId, UUID documentId) {
+    public void requeue(BotScope scope, UUID documentId) {
         documentRepository.findById(documentId)
-                .filter(document -> document.getTenantId().equals(tenantId))
+                .filter(document -> document.getBotId().equals(scope.botId()))
                 .ifPresent(document -> {
-                    chunkRepository.deleteByDocument(tenantId, documentId);
+                    chunkRepository.deleteByDocument(scope, documentId);
                     document.requeue();
                 });
     }

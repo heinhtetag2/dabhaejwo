@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/app/faqs")
+@RequestMapping("/api/app/bots/{botId}/faqs")
 public class FaqController {
 
     private final FaqService faqService;

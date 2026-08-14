@@ -31,6 +31,8 @@ import com.dabhaejwo.domain.plan.repository.PlanRepository;
 import com.dabhaejwo.domain.tenant.entity.AllowedOrigin;
 import com.dabhaejwo.domain.tenant.repository.AllowedOriginRepository;
 import com.dabhaejwo.domain.tenant.repository.TenantRepository;
+import com.dabhaejwo.domain.bot.service.BotProvisioner;
+import com.dabhaejwo.global.security.BotScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
@@ -76,6 +78,7 @@ public class DemoDataSeeder {
     /** 트랜잭션 경계를 잡기 위한 별도 빈. ApplicationRunner 람다에는 @Transactional 이 안 걸린다. */
     @Bean
     DemoSeedWriter demoSeedWriter(TenantRepository tenantRepository,
+                                  BotProvisioner botProvisioner,
                                   PlanRepository planRepository,
                                   TenantMemberRepository memberRepository,
                                   AllowedOriginRepository allowedOriginRepository,
@@ -90,7 +93,7 @@ public class DemoDataSeeder {
                                   BillingRecordRepository billingRepository,
                                   PasswordEncoder passwordEncoder,
                                   JdbcTemplate jdbcTemplate) {
-        return new DemoSeedWriter(tenantRepository, planRepository, memberRepository,
+        return new DemoSeedWriter(tenantRepository, botProvisioner, planRepository, memberRepository,
                 allowedOriginRepository, botSettingsRepository, sourceRepository, documentRepository,
                 faqRepository, gapRepository, conversationRepository, messageRepository,
                 leadRepository, billingRepository, passwordEncoder, jdbcTemplate);
@@ -99,6 +102,7 @@ public class DemoDataSeeder {
     static class DemoSeedWriter {
 
         private final TenantRepository tenantRepository;
+        private final BotProvisioner botProvisioner;
         private final PlanRepository planRepository;
         private final TenantMemberRepository memberRepository;
         private final AllowedOriginRepository allowedOriginRepository;
@@ -114,7 +118,8 @@ public class DemoDataSeeder {
         private final PasswordEncoder passwordEncoder;
         private final JdbcTemplate jdbcTemplate;
 
-        DemoSeedWriter(TenantRepository tenantRepository, PlanRepository planRepository,
+        DemoSeedWriter(TenantRepository tenantRepository, BotProvisioner botProvisioner,
+                       PlanRepository planRepository,
                        TenantMemberRepository memberRepository,
                        AllowedOriginRepository allowedOriginRepository,
                        BotSettingsRepository botSettingsRepository,
@@ -126,6 +131,7 @@ public class DemoDataSeeder {
                        BillingRecordRepository billingRepository, PasswordEncoder passwordEncoder,
                        JdbcTemplate jdbcTemplate) {
             this.tenantRepository = tenantRepository;
+            this.botProvisioner = botProvisioner;
             this.planRepository = planRepository;
             this.memberRepository = memberRepository;
             this.allowedOriginRepository = allowedOriginRepository;
@@ -154,14 +160,19 @@ public class DemoDataSeeder {
             }
 
             UUID tenantId = insertTenant(business.getId());
+            // 실제 가입과 같은 경로로 만든다 — 시더가 손수 만들면 둘이 갈린다.
+            BotScope scope = botProvisioner
+                    .provision(tenantId, "노르드하임 가구", DEMO_DOMAIN, DEMO_KEY, true)
+                    .scope();
+
             seedMembers(tenantId);
-            seedOrigins(tenantId);
-            botSettingsRepository.save(nordheimSettings(tenantId));
-            seedKnowledge(tenantId);
-            seedFaqs(tenantId);
-            seedGaps(tenantId);
-            seedConversations(tenantId);
-            seedLeads(tenantId);
+            seedOrigins(scope);
+            botSettingsRepository.save(nordheimSettings(scope));
+            seedKnowledge(scope);
+            seedFaqs(scope);
+            seedGaps(scope);
+            seedConversations(scope);
+            seedLeads(scope);
             seedBilling(tenantId, business.getMonthlyFee());
             seedDailyUsage(tenantId);
 
@@ -195,14 +206,15 @@ public class DemoDataSeeder {
                     com.dabhaejwo.global.security.TenantMemberRole.VIEWER));
         }
 
-        private void seedOrigins(UUID tenantId) {
-            allowedOriginRepository.save(AllowedOrigin.of(tenantId, DEMO_DOMAIN));
-            allowedOriginRepository.save(AllowedOrigin.of(tenantId, "shop." + DEMO_DOMAIN));
-            allowedOriginRepository.save(AllowedOrigin.of(tenantId, "nordheim-test.vercel.app"));
+        private void seedOrigins(BotScope scope) {
+            // 대표 도메인은 BotProvisioner 가 이미 등록했다. 프로토타입의 나머지 둘만 더한다 —
+            // 한 서비스의 여러 접속 경로(쇼핑몰 서브도메인 · 스테이징)를 보여주기 위한 것이다.
+            allowedOriginRepository.save(AllowedOrigin.of(scope, "shop." + DEMO_DOMAIN));
+            allowedOriginRepository.save(AllowedOrigin.of(scope, "nordheim-test.vercel.app"));
         }
 
-        private BotSettings nordheimSettings(UUID tenantId) {
-            BotSettings settings = BotSettings.defaults(tenantId, "노르드");
+        private BotSettings nordheimSettings(BotScope scope) {
+            BotSettings settings = BotSettings.defaults(scope, "노르드");
             settings.editAppearance("노르드 도우미", "#17222E", "안녕하세요! 가구 고르시는 것 도와드릴게요.");
             settings.editTone(
                     "노르드하임 가구의 상담 직원입니다. 정중한 존댓말을 쓰고, 답변은 세 문장 안으로 짧게 합니다. "
@@ -220,13 +232,13 @@ public class DemoDataSeeder {
          * 프로토타입 기준 문서 248개 = 웹 230 + 파일 14 + 직접입력 4.
          * 상태는 학습완료 231 / 처리중 12 / 실패 5 로 맞춘다.
          */
-        private void seedKnowledge(UUID tenantId) {
+        private void seedKnowledge(BotScope scope) {
             KnowledgeSource web = sourceRepository.save(
-                    KnowledgeSource.of(tenantId, SourceType.WEBSITE, DEMO_DOMAIN, true));
+                    KnowledgeSource.of(scope, SourceType.WEBSITE, DEMO_DOMAIN, true));
             KnowledgeSource file = sourceRepository.save(
-                    KnowledgeSource.of(tenantId, SourceType.FILE, "업로드 파일", false));
+                    KnowledgeSource.of(scope, SourceType.FILE, "업로드 파일", false));
             KnowledgeSource manual = sourceRepository.save(
-                    KnowledgeSource.of(tenantId, SourceType.MANUAL, "직접 입력", false));
+                    KnowledgeSource.of(scope, SourceType.MANUAL, "직접 입력", false));
             web.markCrawled();
 
             String[] webTitles = {"배송 및 반품 안내", "오크 3인 소파 — 노르드 라인", "원목 관리 방법",
@@ -235,7 +247,7 @@ public class DemoDataSeeder {
             for (int i = 0; i < 230; i++) {
                 DocumentStatus status = i < 216 ? DocumentStatus.INDEXED
                         : i < 226 ? DocumentStatus.PROCESSING : DocumentStatus.FAILED;
-                KnowledgeDocument doc = KnowledgeDocument.of(tenantId, web.getId(),
+                KnowledgeDocument doc = KnowledgeDocument.of(scope, web.getId(),
                         webTitles[i % webTitles.length] + (i < webTitles.length ? "" : " " + i),
                         "/page/" + (i + 1), status);
                 if (status == DocumentStatus.INDEXED) {
@@ -249,7 +261,7 @@ public class DemoDataSeeder {
             for (int i = 0; i < 14; i++) {
                 DocumentStatus status = i < 11 ? DocumentStatus.INDEXED
                         : i < 13 ? DocumentStatus.PROCESSING : DocumentStatus.FAILED;
-                KnowledgeDocument doc = KnowledgeDocument.of(tenantId, file.getId(),
+                KnowledgeDocument doc = KnowledgeDocument.of(scope, file.getId(),
                         "2026_카탈로그_v" + (i + 1) + ".pdf", null, status);
                 if (status == DocumentStatus.INDEXED) {
                     doc.markIndexed(20 + i, "STUB", "demo-seed");
@@ -260,55 +272,55 @@ public class DemoDataSeeder {
             }
             String[] manualTitles = {"제주·도서 배송 정책", "A/S 접수 절차", "쿠폰 중복 사용 규정", "매장 주차 안내"};
             for (String title : manualTitles) {
-                KnowledgeDocument doc = KnowledgeDocument.of(tenantId, manual.getId(), title, null,
+                KnowledgeDocument doc = KnowledgeDocument.of(scope, manual.getId(), title, null,
                         DocumentStatus.INDEXED);
                 doc.markIndexed(2, "STUB", "demo-seed");
                 documentRepository.save(doc);
             }
         }
 
-        private void seedFaqs(UUID tenantId) {
-            faqRepository.save(Faq.of(tenantId, "배송은 며칠 걸리나요?",
+        private void seedFaqs(BotScope scope) {
+            faqRepository.save(Faq.of(scope, "배송은 며칠 걸리나요?",
                     "주문 후 영업일 기준 5~7일 내 배송됩니다. 조립 설치를 함께 신청하시면 하루 정도 더 걸릴 수 있습니다.",
                     List.of("배송 및 반품 안내"), true, 1));
-            faqRepository.save(Faq.of(tenantId, "소파 재질이 궁금해요",
+            faqRepository.save(Faq.of(scope, "소파 재질이 궁금해요",
                     "노르드 라인 소파는 북미산 화이트 오크 원목에 친환경 수성 도료를 사용합니다.",
                     List.of("오크 3인 소파 — 노르드 라인", "원목 관리 방법"), true, 2));
-            faqRepository.save(Faq.of(tenantId, "매장 위치 알려주세요",
+            faqRepository.save(Faq.of(scope, "매장 위치 알려주세요",
                     "서울 성동구 연무장길 00, 노르드하임 쇼룸입니다. 매일 11:00–20:00 운영합니다.",
                     List.of("매장 안내"), true, 3));
-            faqRepository.save(Faq.of(tenantId, "조립 서비스 비용",
+            faqRepository.save(Faq.of(scope, "조립 서비스 비용",
                     "조립 설치는 품목당 30,000원이며, 100만원 이상 주문 시 무료입니다.",
                     List.of("조립 서비스"), true, 4));
-            faqRepository.save(Faq.of(tenantId, "반품 기간이 언제까지죠",
+            faqRepository.save(Faq.of(scope, "반품 기간이 언제까지죠",
                     "수령일로부터 14일 이내 반품 가능합니다. 단순 변심은 왕복 배송비가 부과됩니다.",
                     List.of("배송 및 반품 안내"), false, 5));
-            faqRepository.save(Faq.of(tenantId, "원목 관리는 어떻게 하나요",
+            faqRepository.save(Faq.of(scope, "원목 관리는 어떻게 하나요",
                     "직사광선을 피하고 습도 40~60%를 유지해 주세요. 마른 천으로 결 방향을 따라 닦습니다.",
                     List.of("원목 관리 방법"), false, 6));
         }
 
-        private void seedGaps(UUID tenantId) {
-            gapRepository.save(gap(tenantId, "제주도까지 배송되나요? 추가 비용 있어요?", GapReason.ANSWER_FAILED,
+        private void seedGaps(BotScope scope) {
+            gapRepository.save(gap(scope, "제주도까지 배송되나요? 추가 비용 있어요?", GapReason.ANSWER_FAILED,
                     "/product/1204", "죄송합니다, 해당 내용은 확인이 어렵습니다. 매장으로 문의해 주세요.", 7));
-            gapRepository.save(gap(tenantId, "A/S 신청은 어디서 하나요", GapReason.THUMBS_DOWN,
+            gapRepository.save(gap(scope, "A/S 신청은 어디서 하나요", GapReason.THUMBS_DOWN,
                     "/support", "고객센터를 통해 접수하실 수 있습니다.", 4));
-            gapRepository.save(gap(tenantId, "지금 매장에 재고 있는지 확인 가능한가요", GapReason.ANSWER_FAILED,
+            gapRepository.save(gap(scope, "지금 매장에 재고 있는지 확인 가능한가요", GapReason.ANSWER_FAILED,
                     "/", "재고 정보는 제공하고 있지 않습니다.", 6));
-            gapRepository.save(gap(tenantId, "쿠폰 두 개 같이 쓸 수 있나요", GapReason.ANSWER_FAILED,
+            gapRepository.save(gap(scope, "쿠폰 두 개 같이 쓸 수 있나요", GapReason.ANSWER_FAILED,
                     "/cart", "죄송합니다, 해당 내용은 확인이 어렵습니다.", 3));
         }
 
-        private AnswerGap gap(UUID tenantId, String question, GapReason reason, String path,
+        private AnswerGap gap(BotScope scope, String question, GapReason reason, String path,
                               String botAnswer, int occurrences) {
-            AnswerGap gap = AnswerGap.of(tenantId, question, reason, path, botAnswer);
+            AnswerGap gap = AnswerGap.of(scope, question, reason, path, botAnswer);
             for (int i = 1; i < occurrences; i++) {
                 gap.recur(question, path, botAnswer);
             }
             return gap;
         }
 
-        private void seedConversations(UUID tenantId) {
+        private void seedConversations(BotScope scope) {
             String[][] scripts = {
                     {"서울", "/product/1204", "안녕하세요", "오크 3인 소파 지금 주문하면 언제 오나요?",
                             "제주도까지 배송되나요? 추가 비용 있어요?"},
@@ -319,12 +331,12 @@ public class DemoDataSeeder {
             };
             for (String[] script : scripts) {
                 Conversation conversation = conversationRepository.save(
-                        Conversation.start(tenantId, script[1], script[0], "demo-hash"));
+                        Conversation.start(scope, script[1], script[0], "demo-hash"));
                 for (int i = 2; i < script.length; i++) {
-                    messageRepository.save(Message.fromVisitor(tenantId, conversation.getId(), script[i]));
+                    messageRepository.save(Message.fromVisitor(scope, conversation.getId(), script[i]));
                     boolean lastAndFailed = i == script.length - 1 && script[0].equals("서울")
                             && script[1].startsWith("/product");
-                    messageRepository.save(Message.fromBot(tenantId, conversation.getId(),
+                    messageRepository.save(Message.fromBot(scope, conversation.getId(),
                             lastAndFailed
                                     ? "죄송합니다, 해당 내용은 확인이 어렵습니다. 매장으로 문의해 주세요."
                                     : "네, 안내해 드리겠습니다.",
@@ -333,14 +345,15 @@ public class DemoDataSeeder {
             }
         }
 
-        private void seedLeads(UUID tenantId) {
-            leadRepository.save(Lead.of(tenantId, null, "김OO", "010-2847-3391", "조립 서비스 신청 문의"));
-            leadRepository.save(Lead.of(tenantId, null, "이OO", "010-5512-7712", "대량 구매 견적 요청"));
+        private void seedLeads(BotScope scope) {
+            leadRepository.save(Lead.of(scope, null, "김OO", "010-2847-3391", "조립 서비스 신청 문의"));
+            leadRepository.save(Lead.of(scope, null, "이OO", "010-5512-7712", "대량 구매 견적 요청"));
             Lead contacted = leadRepository.save(
-                    Lead.of(tenantId, null, "박OO", "010-9930-2205", "제주 배송 관련"));
+                    Lead.of(scope, null, "박OO", "010-9930-2205", "제주 배송 관련"));
             contacted.changeStatus(com.dabhaejwo.domain.lead.entity.LeadStatus.CONTACTED);
         }
 
+        /** 결제는 업체 단위다 — 서비스가 여럿이어도 청구는 하나다. */
         private void seedBilling(UUID tenantId, int monthlyFee) {
             LocalDate base = LocalDate.now().withDayOfMonth(1);
             billingRepository.save(BillingRecord.of(tenantId, base.minusMonths(1), monthlyFee, BillingStatus.PAID));

@@ -1,6 +1,7 @@
 package com.dabhaejwo.global.security;
 
 import com.dabhaejwo.domain.tenant.repository.AllowedOriginRepository;
+import com.dabhaejwo.domain.bot.repository.BotRepository;
 import com.dabhaejwo.domain.tenant.repository.TenantRepository;
 import com.dabhaejwo.domain.tenant.service.OriginCallRecorder;
 import org.springframework.context.annotation.Bean;
@@ -65,12 +66,14 @@ public class SecurityConfig {
     @Bean
     @Order(3)
     SecurityFilterChain widgetChain(HttpSecurity http,
+                                    BotRepository botRepository,
                                     TenantRepository tenantRepository,
                                     AllowedOriginRepository allowedOriginRepository,
                                     OriginCallRecorder callRecorder) throws Exception {
         return baseline(http.securityMatcher("/api/widget/**"))
                 .addFilterBefore(
-                        new WidgetKeyAuthFilter(tenantRepository, allowedOriginRepository, callRecorder, objectMapper),
+                        new WidgetKeyAuthFilter(botRepository, tenantRepository, allowedOriginRepository,
+                                callRecorder, objectMapper),
                         UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
                 .build();

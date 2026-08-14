@@ -4,6 +4,8 @@ import com.dabhaejwo.domain.chat.dto.response.AnswerResponse;
 import com.dabhaejwo.domain.chat.service.AnswerService;
 import com.dabhaejwo.domain.chat.service.ChatGuard;
 import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.domain.bot.service.BotContext;
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -24,15 +26,18 @@ import java.util.UUID;
  * 일일 상한도 적용된다. 미리보기라고 공짜로 두면 그 구멍으로 원가가 샌다.
  */
 @RestController
-@RequestMapping("/api/app/chat")
+@RequestMapping("/api/app/bots/{botId}/chat")
 public class ChatPreviewController {
 
     private final AnswerService answerService;
+    private final BotContext botContext;
     private final ChatGuard guard;
 
-    public ChatPreviewController(AnswerService answerService, ChatGuard guard) {
+    public ChatPreviewController(AnswerService answerService, ChatGuard guard,
+                                  BotContext botContext) {
         this.answerService = answerService;
         this.guard = guard;
+        this.botContext = botContext;
     }
 
     @PostMapping("/preview")
@@ -40,7 +45,9 @@ public class ChatPreviewController {
         UUID tenantId = CurrentAuth.tenantUser().tenantId();
         guard.requireWithinDailyCost(tenantId, guard.settings());
 
-        return answerService.answer(tenantId, null, request.question(), null, guard.settings());
+        // 미리보기도 서비스를 지목해야 한다 — 안 그러면 아무 지식이나 긁는다.
+        return answerService.answer(botContext.scope(), null, request.question(), null,
+                guard.settings());
     }
 
     public record PreviewRequest(@NotBlank @Size(max = 500) String question) {

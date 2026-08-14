@@ -22,16 +22,16 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      */
     @Query("""
             SELECT c FROM Conversation c
-            WHERE c.tenantId = :tenantId
+            WHERE c.botId = :botId
               AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
             ORDER BY c.startedAt DESC
             """)
-    Page<Conversation> findAnsweredByTenantId(@Param("tenantId") UUID tenantId, Pageable pageable);
+    Page<Conversation> findAnsweredByBotId(@Param("botId") UUID botId, Pageable pageable);
 
     /** 방문자 번호를 매기려면 업체 전체를 처음 온 순서로 봐야 한다 (ConversationService 참조). */
-    java.util.List<Conversation> findAllByTenantIdOrderByStartedAtAsc(UUID tenantId);
+    java.util.List<Conversation> findAllByBotIdOrderByStartedAtAsc(UUID botId);
 
-    Optional<Conversation> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<Conversation> findByIdAndBotId(UUID id, UUID botId);
 
     /**
      * 월 한도 판정. <b>질문이 오간 대화만</b> 센다.
@@ -39,6 +39,9 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * <p>전에는 만들어진 대화를 전부 셌다. 그러면 패널을 열기만 해도 한도가 깎여,
      * 방문자가 호기심에 백 번 열면 질문 한 번 없이 그 달 한도가 끝난다 — 봇이면 더 빠르다.
      * 원가가 나가는 것은 질문이므로 한도도 거기에 맞춘다.
+     *
+     * <p><b>업체 합산이다</b> — 서비스가 여럿이어도 전부 더해 센다. 계약의 단위가 업체이기
+     * 때문이고, 이름의 {@code AcrossBots} 가 그 사실을 말한다.
      */
     @Query("""
             SELECT COUNT(c) FROM Conversation c
@@ -46,9 +49,26 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
               AND c.startedAt >= :from AND c.startedAt < :to
               AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
             """)
-    long countAnsweredByTenantIdBetween(@Param("tenantId") UUID tenantId,
+    long countAnsweredAcrossBotsBetween(@Param("tenantId") UUID tenantId,
                                         @Param("from") OffsetDateTime from,
                                         @Param("to") OffsetDateTime to);
+
+    /**
+     * 서비스 하나의 대화 수. 홈 화면이 쓴다.
+     *
+     * <p>한도용 {@code countAnsweredAcrossBotsBetween} 과 <b>정의를 맞춘다</b> —
+     * 홈이 보여주는 "오늘 대화"와 실제로 깎이는 수가 다르면 업체는 둘 중 무엇도 믿지 못한다.
+     * 다만 범위가 다르다: 이쪽은 서비스, 저쪽은 업체 합산이다.
+     */
+    @Query("""
+            SELECT COUNT(c) FROM Conversation c
+            WHERE c.botId = :botId
+              AND c.startedAt >= :from AND c.startedAt < :to
+              AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
+            """)
+    long countAnsweredByBotIdBetween(@Param("botId") UUID botId,
+                                     @Param("from") OffsetDateTime from,
+                                     @Param("to") OffsetDateTime to);
 
     /** 전 업체 대화 수. 운영 콘솔 전용 — 테넌트 조건이 없는 유일한 집계다. */
     long countByStartedAtGreaterThanEqualAndStartedAtLessThan(OffsetDateTime from, OffsetDateTime to);
@@ -81,10 +101,10 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
     @Query("""
             SELECT DISTINCT c FROM Conversation c
             JOIN Message m ON m.conversationId = c.id
-            WHERE c.tenantId = :tenantId AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%'))
+            WHERE c.botId = :botId AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%'))
             ORDER BY c.startedAt DESC
             """)
-    Page<Conversation> search(@Param("tenantId") UUID tenantId,
+    Page<Conversation> search(@Param("botId") UUID botId,
                               @Param("query") String query,
                               Pageable pageable);
 }

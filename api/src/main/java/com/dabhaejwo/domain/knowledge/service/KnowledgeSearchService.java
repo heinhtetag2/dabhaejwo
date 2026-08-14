@@ -12,7 +12,8 @@ import com.dabhaejwo.global.llm.EmbedResult;
 import com.dabhaejwo.global.llm.LlmGateway;
 import com.dabhaejwo.global.llm.LlmProviderName;
 import com.dabhaejwo.global.llm.UsagePurpose;
-import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.domain.bot.service.BotContext;
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,21 +43,23 @@ public class KnowledgeSearchService {
     private static final int MAX_QUERY_CHARS = 500;
 
     private final KnowledgeChunkRepository chunkRepository;
+    private final BotContext botContext;
     private final LlmGateway llmGateway;
     private final EmbeddingSettings embeddingSettings;
 
     public KnowledgeSearchService(KnowledgeChunkRepository chunkRepository,
                                   LlmGateway llmGateway,
-                                  EmbeddingSettings embeddingSettings) {
+                                  EmbeddingSettings embeddingSettings,
+                                  BotContext botContext) {
         this.chunkRepository = chunkRepository;
         this.llmGateway = llmGateway;
         this.embeddingSettings = embeddingSettings;
+        this.botContext = botContext;
     }
 
     @Transactional
     public KnowledgeSearchResponse search(String query, Integer limit) {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
-        return search(tenantId, query, limit);
+        return search(botContext.scope(), query, limit);
     }
 
     /**
@@ -64,21 +67,21 @@ public class KnowledgeSearchService {
      * 프롬프트에는 본문이 필요하고, 유사도는 답변 실패 판정에 쓰인다.
      */
     @Transactional
-    public List<KnowledgeChunkRepository.Match> searchEvidence(UUID tenantId, String query, int limit) {
-        return searchInternal(tenantId, query, limit);
+    public List<KnowledgeChunkRepository.Match> searchEvidence(BotScope scope, String query, int limit) {
+        return searchInternal(scope, query, limit);
     }
 
     /**
      * 테넌트를 직접 받는 형태. 방문자에게는 {@code CurrentAuth.tenantUser()} 가 없다.
      */
     @Transactional
-    public KnowledgeSearchResponse search(UUID tenantId, String query, Integer limit) {
+    public KnowledgeSearchResponse search(BotScope scope, String query, Integer limit) {
         String trimmed = normalize(query);
         return KnowledgeSearchResponse.of(trimmed,
-                searchInternal(tenantId, trimmed, limit == null ? DEFAULT_LIMIT : limit));
+                searchInternal(scope, trimmed, limit == null ? DEFAULT_LIMIT : limit));
     }
 
-    private List<KnowledgeChunkRepository.Match> searchInternal(UUID tenantId, String query, int limit) {
+    private List<KnowledgeChunkRepository.Match> searchInternal(BotScope scope, String query, int limit) {
         String trimmed = normalize(query);
         int size = Math.clamp(limit, 1, MAX_LIMIT);
 
@@ -86,13 +89,13 @@ public class KnowledgeSearchService {
         // 검색이 조용히 아무것도 못 찾는다 — 오류도 로그도 없이 "답변 실패"로만 보인다.
         LlmProviderName provider = embeddingSettings.provider();
         EmbedResult embedded = llmGateway.embed(
-                tenantId, UsagePurpose.EMBED_QUERY, provider, List.of(trimmed),
+                scope, UsagePurpose.EMBED_QUERY, provider, List.of(trimmed),
                 embeddingSettings.model(provider));
         if (embedded.vectors().isEmpty()) {
             throw new BusinessException(ErrorCode.FEATURE_NOT_READY,
                     "질문을 해석하지 못했습니다. 잠시 후 다시 시도해 주세요");
         }
-        return chunkRepository.search(tenantId, embedded.vectors().getFirst(), size);
+        return chunkRepository.search(scope, embedded.vectors().getFirst(), size);
     }
 
     private String normalize(String query) {

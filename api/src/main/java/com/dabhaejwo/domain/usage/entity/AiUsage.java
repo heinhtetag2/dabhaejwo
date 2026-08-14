@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import com.dabhaejwo.global.security.BotScope;
 
 /**
  * 모델 호출 원장. append-only — 수정자를 두지 않는다.
@@ -57,13 +58,23 @@ public class AiUsage {
     @Column(name = "conversation_id")
     private UUID conversationId;
 
+    /**
+     * 어느 서비스가 쓴 원가인가.
+     *
+     * <p><b>nullable 이고 FK 가 없다.</b> 서비스는 지워지는데 원장은 남아야 한다 —
+     * CASCADE 면 원장이 지워지고 SET NULL 이면 원가 귀속이 소급 변경된다.
+     * 서비스 구분 이전(V16 이전) 호출은 null 이며 <b>0 이나 임의값으로 채우지 않는다.</b>
+     */
+    @Column(name = "bot_id")
+    private UUID botId;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     protected AiUsage() {
     }
 
-    public static AiUsage of(UUID tenantId,
+    public static AiUsage of(BotScope scope,
                              UsagePurpose purpose,
                              LlmProviderName provider,
                              String model,
@@ -73,7 +84,8 @@ public class AiUsage {
                              BigDecimal costKrw,
                              UUID conversationId) {
         AiUsage usage = new AiUsage();
-        usage.tenantId = tenantId;
+        usage.tenantId = scope.tenantId();
+        usage.botId = scope.botId();
         usage.purpose = purpose;
         usage.provider = provider;
         usage.model = model;

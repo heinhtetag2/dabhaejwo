@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/app/leads")
+@RequestMapping("/api/app/bots/{botId}/leads")
 public class LeadController {
 
     private final LeadService leadService;

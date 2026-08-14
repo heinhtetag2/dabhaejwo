@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.botsettings.entity;
 
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,9 +24,20 @@ import java.util.UUID;
 @Table(name = "bot_settings")
 public class BotSettings {
 
+    /**
+     * PK 는 아직 {@code tenant_id} 다 — V17 에서 {@code bot_id} 로 교체한다.
+     *
+     * <p>먼저 바꾸지 않는 이유: {@code ddl-auto: validate} 는 PK 를 검사하지 않으므로
+     * 앱이 {@code bot_id} 를 진실로 다루면서도 DB PK 는 나중에 바꿀 수 있다.
+     * 스키마를 먼저 조이면 구버전으로 롤백할 길이 사라진다.
+     */
     @Id
     @Column(name = "tenant_id")
     private UUID tenantId;
+
+    /** <b>이 설정의 진짜 주인.</b> 조회는 전부 이 값으로 한다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
 
     @Column(name = "bot_name", nullable = false)
     private String botName;
@@ -113,11 +125,12 @@ public class BotSettings {
     protected BotSettings() {
     }
 
-    /** 업체를 만들 때 함께 만든다. 설정이 없는 상태를 화면이 다루지 않아도 되게 한다. */
-    public static BotSettings defaults(UUID tenantId, String tenantName) {
+    /** 서비스를 만들 때 함께 만든다. 설정이 없는 상태를 화면이 다루지 않아도 되게 한다. */
+    public static BotSettings defaults(BotScope scope, String botName) {
         BotSettings settings = new BotSettings();
-        settings.tenantId = tenantId;
-        settings.botName = tenantName + " 도우미";
+        settings.tenantId = scope.tenantId();
+        settings.botId = scope.botId();
+        settings.botName = botName + " 도우미";
         settings.brandColor = "#17222E";
         settings.greeting = "안녕하세요! 무엇을 도와드릴까요?";
         settings.persona = "";
@@ -186,6 +199,10 @@ public class BotSettings {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBotId() {
+        return botId;
     }
 
     public String getBotName() {

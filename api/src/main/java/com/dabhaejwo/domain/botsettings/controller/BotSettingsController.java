@@ -23,7 +23,7 @@ import java.util.UUID;
 
 /** 말투와 모양 · 설치 화면이 쓰는 엔드포인트. */
 @RestController
-@RequestMapping("/api/app")
+@RequestMapping("/api/app/bots/{botId}")
 public class BotSettingsController {
 
     private final BotSettingsService botSettingsService;

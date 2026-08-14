@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.gap.entity;
 
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -30,6 +31,10 @@ public class AnswerGap {
 
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
+
+    /** 어느 서비스의 것인가. 조회는 전부 이 값으로 좁힌다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
 
     /** 마지막으로 들어온 원문. 업체에게는 이걸 보여준다. */
     @Column(nullable = false)
@@ -69,10 +74,11 @@ public class AnswerGap {
     protected AnswerGap() {
     }
 
-    public static AnswerGap of(UUID tenantId, String question, GapReason reason,
+    public static AnswerGap of(BotScope scope, String question, GapReason reason,
                                String lastPath, String botAnswer) {
         AnswerGap gap = new AnswerGap();
-        gap.tenantId = tenantId;
+        gap.tenantId = scope.tenantId();
+        gap.botId = scope.botId();
         gap.question = question;
         gap.questionNorm = normalize(question);
         gap.reason = reason;
@@ -123,6 +129,10 @@ public class AnswerGap {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBotId() {
+        return botId;
     }
 
     public String getQuestion() {

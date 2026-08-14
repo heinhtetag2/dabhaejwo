@@ -30,6 +30,8 @@ public enum ErrorCode {
 
     ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 이미지를 찾을 수 없습니다"),
     TENANT_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 업체를 찾을 수 없습니다"),
+    // 없는 서비스와 남의 업체 서비스를 구분해 주지 않는다 — 구분하면 id 를 훑어 존재 여부를 알아낼 수 있다.
+    BOT_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 서비스를 찾을 수 없습니다"),
     PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 요금제를 찾을 수 없습니다"),
     FAQ_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 공통 질문을 찾을 수 없습니다"),
     OPERATOR_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 운영자를 찾을 수 없습니다"),
@@ -50,6 +52,12 @@ public enum ErrorCode {
 
     INVALID_STATE_TRANSITION(HttpStatus.CONFLICT, "허용되지 않은 상태 변경입니다"),
     CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "다른 사용자가 먼저 수정했습니다"),
+    /*
+     * 서비스 수 상한. QUOTA_EXCEEDED(429)를 재사용하지 않는다 —
+     * 429 는 "기다리면 풀린다"는 뜻인데 이건 기다려도 안 풀리고,
+     * 화면이 안내할 다음 행동(요금제 변경)이 완전히 다르다.
+     */
+    BOT_LIMIT_REACHED(HttpStatus.CONFLICT, "서비스 수 상한에 도달했습니다"),
 
     QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "이번 달 한도를 초과했습니다"),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 잦습니다"),

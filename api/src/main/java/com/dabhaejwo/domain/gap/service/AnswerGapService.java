@@ -11,6 +11,7 @@ import com.dabhaejwo.global.common.PageResponse;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.domain.bot.service.BotContext;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,21 +31,24 @@ import java.util.UUID;
 public class AnswerGapService {
 
     private final AnswerGapRepository gapRepository;
+    private final BotContext botContext;
     private final FaqRepository faqRepository;
 
-    public AnswerGapService(AnswerGapRepository gapRepository, FaqRepository faqRepository) {
+    public AnswerGapService(AnswerGapRepository gapRepository, FaqRepository faqRepository,
+                       BotContext botContext) {
         this.gapRepository = gapRepository;
         this.faqRepository = faqRepository;
+        this.botContext = botContext;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<AnswerGapResponse> list(GapStatus status, int page, Integer size) {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
+        UUID botId = botContext.scope().botId();
         Pageable pageable = PageRequest.of(Math.max(page, 0), PageResponse.clampSize(size));
 
         return PageResponse.of(
-                gapRepository.findAllByTenantIdAndStatusOrderByLastAskedAtDesc(
-                        tenantId, status == null ? GapStatus.OPEN : status, pageable),
+                gapRepository.findAllByBotIdAndStatusOrderByLastAskedAtDesc(
+                        botId, status == null ? GapStatus.OPEN : status, pageable),
                 AnswerGapResponse::from);
     }
 
@@ -58,7 +62,7 @@ public class AnswerGapService {
     @Transactional
     public AnswerGapResponse resolve(Long gapId, GapResolveRequest request) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        AnswerGap gap = find(gapId, user.tenantId());
+        AnswerGap gap = find(gapId, botContext.scope().botId());
 
         if (gap.getStatus() == GapStatus.RESOLVED) {
             // 이미 답이 등록된 질문이다. 두 번 등록하면 같은 답변이 공통 질문에 둘 생긴다.
@@ -69,12 +73,12 @@ public class AnswerGapService {
         String question = (request.question() == null || request.question().isBlank())
                 ? gap.getQuestion()
                 : request.question().strip();
-        int nextOrder = faqRepository.findAllByTenantIdOrderBySortOrderAsc(user.tenantId()).stream()
+        int nextOrder = faqRepository.findAllByBotIdOrderBySortOrderAsc(botContext.scope().botId()).stream()
                 .mapToInt(Faq::getSortOrder)
                 .max()
                 .orElse(0) + 1;
 
-        Faq faq = faqRepository.save(Faq.of(user.tenantId(), question, request.answer().strip(),
+        Faq faq = faqRepository.save(Faq.of(botContext.scope(), question, request.answer().strip(),
                 List.of(), List.of(), false, nextOrder));
         gap.resolveWith(faq.getId());
         return AnswerGapResponse.from(gap);
@@ -84,13 +88,13 @@ public class AnswerGapService {
     @Transactional
     public AnswerGapResponse dismiss(Long gapId) {
         AuthPrincipal.TenantUser user = CurrentAuth.requireEditor();
-        AnswerGap gap = find(gapId, user.tenantId());
+        AnswerGap gap = find(gapId, botContext.scope().botId());
         gap.dismiss();
         return AnswerGapResponse.from(gap);
     }
 
-    private AnswerGap find(Long gapId, UUID tenantId) {
-        return gapRepository.findByIdAndTenantId(gapId, tenantId)
+    private AnswerGap find(Long gapId, UUID botId) {
+        return gapRepository.findByIdAndBotId(gapId, botId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANSWER_GAP_NOT_FOUND));
     }
 }

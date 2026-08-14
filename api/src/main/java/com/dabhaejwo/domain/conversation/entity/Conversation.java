@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.conversation.entity;
 
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,6 +27,10 @@ public class Conversation {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    /** 어느 서비스의 것인가. 조회는 전부 이 값으로 좁힌다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
+
     @Column(name = "started_path")
     private String startedPath;
 
@@ -44,10 +49,11 @@ public class Conversation {
     protected Conversation() {
     }
 
-    public static Conversation start(UUID tenantId, String startedPath, String visitorRegion,
+    public static Conversation start(BotScope scope, String startedPath, String visitorRegion,
                                      String visitorIpHash) {
         Conversation conversation = new Conversation();
-        conversation.tenantId = tenantId;
+        conversation.tenantId = scope.tenantId();
+        conversation.botId = scope.botId();
         conversation.startedPath = startedPath;
         conversation.visitorRegion = visitorRegion;
         conversation.visitorIpHash = visitorIpHash;
@@ -65,6 +71,10 @@ public class Conversation {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBotId() {
+        return botId;
     }
 
     public String getStartedPath() {

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import com.dabhaejwo.global.security.BotScope;
 
 @Service
 public class AiUsageService implements UsageRecorder {
@@ -27,7 +28,7 @@ public class AiUsageService implements UsageRecorder {
      */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void record(UUID tenantId,
+    public void record(BotScope scope,
                        UsagePurpose purpose,
                        LlmProviderName provider,
                        String model,
@@ -36,7 +37,7 @@ public class AiUsageService implements UsageRecorder {
                        int outputTokens,
                        BigDecimal costKrw,
                        UUID conversationId) {
-        repository.save(AiUsage.of(tenantId, purpose, provider, model, modelPriceId,
+        repository.save(AiUsage.of(scope, purpose, provider, model, modelPriceId,
                 inputTokens, outputTokens, costKrw, conversationId));
     }
 }

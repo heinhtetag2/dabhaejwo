@@ -10,9 +10,9 @@ import java.util.UUID;
 
 public interface KnowledgeSourceRepository extends JpaRepository<KnowledgeSource, UUID> {
 
-    List<KnowledgeSource> findAllByTenantIdOrderByCreatedAtAsc(UUID tenantId);
+    List<KnowledgeSource> findAllByBotIdOrderByCreatedAtAsc(UUID botId);
 
-    Optional<KnowledgeSource> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<KnowledgeSource> findByIdAndBotId(UUID id, UUID botId);
 
-    Optional<KnowledgeSource> findFirstByTenantIdAndType(UUID tenantId, SourceType type);
+    Optional<KnowledgeSource> findFirstByBotIdAndType(UUID botId, SourceType type);
 }

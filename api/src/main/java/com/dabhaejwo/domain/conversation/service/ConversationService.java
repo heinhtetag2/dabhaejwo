@@ -11,6 +11,7 @@ import com.dabhaejwo.global.common.PageResponse;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.domain.bot.service.BotContext;
 import com.dabhaejwo.global.security.CurrentAuth;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,31 +37,34 @@ import java.util.UUID;
 public class ConversationService {
 
     private final ConversationRepository conversationRepository;
+    private final BotContext botContext;
     private final MessageRepository messageRepository;
     private final AuditLogService auditLogService;
 
     public ConversationService(ConversationRepository conversationRepository,
                                MessageRepository messageRepository,
-                               AuditLogService auditLogService) {
+                               AuditLogService auditLogService,
+                       BotContext botContext) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.auditLogService = auditLogService;
+        this.botContext = botContext;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<ConversationSummaryResponse> list(String q, int page, Integer size) {
-        UUID tenantId = CurrentAuth.tenantUser().tenantId();
+        UUID botId = botContext.scope().botId();
         Pageable pageable = PageRequest.of(Math.max(page, 0), PageResponse.clampSize(size));
 
         Page<Conversation> conversations = (q == null || q.isBlank())
-                ? conversationRepository.findAnsweredByTenantId(tenantId, pageable)
-                : conversationRepository.search(tenantId, q.strip(), pageable);
+                ? conversationRepository.findAnsweredByBotId(botId, pageable)
+                : conversationRepository.search(botId, q.strip(), pageable);
 
         List<UUID> ids = conversations.getContent().stream().map(Conversation::getId).toList();
-        Map<UUID, String> previews = previews(tenantId, ids);
-        Set<UUID> failed = failedConversationIds(tenantId, ids);
+        Map<UUID, String> previews = previews(botId, ids);
+        Set<UUID> failed = failedConversationIds(botId, ids);
 
-        Map<UUID, Integer> numbers = visitorNumbers(tenantId);
+        Map<UUID, Integer> numbers = visitorNumbers(botId);
 
         return PageResponse.of(conversations, conversation ->
                 ConversationSummaryResponse.of(
@@ -82,12 +86,12 @@ public class ConversationService {
      *
      * <p>업체 전체를 훑는다. 페이지 단위로 매기면 2페이지의 같은 방문자가 다른 번호를 받는다.
      */
-    private Map<UUID, Integer> visitorNumbers(UUID tenantId) {
+    private Map<UUID, Integer> visitorNumbers(UUID botId) {
         Map<String, Integer> byVisitor = new LinkedHashMap<>();
         Map<UUID, Integer> byConversation = new LinkedHashMap<>();
 
         for (Conversation conversation : conversationRepository
-                .findAllByTenantIdOrderByStartedAtAsc(tenantId)) {
+                .findAllByBotIdOrderByStartedAtAsc(botId)) {
             // 해시가 없는 옛 대화는 각각 다른 방문자로 본다 — 묶을 근거가 없다.
             String visitor = conversation.getVisitorIpHash() == null
                     ? "conversation:" + conversation.getId()
@@ -102,7 +106,7 @@ public class ConversationService {
     public ConversationDetailResponse detail(UUID conversationId) {
         AuthPrincipal.TenantUser user = CurrentAuth.tenantUser();
         Conversation conversation = conversationRepository
-                .findByIdAndTenantId(conversationId, user.tenantId())
+                .findByIdAndBotId(conversationId, botContext.scope().botId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CONVERSATION_NOT_FOUND));
 
         if (user.impersonating()) {
@@ -113,19 +117,19 @@ public class ConversationService {
         }
 
         return ConversationDetailResponse.of(conversation,
-                messageRepository.findAllByTenantIdAndConversationIdOrderByCreatedAtAsc(
-                        user.tenantId(), conversationId),
+                messageRepository.findAllByBotIdAndConversationIdOrderByCreatedAtAsc(
+                        botContext.scope().botId(), conversationId),
                 // 목록과 같은 번호여야 한다 — 같은 규칙으로 다시 매긴다.
-                visitorNumbers(user.tenantId()).getOrDefault(conversationId, 0));
+                visitorNumbers(botContext.scope().botId()).getOrDefault(conversationId, 0));
     }
 
     /** 목록의 미리보기 — 각 대화의 첫 방문자 발화. 한 번의 질의로 모아 N+1 을 피한다. */
-    private Map<UUID, String> previews(UUID tenantId, List<UUID> conversationIds) {
+    private Map<UUID, String> previews(UUID botId, List<UUID> conversationIds) {
         Map<UUID, String> previews = new HashMap<>();
         if (conversationIds.isEmpty()) {
             return previews;
         }
-        for (Message message : messageRepository.findVisitorMessages(tenantId, conversationIds)) {
+        for (Message message : messageRepository.findVisitorMessages(botId, conversationIds)) {
             // 시간 오름차순이므로 먼저 들어온 것이 첫 발화다.
             previews.putIfAbsent(message.getConversationId(), message.getContent());
         }
@@ -133,10 +137,10 @@ public class ConversationService {
     }
 
     /** 답변 실패가 하나라도 있는 대화. 목록에서 배지로 표시해 개선으로 유도한다. */
-    private Set<UUID> failedConversationIds(UUID tenantId, List<UUID> conversationIds) {
+    private Set<UUID> failedConversationIds(UUID botId, List<UUID> conversationIds) {
         if (conversationIds.isEmpty()) {
             return Set.of();
         }
-        return new HashSet<>(messageRepository.findFailedConversationIds(tenantId, conversationIds));
+        return new HashSet<>(messageRepository.findFailedConversationIds(botId, conversationIds));
     }
 }

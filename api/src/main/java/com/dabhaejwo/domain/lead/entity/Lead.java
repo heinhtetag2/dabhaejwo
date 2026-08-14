@@ -2,6 +2,7 @@ package com.dabhaejwo.domain.lead.entity;
 
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -30,6 +31,10 @@ public class Lead {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    /** 어느 서비스의 것인가. 조회는 전부 이 값으로 좁힌다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
+
     @Column(name = "conversation_id")
     private UUID conversationId;
 
@@ -51,9 +56,10 @@ public class Lead {
     protected Lead() {
     }
 
-    public static Lead of(UUID tenantId, UUID conversationId, String name, String contact, String reason) {
+    public static Lead of(BotScope scope, UUID conversationId, String name, String contact, String reason) {
         Lead lead = new Lead();
-        lead.tenantId = tenantId;
+        lead.tenantId = scope.tenantId();
+        lead.botId = scope.botId();
         lead.conversationId = conversationId;
         lead.name = name;
         lead.contact = contact;
@@ -103,6 +109,10 @@ public class Lead {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBotId() {
+        return botId;
     }
 
     public UUID getConversationId() {

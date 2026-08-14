@@ -1,5 +1,6 @@
 package com.dabhaejwo.domain.conversation.entity;
 
+import com.dabhaejwo.global.security.BotScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -27,6 +28,10 @@ public class Message {
 
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
+
+    /** 어느 서비스의 것인가. 조회는 전부 이 값으로 좁힌다. */
+    @Column(name = "bot_id", nullable = false)
+    private UUID botId;
 
     @Column(name = "conversation_id", nullable = false)
     private UUID conversationId;
@@ -61,8 +66,8 @@ public class Message {
     protected Message() {
     }
 
-    public static Message fromVisitor(UUID tenantId, UUID conversationId, String content) {
-        return fromVisitor(tenantId, conversationId, content, OffsetDateTime.now());
+    public static Message fromVisitor(BotScope scope, UUID conversationId, String content) {
+        return fromVisitor(scope, conversationId, content, OffsetDateTime.now());
     }
 
     /**
@@ -72,10 +77,11 @@ public class Message {
      * 실제로 대화 로그에 답변이 질문보다 위에 나왔다. 답변 시각은 질문 시각 + 걸린 시간이
      * 되어야 하고, 그게 사실이기도 하다.
      */
-    public static Message fromVisitor(UUID tenantId, UUID conversationId, String content,
+    public static Message fromVisitor(BotScope scope, UUID conversationId, String content,
                                       OffsetDateTime askedAt) {
         Message message = new Message();
-        message.tenantId = tenantId;
+        message.tenantId = scope.tenantId();
+        message.botId = scope.botId();
         message.conversationId = conversationId;
         message.role = MessageRole.VISITOR;
         message.content = content;
@@ -83,16 +89,17 @@ public class Message {
         return message;
     }
 
-    public static Message fromBot(UUID tenantId, UUID conversationId, String content,
+    public static Message fromBot(BotScope scope, UUID conversationId, String content,
                                   boolean answered, boolean saved, UUID faqId) {
-        return fromBot(tenantId, conversationId, content, answered, saved, faqId, OffsetDateTime.now());
+        return fromBot(scope, conversationId, content, answered, saved, faqId, OffsetDateTime.now());
     }
 
-    public static Message fromBot(UUID tenantId, UUID conversationId, String content,
+    public static Message fromBot(BotScope scope, UUID conversationId, String content,
                                   boolean answered, boolean saved, UUID faqId,
                                   OffsetDateTime answeredAt) {
         Message message = new Message();
-        message.tenantId = tenantId;
+        message.tenantId = scope.tenantId();
+        message.botId = scope.botId();
         message.conversationId = conversationId;
         message.role = MessageRole.BOT;
         message.content = content;
@@ -114,6 +121,10 @@ public class Message {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBotId() {
+        return botId;
     }
 
     public UUID getConversationId() {

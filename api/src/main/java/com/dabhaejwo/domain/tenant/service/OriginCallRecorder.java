@@ -35,18 +35,18 @@ public class OriginCallRecorder {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void record(UUID tenantId, String origin) {
+    public void record(UUID botId, String origin) {
         if (origin == null || origin.isBlank()) {
             return;
         }
         try {
             OffsetDateTime now = OffsetDateTime.now();
             int updated = originRepository.markCalled(
-                    tenantId, origin, now, now.minusMinutes(THROTTLE_MINUTES));
-            log.debug("호출 기록 — tenant={}, origin={}, updated={}", tenantId, origin, updated);
+                    botId, origin, now, now.minusMinutes(THROTTLE_MINUTES));
+            log.debug("호출 기록 — bot={}, origin={}, updated={}", botId, origin, updated);
         } catch (RuntimeException e) {
             // 통계용 기록이다. 여기서 터져 방문자 질문이 막히면 배보다 배꼽이 크다.
-            log.warn("호출 기록에 실패했습니다 — tenant={}, origin={}", tenantId, origin, e);
+            log.warn("호출 기록에 실패했습니다 — bot={}, origin={}", botId, origin, e);
         }
     }
 }

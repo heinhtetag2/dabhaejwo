@@ -8,9 +8,9 @@ import com.dabhaejwo.domain.gap.repository.AnswerGapRepository;
 import com.dabhaejwo.domain.knowledge.entity.DocumentStatus;
 import com.dabhaejwo.domain.knowledge.repository.KnowledgeDocumentRepository;
 import com.dabhaejwo.domain.lead.repository.LeadRepository;
-import com.dabhaejwo.global.security.AuthPrincipal;
+import com.dabhaejwo.domain.bot.service.BotContext;
 import com.dabhaejwo.global.common.BusinessDay;
-import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.global.security.BotScope;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +26,11 @@ import java.util.UUID;
 /**
  * 홈 요약.
  *
- * <p>모든 질의에 테넌트 조건이 붙는다. 이 화면은 업체가 자기 데이터만 보는 곳이며
- * 타 업체 숫자가 한 칸이라도 섞이면 P0 다.
+ * <p>모든 질의에 <b>서비스 조건</b>이 붙는다. 이 화면은 업체가 자기 서비스 하나를 보는 곳이며,
+ * 타 업체 숫자가 섞이면 P0 이고 <b>옆 서비스 숫자가 섞이면 어느 사이트가 잘 되는지를
+ * 알 수 없게 된다</b> — 서비스를 나눈 이유가 통째로 사라진다.
+ *
+ * <p>서비스 범위로 좁히면 업체 격리는 자동이다 — 복합 FK 가 두 값이 어긋난 행을 막는다(V16).
  */
 @Service
 public class HomeService {
@@ -41,23 +44,25 @@ public class HomeService {
     private final AnswerGapRepository gapRepository;
     private final LeadRepository leadRepository;
     private final KnowledgeDocumentRepository documentRepository;
+    private final BotContext botContext;
 
     public HomeService(ConversationRepository conversationRepository,
                        MessageRepository messageRepository,
                        AnswerGapRepository gapRepository,
                        LeadRepository leadRepository,
-                       KnowledgeDocumentRepository documentRepository) {
+                       KnowledgeDocumentRepository documentRepository,
+                       BotContext botContext) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.gapRepository = gapRepository;
         this.leadRepository = leadRepository;
         this.documentRepository = documentRepository;
+        this.botContext = botContext;
     }
 
     @Transactional(readOnly = true)
     public HomeSummaryResponse summary() {
-        AuthPrincipal.TenantUser user = CurrentAuth.tenantUser();
-        UUID tenantId = user.tenantId();
+        UUID botId = botContext.scope().botId();
 
         OffsetDateTime todayStart = BusinessDay.startOfToday();
         OffsetDateTime tomorrowStart = todayStart.plusDays(1);
@@ -68,21 +73,21 @@ public class HomeService {
         // 한도 판정과 같은 정의를 쓴다 — 홈이 보여주는 "오늘 대화"와 실제로 깎이는 수가
         // 다르면 업체는 둘 중 무엇도 믿지 못한다.
         long todayConv = conversationRepository
-                .countAnsweredByTenantIdBetween(tenantId, todayStart, tomorrowStart);
+                .countAnsweredByBotIdBetween(botId, todayStart, tomorrowStart);
         long yesterdayConv = conversationRepository
-                .countAnsweredByTenantIdBetween(tenantId, yesterdayStart, todayStart);
+                .countAnsweredByBotIdBetween(botId, yesterdayStart, todayStart);
 
         return new HomeSummaryResponse(
                 todayConv,
                 todayConv - yesterdayConv,
-                successPercent(tenantId, todayStart, tomorrowStart),
-                successPercent(tenantId, twoWeeksStart, weekStart),
-                gapRepository.countByTenantIdAndStatus(tenantId, GapStatus.OPEN),
-                leadRepository.countByTenantIdAndCreatedAtBetween(tenantId, todayStart, tomorrowStart),
-                leadRepository.countByTenantIdAndCreatedAtBetween(tenantId, weekStart, tomorrowStart),
-                averageLatencyMs(tenantId, weekStart),
-                knowledge(tenantId),
-                topQuestions(tenantId, todayStart.minusDays(TOP_QUESTION_DAYS)));
+                successPercent(botId, todayStart, tomorrowStart),
+                successPercent(botId, twoWeeksStart, weekStart),
+                gapRepository.countByBotIdAndStatus(botId, GapStatus.OPEN),
+                leadRepository.countByBotIdAndCreatedAtBetween(botId, todayStart, tomorrowStart),
+                leadRepository.countByBotIdAndCreatedAtBetween(botId, weekStart, tomorrowStart),
+                averageLatencyMs(botId, weekStart),
+                knowledge(botId),
+                topQuestions(botId, todayStart.minusDays(TOP_QUESTION_DAYS)));
     }
 
     /**
@@ -90,12 +95,12 @@ public class HomeService {
      *
      * @return 대화가 한 건도 없으면 null. 0% 로 내리면 "다 실패했다"로 읽힌다
      */
-    private Integer successPercent(UUID tenantId, OffsetDateTime from, OffsetDateTime to) {
-        long total = messageRepository.countBotMessages(tenantId, from, to, false);
+    private Integer successPercent(UUID botId, OffsetDateTime from, OffsetDateTime to) {
+        long total = messageRepository.countBotMessages(botId, from, to, false);
         if (total == 0) {
             return null;
         }
-        long answered = messageRepository.countBotMessages(tenantId, from, to, true);
+        long answered = messageRepository.countBotMessages(botId, from, to, true);
         return Math.toIntExact(Math.round(answered * 100.0 / total));
     }
 
@@ -103,14 +108,14 @@ public class HomeService {
      * TODO(stub): 답변 파이프라인이 없어 {@code messages.latency_ms} 가 비어 있다.
      * 그동안은 null 이 내려가고 화면은 "—" 를 보여준다. 그럴듯한 값을 지어내지 않는다.
      */
-    private Integer averageLatencyMs(UUID tenantId, OffsetDateTime from) {
-        Double average = messageRepository.averageLatency(tenantId, from);
+    private Integer averageLatencyMs(UUID botId, OffsetDateTime from) {
+        Double average = messageRepository.averageLatency(botId, from);
         return average == null ? null : Math.toIntExact(Math.round(average));
     }
 
-    private HomeSummaryResponse.Knowledge knowledge(UUID tenantId) {
+    private HomeSummaryResponse.Knowledge knowledge(UUID botId) {
         Map<DocumentStatus, Long> counts = new EnumMap<>(DocumentStatus.class);
-        for (KnowledgeDocumentRepository.StatusCount row : documentRepository.countByStatus(tenantId)) {
+        for (KnowledgeDocumentRepository.StatusCount row : documentRepository.countByStatus(botId)) {
             counts.put(row.getStatus(), row.getCount());
         }
         long indexed = counts.getOrDefault(DocumentStatus.INDEXED, 0L);
@@ -122,9 +127,9 @@ public class HomeService {
         return new HomeSummaryResponse.Knowledge(indexed + processing + failed, indexed, processing, failed);
     }
 
-    private List<HomeSummaryResponse.TopQuestion> topQuestions(UUID tenantId, OffsetDateTime from) {
+    private List<HomeSummaryResponse.TopQuestion> topQuestions(UUID botId, OffsetDateTime from) {
         return messageRepository
-                .findTopQuestions(tenantId, from, PageRequest.of(0, TOP_QUESTION_LIMIT))
+                .findTopQuestions(botId, from, PageRequest.of(0, TOP_QUESTION_LIMIT))
                 .stream()
                 .map(row -> new HomeSummaryResponse.TopQuestion(row.getQuestion(), row.getAskCount()))
                 .toList();

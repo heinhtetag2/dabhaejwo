@@ -29,6 +29,7 @@ import com.dabhaejwo.domain.plan.entity.Plan;
 import com.dabhaejwo.domain.plan.repository.PlanRepository;
 import com.dabhaejwo.domain.tenant.entity.Tenant;
 import com.dabhaejwo.domain.tenant.repository.TenantRepository;
+import com.dabhaejwo.global.security.BotScope;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.common.BusinessDay;
 import com.dabhaejwo.global.exception.ErrorCode;
@@ -112,9 +113,9 @@ public class WidgetChatService {
      * <p>정지·해지된 업체는 {@code activeTenant} 가 거절하므로 여기까지 오지 않는다.
      */
     @Transactional(readOnly = true)
-    public WidgetConfigResponse config(UUID tenantId, String path) {
-        Tenant tenant = activeTenant(tenantId);
-        BotSettings settings = settings(tenantId, tenant.getName());
+    public WidgetConfigResponse config(BotScope scope, String path) {
+        Tenant tenant = activeTenant(scope.tenantId());
+        BotSettings settings = settings(scope, tenant.getName());
 
         boolean visible = settings.isWidgetEnabled()
                 && PagePatternMatcher.matches(
@@ -141,15 +142,15 @@ public class WidgetChatService {
      * 통계에서 사라지는데, 업체가 알아야 할 것은 그쪽이 더 많다.
      */
     @Transactional
-    public WidgetSessionResponse start(UUID tenantId, String path, String visitorIpHash) {
-        Tenant tenant = activeTenant(tenantId);
-        BotSettings settings = settings(tenantId, tenant.getName());
+    public WidgetSessionResponse start(BotScope scope, String path, String visitorIpHash) {
+        Tenant tenant = activeTenant(scope.tenantId());
+        BotSettings settings = settings(scope, tenant.getName());
 
         Conversation conversation = conversationRepository.save(
-                Conversation.start(tenantId, path, null, visitorIpHash));
+                Conversation.start(scope, path, null, visitorIpHash));
 
         List<WidgetFaq> faqs =
-                faqRepository.findAllByTenantIdAndShownTrueOrderBySortOrderAsc(tenantId).stream()
+                faqRepository.findAllByBotIdAndShownTrueOrderBySortOrderAsc(scope.botId()).stream()
                         .map(faq -> new WidgetFaq(faq.getId(), faq.getQuestion()))
                         .toList();
 
@@ -166,19 +167,20 @@ public class WidgetChatService {
      * → 원가 상한(집계 2회). 비싼 검사를 앞에 두면 봇이 두드릴 때마다 DB 를 긁는다.
      */
     @Transactional
-    public AnswerResponse ask(UUID tenantId, AskRequest request, String visitorIpHash) {
-        Tenant tenant = activeTenant(tenantId);
+    public AnswerResponse ask(BotScope scope, AskRequest request, String visitorIpHash) {
+        Tenant tenant = activeTenant(scope.tenantId());
         CostGuard settings = guard.settings();
 
         guard.requireWithinRate(visitorIpHash, settings);
-        Conversation conversation = conversation(tenantId, request.sessionId());
+        Conversation conversation = conversation(scope, request.sessionId());
 
         Plan plan = planRepository.findById(tenant.getPlanId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLAN_NOT_FOUND));
-        guard.requireWithinConversationQuota(monthlyConversations(tenantId), plan, settings);
-        guard.requireWithinDailyCost(tenantId, settings);
+        // **한도는 업체 합산이다.** 서비스별로 세지 않는다 — 계약의 단위가 업체다.
+        guard.requireWithinConversationQuota(monthlyConversationsAcrossBots(scope.tenantId()), plan, settings);
+        guard.requireWithinDailyCost(scope.tenantId(), settings);
 
-        return answerService.answer(tenantId, conversation.getId(),
+        return answerService.answer(scope, conversation.getId(),
                 request.question(), request.path(), settings);
     }
 
@@ -189,12 +191,12 @@ public class WidgetChatService {
      * 레이트 리밋은 유지한다. 저장 답변이라도 DB 쓰기는 일어난다.
      */
     @Transactional
-    public AnswerResponse answerFaq(UUID tenantId, UUID faqId, UUID sessionId, String visitorIpHash) {
-        activeTenant(tenantId);
+    public AnswerResponse answerFaq(BotScope scope, UUID faqId, UUID sessionId, String visitorIpHash) {
+        activeTenant(scope.tenantId());
         guard.requireWithinRate(visitorIpHash, guard.settings());
 
-        Conversation conversation = conversation(tenantId, sessionId);
-        Faq faq = faqRepository.findByIdAndTenantId(faqId, tenantId)
+        Conversation conversation = conversation(scope, sessionId);
+        Faq faq = faqRepository.findByIdAndBotId(faqId, scope.botId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.FAQ_NOT_FOUND));
 
         faq.hit();
@@ -202,13 +204,13 @@ public class WidgetChatService {
         // 저장 답변도 순서를 못 박는다 — 같은 순간에 찍으면 답이 질문보다 위에 나온다.
         OffsetDateTime askedAt = OffsetDateTime.now();
         messageRepository.save(
-                Message.fromVisitor(tenantId, conversation.getId(), faq.getQuestion(), askedAt));
-        Message bot = Message.fromBot(tenantId, conversation.getId(), faq.getAnswer(),
+                Message.fromVisitor(scope, conversation.getId(), faq.getQuestion(), askedAt));
+        Message bot = Message.fromBot(scope, conversation.getId(), faq.getAnswer(),
                 true, true, faq.getId(), askedAt.plusNanos(1_000_000L));
         messageRepository.saveAndFlush(bot);
 
         return new AnswerResponse(true, true, faq.getAnswer(), faq.getLinks(), bot.getId(),
-                followUps(tenantId, faq));
+                followUps(scope, faq));
     }
 
     /**
@@ -220,7 +222,7 @@ public class WidgetChatService {
      * <p>순서는 <b>업체가 적은 순서</b>다. 조회 결과 순서를 그대로 쓰면 DB 가 돌려주는 순서에
      * 좌우돼 화면에서 뒤섞인다.
      */
-    private List<WidgetFaq> followUps(UUID tenantId, Faq faq) {
+    private List<WidgetFaq> followUps(BotScope scope, Faq faq) {
         List<UUID> ids = faq.getFollowUpFaqIds().stream()
                 // 자기 자신을 가리키면 방금 읽은 답을 다시 물으라는 칩이 된다.
                 .filter(id -> !id.equals(faq.getId()))
@@ -228,7 +230,7 @@ public class WidgetChatService {
         if (ids.isEmpty()) {
             return List.of();
         }
-        Map<UUID, Faq> found = faqRepository.findAllByTenantIdAndShownTrueAndIdIn(tenantId, ids)
+        Map<UUID, Faq> found = faqRepository.findAllByBotIdAndShownTrueAndIdIn(scope.botId(), ids)
                 .stream()
                 .collect(Collectors.toMap(Faq::getId, Function.identity()));
         return ids.stream()
@@ -251,16 +253,17 @@ public class WidgetChatService {
      * 담는다 — 못 답한 것과 틀리게 답한 것은 업체가 취할 조치가 다르다.
      */
     @Transactional
-    public void feedback(UUID tenantId, FeedbackRequest request) {
+    public void feedback(BotScope scope, FeedbackRequest request) {
         Message message = messageRepository.findById(request.messageId())
-                .filter(found -> found.getTenantId().equals(tenantId))
+                // 서비스로 좁힌다 — 업체로만 좁히면 옆 서비스의 답변에 평가를 남길 수 있다.
+                .filter(found -> found.getBotId().equals(scope.botId()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.MESSAGE_NOT_FOUND));
 
         feedbackRepository.findById(message.getId())
                 .ifPresentOrElse(
                         existing -> existing.change(request.helpful()),
                         () -> feedbackRepository.save(
-                                MessageFeedback.of(message.getId(), tenantId, request.helpful())));
+                                MessageFeedback.of(message.getId(), scope, request.helpful())));
 
         if (Boolean.TRUE.equals(request.helpful())) {
             return;
@@ -270,32 +273,33 @@ public class WidgetChatService {
         if (Boolean.FALSE.equals(message.getAnswered())) {
             return;
         }
-        questionBefore(tenantId, message).ifPresent(question ->
-                gapRepository.findByTenantIdAndQuestionNorm(tenantId, AnswerGap.normalize(question))
+        questionBefore(scope, message).ifPresent(question ->
+                gapRepository.findByBotIdAndQuestionNorm(scope.botId(), AnswerGap.normalize(question))
                         .ifPresentOrElse(
                                 gap -> gap.recur(question, null, message.getContent()),
-                                () -> gapRepository.save(AnswerGap.of(tenantId, question,
+                                () -> gapRepository.save(AnswerGap.of(scope, question,
                                         GapReason.THUMBS_DOWN, null, message.getContent()))));
     }
 
     /** 연락처 남기기. 답변 실패 뒤 위젯이 제안하는 경로다. */
     @Transactional
-    public UUID lead(UUID tenantId, LeadRequest request) {
-        activeTenant(tenantId);
-        Conversation conversation = conversation(tenantId, request.sessionId());
+    public UUID lead(BotScope scope, LeadRequest request) {
+        activeTenant(scope.tenantId());
+        Conversation conversation = conversation(scope, request.sessionId());
 
-        Lead lead = leadRepository.save(Lead.of(tenantId, conversation.getId(),
+        Lead lead = leadRepository.save(Lead.of(scope, conversation.getId(),
                 request.name(), request.contact(), request.memo()));
 
         // 연락처는 시간이 지나면 값이 떨어진다. 방문자가 남긴 그 순간 업체가 알아야 한다.
-        notificationEvents.leadReceived(tenantId, lead.getName());
+        notificationEvents.leadReceived(scope, lead.getName());
         return lead.getId();
     }
 
     /** 이 봇 메시지 바로 앞의 방문자 질문. 👎 가 무엇에 대한 것인지 알아야 개선 목록에 올린다. */
-    private java.util.Optional<String> questionBefore(UUID tenantId, Message botMessage) {
+    private java.util.Optional<String> questionBefore(BotScope scope, Message botMessage) {
         List<Message> messages = messageRepository
-                .findAllByTenantIdAndConversationIdOrderByCreatedAtAsc(tenantId, botMessage.getConversationId());
+                .findAllByBotIdAndConversationIdOrderByCreatedAtAsc(
+                        scope.botId(), botMessage.getConversationId());
         String question = null;
         for (Message message : messages) {
             if (message.getId().equals(botMessage.getId())) {
@@ -313,20 +317,23 @@ public class WidgetChatService {
      *
      * <p>실시간 집계다 — {@code tenant_daily_usage} 는 시간당 배치라 최대 한 시간이 늦다.
      * 한도 판정을 늦은 값으로 하면 그 사이에 한도를 넘겨 쓴다.
+     *
+     * <p><b>이름이 AcrossBots 인 것이 요점이다.</b> 한도는 업체 합산이므로 서비스가 여럿이어도
+     * 전부 더해 센다 — 이름이 그렇게 말하지 않으면 다음 사람이 서비스별로 세는 실수를 한다.
      */
-    private long monthlyConversations(UUID tenantId) {
+    private long monthlyConversationsAcrossBots(UUID tenantId) {
         OffsetDateTime from = BusinessDay.startOfThisMonth();
-        return conversationRepository.countAnsweredByTenantIdBetween(tenantId, from, from.plusMonths(1));
+        return conversationRepository.countAnsweredAcrossBotsBetween(tenantId, from, from.plusMonths(1));
     }
 
-    private Conversation conversation(UUID tenantId, UUID sessionId) {
-        return conversationRepository.findByIdAndTenantId(sessionId, tenantId)
+    private Conversation conversation(BotScope scope, UUID sessionId) {
+        return conversationRepository.findByIdAndBotId(sessionId, scope.botId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CONVERSATION_NOT_FOUND));
     }
 
-    private BotSettings settings(UUID tenantId, String tenantName) {
-        return botSettingsRepository.findById(tenantId)
-                .orElseGet(() -> BotSettings.defaults(tenantId, tenantName));
+    private BotSettings settings(BotScope scope, String botName) {
+        return botSettingsRepository.findByBotId(scope.botId())
+                .orElseGet(() -> BotSettings.defaults(scope, botName));
     }
 
     /**

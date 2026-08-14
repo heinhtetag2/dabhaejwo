@@ -40,7 +40,19 @@ public sealed interface AuthPrincipal
         }
     }
 
-    /** 방문자 위젯. {@code /api/widget/**} — 익명이며 공개 키 + Origin 으로 테넌트만 식별한다. */
-    record Visitor(UUID tenantId, String origin) implements AuthPrincipal {
+    /**
+     * 방문자 위젯. {@code /api/widget/**} — 익명이며 공개 키 + Origin 으로 <b>서비스</b>를 식별한다.
+     *
+     * <p><b>{@code scope} 로만 다닌다</b> — tenantId 와 botId 를 따로 넘기면
+     * 언젠가 순서가 바뀌고 컴파일러가 못 잡는다({@link BotScope}).
+     */
+    record Visitor(BotScope scope, String origin) implements AuthPrincipal {
+        public UUID tenantId() {
+            return scope.tenantId();
+        }
+
+        public UUID botId() {
+            return scope.botId();
+        }
     }
 }
