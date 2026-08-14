@@ -85,6 +85,7 @@ Settings → CI/CD → Variables. **Masked + Protected** 권장.
 | `NEXT_PUBLIC_API_BASE_URL` | admin·tenant 가 부를 API 주소 |
 | `NEXT_PUBLIC_WIDGET_SRC` | 설치 화면이 업체에게 보여줄 스크립트 주소 (`https://…/w.js`) |
 | `WIDGET_API_BASE_URL` | 위젯 번들에 박히는 API 주소. 보통 `NEXT_PUBLIC_API_BASE_URL` 과 같다 (미설정 시 그 값을 쓴다) |
+| `NEXT_PUBLIC_TOSS_CLIENT_KEY` | 토스 결제창 키(`live_ck_*`). **없으면 카드 등록 버튼이 아예 뜨지 않는다** — 화면은 정상으로 보이고 "결제가 연결되지 않았다"만 뜬다. `TOSS_SECRET_KEY` 와 **짝으로** 교체할 것 (한쪽만 라이브면 결제가 실패한다) |
 
 > **런타임에 못 바꾼다.** `NEXT_PUBLIC_*` 과 `VITE_*` 는 빌드 시점에 번들 문자열로 인라인된다.
 > 값을 바꾸려면 다시 빌드해야 한다. 컨테이너 환경변수를 고쳐도 아무 일도 일어나지 않는다.

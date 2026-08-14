@@ -23,6 +23,11 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 # 하지 않는다 — 화면은 정상으로 보이므로 알아채기까지 오래 걸린다.
 ARG NEXT_PUBLIC_WIDGET_SRC
 ENV NEXT_PUBLIC_WIDGET_SRC=$NEXT_PUBLIC_WIDGET_SRC
+
+# 토스페이먼츠 결제창 키. **공개돼도 되는 값이다** — 결제창을 띄우는 데만 쓰이고
+# 실제 승인은 서버가 시크릿 키로 한다. 비어 있으면 카드 등록 버튼이 아예 뜨지 않는다.
+ARG NEXT_PUBLIC_TOSS_CLIENT_KEY
+ENV NEXT_PUBLIC_TOSS_CLIENT_KEY=$NEXT_PUBLIC_TOSS_CLIENT_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
