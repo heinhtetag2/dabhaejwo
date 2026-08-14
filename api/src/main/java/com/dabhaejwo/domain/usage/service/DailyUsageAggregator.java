@@ -5,6 +5,8 @@ import com.dabhaejwo.domain.conversation.repository.MessageRepository;
 import com.dabhaejwo.domain.usage.entity.TenantDailyUsage;
 import com.dabhaejwo.domain.usage.repository.AiUsageRepository;
 import com.dabhaejwo.domain.usage.repository.TenantDailyUsageRepository;
+import com.dabhaejwo.domain.usage.entity.BotDailyUsage;
+import com.dabhaejwo.domain.usage.repository.BotDailyUsageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -45,15 +47,18 @@ public class DailyUsageAggregator {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final TenantDailyUsageRepository dailyUsageRepository;
+    private final BotDailyUsageRepository botDailyUsageRepository;
 
     public DailyUsageAggregator(AiUsageRepository aiUsageRepository,
                                 ConversationRepository conversationRepository,
                                 MessageRepository messageRepository,
-                                TenantDailyUsageRepository dailyUsageRepository) {
+                                TenantDailyUsageRepository dailyUsageRepository,
+                                BotDailyUsageRepository botDailyUsageRepository) {
         this.aiUsageRepository = aiUsageRepository;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.dailyUsageRepository = dailyUsageRepository;
+        this.botDailyUsageRepository = botDailyUsageRepository;
     }
 
     /** 매시 정각. 초·분을 0 으로 두면 여러 인스턴스가 동시에 돌 수 있지만, 덮어쓰기라 결과는 같다. */
@@ -102,9 +107,54 @@ public class DailyUsageAggregator {
             dailyUsageRepository.save(row);
         }
 
-        if (!tenantIds.isEmpty()) {
-            log.info("일 집계 완료 day={} tenants={}", day, tenantIds.size());
+        int bots = aggregateBots(day, from, to);
+
+        if (!tenantIds.isEmpty() || bots > 0) {
+            log.info("일 집계 완료 day={} tenants={} bots={}", day, tenantIds.size(), bots);
         }
         return tenantIds.size();
+    }
+
+    /**
+     * 같은 하루를 <b>서비스 축으로</b> 한 번 더 계산한다.
+     *
+     * <p>업체 축 계산을 건드리지 않는 것이 요점이다 — 운영 콘솔의 오늘·수익성·업체 목록이
+     * 전부 그 숫자를 읽는다. 두 축을 하나로 합치면 <b>서비스를 지웠을 때 과거 업체 집계가
+     * 함께 사라진다.</b>
+     *
+     * <p>{@code ai_usage.bot_id} 가 null 인 과거 행은 빠지므로 <b>서비스 합계가 업체 합계보다
+     * 작을 수 있다.</b> 그 차이를 지어내 메우지 않는다 — 화면이 "서비스 구분 이전"으로 밝힌다.
+     */
+    private int aggregateBots(LocalDate day, OffsetDateTime from, OffsetDateTime to) {
+        Map<UUID, AiUsageRepository.BotDayTotal> costs = new HashMap<>();
+        aiUsageRepository.aggregateForDayByBot(from, to)
+                .forEach(row -> costs.put(row.getBotId(), row));
+
+        Map<UUID, Long> convCounts = new HashMap<>();
+        conversationRepository.countByBotBetween(from, to)
+                .forEach(row -> convCounts.put(row.getBotId(), row.getCount()));
+
+        Map<UUID, Long> savedCounts = new HashMap<>();
+        messageRepository.countSavedByBotBetween(from, to)
+                .forEach(row -> savedCounts.put(row.getBotId(), row.getCount()));
+
+        Set<UUID> botIds = new HashSet<>(costs.keySet());
+        botIds.addAll(convCounts.keySet());
+        botIds.addAll(savedCounts.keySet());
+
+        for (UUID botId : botIds) {
+            AiUsageRepository.BotDayTotal cost = costs.get(botId);
+            BotDailyUsage row = botDailyUsageRepository.findByBotIdAndDay(botId, day)
+                    .orElseGet(() -> BotDailyUsage.of(botId, day));
+            // 증분이 아니라 다시 계산해 덮는다 — 원장이 진실이고 이 표는 캐시다.
+            row.overwrite(
+                    convCounts.getOrDefault(botId, 0L),
+                    savedCounts.getOrDefault(botId, 0L),
+                    cost == null ? 0L : cost.getTokensIn(),
+                    cost == null ? 0L : cost.getTokensOut(),
+                    cost == null ? BigDecimal.ZERO : cost.getCostKrw());
+            botDailyUsageRepository.save(row);
+        }
+        return botIds.size();
     }
 }

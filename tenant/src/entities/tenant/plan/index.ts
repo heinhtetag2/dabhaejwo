@@ -25,6 +25,13 @@ export interface PlanOverview {
   nextBillingDate: string | null;
   /** 대화가 없으면 null. 0% 로 내리면 "공통 질문이 안 쓰였다"로 오해된다. */
   savedAnswerPercent: number | null;
+  /**
+   * 서비스별 이번 달 사용량.
+   *
+   * 한도는 업체 합산이라 "왜 한도가 찼는지"를 업체가 스스로 볼 방법이 없었다.
+   * 합이 `usage.convCount` 보다 작을 수 있다 — 서비스 구분 이전 호출은 귀속을 복원할 수 없다.
+   */
+  botUsage: Array<{ botId: string; botName: string; convCount: number; docCount: number }>;
   billingRecords: BillingItem[];
 }
 
@@ -45,6 +52,14 @@ const planOverviewSchema = z.object({
   }),
   nextBillingDate: z.string().nullable(),
   savedAnswerPercent: z.number().nullable(),
+  botUsage: z.array(
+    z.object({
+      botId: z.string(),
+      botName: z.string(),
+      convCount: z.number(),
+      docCount: z.number(),
+    }),
+  ),
   billingRecords: z.array(
     z.object({
       id: z.number(),

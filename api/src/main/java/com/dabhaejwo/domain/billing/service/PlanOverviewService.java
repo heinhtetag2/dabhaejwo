@@ -17,11 +17,16 @@ import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.domain.bot.entity.Bot;
+import com.dabhaejwo.domain.usage.repository.BotDailyUsageRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.List;
 
 /** 요금제·사용량·결제 내역. */
 @Service
@@ -29,6 +34,8 @@ public class PlanOverviewService {
 
     private final TenantRepository tenantRepository;
     private final PlanRepository planRepository;
+    private final com.dabhaejwo.domain.bot.repository.BotRepository botRepository;
+    private final BotDailyUsageRepository botDailyUsageRepository;
     private final TenantDailyUsageRepository dailyUsageRepository;
     private final KnowledgeDocumentRepository documentRepository;
     private final BillingRecordRepository billingRepository;
@@ -41,9 +48,13 @@ public class PlanOverviewService {
                                KnowledgeDocumentRepository documentRepository,
                                BillingRecordRepository billingRepository,
                                TicketRepository ticketRepository,
-                               NotificationEvents notificationEvents) {
+                               NotificationEvents notificationEvents,
+                               com.dabhaejwo.domain.bot.repository.BotRepository botRepository,
+                               BotDailyUsageRepository botDailyUsageRepository) {
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
+        this.botRepository = botRepository;
+        this.botDailyUsageRepository = botDailyUsageRepository;
         this.dailyUsageRepository = dailyUsageRepository;
         this.documentRepository = documentRepository;
         this.billingRepository = billingRepository;
@@ -105,7 +116,35 @@ public class PlanOverviewService {
                 new PlanOverviewResponse.Usage(convCount, plan.getConvLimit(), docCount, plan.getDocLimit()),
                 tenant.getNextBillingDate(),
                 savedAnswerPercent(tenantId, from, today),
+                botUsage(tenantId, from, today),
                 PlanOverviewResponse.toItems(billingRepository.findAllByTenantIdOrderByPeriodDesc(tenantId)));
+    }
+
+    /**
+     * 서비스별 이번 달 사용량.
+     *
+     * <p>한도는 업체 합산이라 업체는 "왜 한도가 찼는지"를 스스로 볼 방법이 없었다.
+     * 대화 수는 일 집계에서, 문서 수는 실시간으로 센다 — 문서는 올리는 즉시 한도에 걸리므로
+     * 한 시간 늦은 값을 보여주면 "지웠는데 왜 안 줄지" 가 된다.
+     */
+    private List<PlanOverviewResponse.BotUsage> botUsage(UUID tenantId, LocalDate from, LocalDate to) {
+        List<Bot> bots = botRepository.findAllByTenantIdOrderByCreatedAtAsc(tenantId);
+        if (bots.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> convByBot = botDailyUsageRepository
+                .aggregateBetween(bots.stream().map(Bot::getId).toList(), from, to).stream()
+                .collect(Collectors.toMap(
+                        BotDailyUsageRepository.BotTotal::getBotId,
+                        BotDailyUsageRepository.BotTotal::getConvCount));
+
+        return bots.stream()
+                .map(bot -> new PlanOverviewResponse.BotUsage(
+                        bot.getId(), bot.getName(),
+                        convByBot.getOrDefault(bot.getId(), 0L),
+                        documentRepository.countByBotIdAndStatus(
+                                bot.getId(), com.dabhaejwo.domain.knowledge.entity.DocumentStatus.INDEXED)))
+                .toList();
     }
 
     /**

@@ -90,6 +90,33 @@ export function PlanView() {
               </Notice>
             ) : null}
 
+
+            {/*
+              서비스별 내역. **서비스가 하나면 그리지 않는다** — 합계와 같은 숫자를
+              한 번 더 보여주는 것은 잡음이다.
+
+              한도는 업체 합산이므로 어느 서비스가 얼마나 썼는지를 밝혀야
+              "내 서비스는 40건인데 왜 한도 초과냐"가 생기지 않는다.
+            */}
+            {data.botUsage.length > 1 ? (
+              <div className="mt-4.5 rounded-[7px] border border-line bg-paper p-3.5">
+                <span className="mb-2 block text-[12.5px] font-medium">서비스별 사용</span>
+                <ul className="space-y-1.5">
+                  {data.botUsage.map((bot) => (
+                    <li key={bot.botId} className="flex items-baseline gap-2 text-[12.5px]">
+                      <span className="min-w-0 flex-1 truncate">{bot.botName}</span>
+                      <span className="font-mono tabular-nums text-slate">
+                        대화 {bot.convCount.toLocaleString()} · 문서 {bot.docCount.toLocaleString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-[11.5px] leading-relaxed text-slate-2">
+                  한도는 업체 전체로 하나입니다 — 서비스들이 나눠 씁니다.
+                </p>
+              </div>
+            ) : null}
+
             <PlanChange currentPlanCode={data.plan.id} currentIsFree={data.plan.monthlyFee <= 0} />
 
             <p className="mt-3 text-[11.5px] leading-relaxed text-slate-2">

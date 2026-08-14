@@ -153,6 +153,35 @@ public interface AiUsageRepository extends JpaRepository<AiUsage, Long> {
     List<TenantDayTotal> aggregateForDay(@Param("from") OffsetDateTime from,
                                          @Param("to") OffsetDateTime to);
 
+    /**
+     * 같은 하루치를 <b>서비스별로</b> 묶는다. 업체 축 쿼리는 건드리지 않는다 —
+     * 운영 콘솔 전 화면이 그 숫자를 읽는다.
+     *
+     * <p>{@code bot_id} 가 null 인 행(서비스 구분 이전 호출)은 빠진다. 그래서
+     * <b>서비스별 합계가 업체 합계보다 작을 수 있다</b> — 화면이 그 차이를 지어내 메우지 않는다.
+     */
+    @Query("""
+            SELECT u.botId AS botId,
+                   COALESCE(SUM(u.inputTokens), 0) AS tokensIn,
+                   COALESCE(SUM(u.outputTokens), 0) AS tokensOut,
+                   COALESCE(SUM(u.costKrw), 0) AS costKrw
+            FROM AiUsage u
+            WHERE u.createdAt >= :from AND u.createdAt < :to AND u.botId IS NOT NULL
+            GROUP BY u.botId
+            """)
+    List<BotDayTotal> aggregateForDayByBot(@Param("from") OffsetDateTime from,
+                                           @Param("to") OffsetDateTime to);
+
+    interface BotDayTotal {
+        java.util.UUID getBotId();
+
+        long getTokensIn();
+
+        long getTokensOut();
+
+        java.math.BigDecimal getCostKrw();
+    }
+
     interface Totals {
         long getTokensIn();
 
