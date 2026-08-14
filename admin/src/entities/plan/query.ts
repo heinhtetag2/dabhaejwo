@@ -31,6 +31,8 @@ export interface PlanUpdateBody {
   negotiable: boolean;
   convLimit: number;
   docLimit: number;
+  /** 만들 수 있는 서비스 수. 생성 시점에만 검사한다. */
+  botLimit: number;
   sellable: boolean;
 }
 

@@ -19,6 +19,10 @@ import com.dabhaejwo.domain.usage.repository.TenantDailyUsageRepository;
 import com.dabhaejwo.global.common.PageResponse;
 import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
+import com.dabhaejwo.domain.bot.entity.Bot;
+import com.dabhaejwo.domain.tenant.dto.response.OpsBotResponse;
+import com.dabhaejwo.domain.tenant.dto.response.AllowedOriginResponse;
+import com.dabhaejwo.domain.tenant.repository.AllowedOriginRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +54,8 @@ public class TenantQueryService {
     private final PlanRepository planRepository;
     private final TenantDailyUsageRepository dailyUsageRepository;
     private final CostGuardRepository costGuardRepository;
+    private final com.dabhaejwo.domain.bot.repository.BotRepository botRepository;
+    private final AllowedOriginRepository allowedOriginRepository;
     private final TenantMemberRepository memberRepository;
     private final BillingRecordRepository billingRecordRepository;
     private final KnowledgeDocumentRepository documentRepository;
@@ -64,11 +70,15 @@ public class TenantQueryService {
                               BillingRecordRepository billingRecordRepository,
                               KnowledgeDocumentRepository documentRepository,
                               FaqRepository faqRepository,
-                              QuotaOverrideRepository quotaOverrideRepository) {
+                              QuotaOverrideRepository quotaOverrideRepository,
+                              com.dabhaejwo.domain.bot.repository.BotRepository botRepository,
+                              AllowedOriginRepository allowedOriginRepository) {
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
         this.dailyUsageRepository = dailyUsageRepository;
         this.costGuardRepository = costGuardRepository;
+        this.botRepository = botRepository;
+        this.allowedOriginRepository = allowedOriginRepository;
         this.memberRepository = memberRepository;
         this.billingRecordRepository = billingRecordRepository;
         this.documentRepository = documentRepository;
@@ -152,9 +162,10 @@ public class TenantQueryService {
                 metrics.convCount(),
                 // 쿼터 증량은 요금제 한도를 고치지 않고 이번 달에만 더해진다.
                 plan.getConvLimit() + delta.getConvDelta(),
-                documentRepository.countActive(tenantId),
+                documentRepository.countActiveAcrossBots(tenantId),
                 plan.getDocLimit() + delta.getDocDelta(),
-                faqRepository.countByTenantId(tenantId),
+                // 운영 콘솔은 업체를 본다 — 서비스가 여럿이면 전부 더한다.
+                faqRepository.countAcrossBots(tenantId),
                 metrics.savedAnswerPercent(),
                 metrics.costKrw(),
                 billed,
@@ -222,6 +233,22 @@ public class TenantQueryService {
     }
 
     /**
+     * 업체가 가진 서비스 전부. 운영 콘솔 업체 상세가 쓴다.
+     *
+     * <p>허용 주소를 함께 준다 — CS 문의 1순위가 "코드 붙였는데 안 떠요"이고 원인 대부분이
+     * 미등록 주소인데, 지금까지 그걸 보려면 <b>사유를 적고 대리 로그인을 해야 했다.</b>
+     */
+    @Transactional(readOnly = true)
+    public List<OpsBotResponse> bots(UUID tenantId) {
+        return botRepository.findAllByTenantIdOrderByCreatedAtAsc(tenantId).stream()
+                .map(bot -> OpsBotResponse.of(bot,
+                        allowedOriginRepository.findAllByBotId(bot.getId()).stream()
+                                .map(AllowedOriginResponse::from)
+                                .toList()))
+                .toList();
+    }
+
+    /**
      * 전 업체를 한 번에 계산한다. 목록·필터 건수·오늘 화면이 같은 계산을 쓰므로 한 곳에 둔다 —
      * 두 벌로 나뉘면 칩 건수와 실제 목록 길이가 어긋나는 날이 온다.
      */
@@ -250,6 +277,10 @@ public class TenantQueryService {
                 new HashSet<>(billingRecordRepository.findTenantIdsWithLatestPaymentFailed());
         int warnThreshold = costGuardRepository.current().getCostRatioWarnPercent();
 
+        // 서비스 수를 한 번에 센다. 업체마다 따로 부르면 목록 한 번에 왕복이 업체 수만큼 는다.
+        Map<UUID, Long> botCounts = botRepository.findAll().stream()
+                .collect(Collectors.groupingBy(Bot::getTenantId, Collectors.counting()));
+
         return tenants.stream()
                 .map(tenant -> {
                     Plan plan = plans.get(tenant.getPlanId());
@@ -263,6 +294,7 @@ public class TenantQueryService {
                             tenant.getId(),
                             tenant.getName(),
                             tenant.getPrimaryDomain(),
+                            botCounts.getOrDefault(tenant.getId(), 0L).intValue(),
                             tenant.getStatus(),
                             plan == null ? null
                                     : new TenantSummaryResponse.PlanRef(plan.getId(), plan.getName()),

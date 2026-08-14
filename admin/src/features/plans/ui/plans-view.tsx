@@ -56,6 +56,7 @@ export function PlansView() {
                 <Th className="w-[100px]">월 요금</Th>
                 <Th className="w-[92px]">대화 한도</Th>
                 <Th className="w-[92px]">문서 한도</Th>
+                <Th className="w-[92px]">서비스 수</Th>
                 <Th className="w-[80px]">사용 업체</Th>
                 <Th className="w-[74px]">판매</Th>
               </tr>
@@ -78,6 +79,7 @@ export function PlansView() {
                   </Td>
                   <Td className="tabular">{limitLabel(plan.convLimit)}</Td>
                   <Td className="tabular">{limitLabel(plan.docLimit)}</Td>
+                  <Td className="tabular">{limitLabel(plan.botLimit)}</Td>
                   <Td className="tabular text-slate-2">{count(plan.tenantCount)}</Td>
                   <Td>
                     {/* 요금제는 삭제하지 않는다. 판매 중단만 한다 — 기존 계약 업체가 남아 있다 */}
@@ -124,6 +126,7 @@ function SellableSwitch({ plan, disabled }: { plan: Plan; disabled: boolean }) {
             negotiable: plan.negotiable,
             convLimit: plan.convLimit,
             docLimit: plan.docLimit,
+            botLimit: plan.botLimit,
             sellable: next,
           },
         })
@@ -140,6 +143,7 @@ function PlanEditModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
   const [monthlyFee, setMonthlyFee] = useState(String(plan.monthlyFee));
   const [convLimit, setConvLimit] = useState(String(plan.convLimit));
   const [docLimit, setDocLimit] = useState(String(plan.docLimit));
+  const [botLimit, setBotLimit] = useState(String(plan.botLimit));
   const update = useUpdatePlan();
 
   return (
@@ -161,6 +165,7 @@ function PlanEditModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
               negotiable: plan.negotiable,
               convLimit: Number(convLimit),
               docLimit: Number(docLimit),
+              botLimit: Number(botLimit),
               sellable: plan.sellable,
             },
           },
@@ -198,6 +203,21 @@ function PlanEditModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
             inputMode="numeric"
             value={docLimit}
             onChange={(e) => setDocLimit(e.target.value)}
+          />
+        )}
+      </Field>
+      {/*
+        만들 수 있는 서비스 수. **생성 시점에만 검사한다** — 내려도 이미 만든 서비스를
+        강제로 지우지 않는다. 이미 남의 사이트에서 도는 위젯을 요금제 변경으로 죽이면
+        방문자에게는 장애로 보인다.
+      */}
+      <Field label="서비스 수">
+        {(id) => (
+          <TextInput
+            id={id}
+            inputMode="numeric"
+            value={botLimit}
+            onChange={(e) => setBotLimit(e.target.value)}
           />
         )}
       </Field>

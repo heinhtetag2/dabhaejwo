@@ -12,7 +12,10 @@ import java.util.UUID;
 public record TenantSummaryResponse(
         UUID id,
         String name,
+        /** 가입할 때 적은 대표 도메인. <b>표시용</b>이고 위젯이 도는 주소는 서비스가 정한다. */
         String primaryDomain,
+        /** 서비스 수. 1이면 화면이 지금과 글자 하나 다르지 않다. */
+        int botCount,
         TenantStatus status,
         PlanRef plan,
         long convCount,

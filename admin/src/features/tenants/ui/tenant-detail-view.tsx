@@ -14,7 +14,7 @@ import {
 import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow } from "@/shared/common/card";
 import { TextArea } from "@/shared/common/field";
-import { ErrorState, LoadingState } from "@/shared/common/states";
+import { EmptyState, ErrorState, LoadingState } from "@/shared/common/states";
 import { ROUTES } from "@/shared/config/routes";
 import { errorMessage } from "@/shared/lib/error-message";
 import { count, date, dateTime, quota, relative, won } from "@/shared/lib/format";
@@ -22,6 +22,7 @@ import { TenantStatusBadge } from "@/shared/ui/tenant-status-badge";
 import { PageHeader } from "@/widgets/page-header/page-header";
 
 import { TenantActions } from "./tenant-actions";
+import { useTenantBotsQuery } from "@/entities/tenant/query";
 
 const ACTIVITY_LABEL: Record<TenantActivityType, string> = {
   CHANGE_PLAN: "요금제 변경",
@@ -115,6 +116,8 @@ export function TenantDetailView({ tenantId }: { tenantId: string }) {
               <Row label="마지막 접속" value={relative(tenant.lastSeenAt)} />
             </CardBody>
           </Card>
+
+          <BotsCard tenantId={tenant.id} />
 
           <Card>
             <CardHeader title="조치" />
@@ -251,5 +254,66 @@ function Row({ label, value, emphasis }: { label: string; value: string; emphasi
       <span className="text-slate">{label}</span>
       <span className={`tabular ${emphasis ? "font-semibold text-brick" : ""}`}>{value}</span>
     </div>
+  );
+}
+
+/**
+ * 업체가 가진 서비스.
+ *
+ * <p><b>운영 콘솔이 허용 도메인을 처음 보게 되는 자리다.</b> CS 문의 1순위가
+ * "코드 붙였는데 안 떠요"이고 원인 대부분이 미등록 주소인데, 지금까지는 그걸 보려면
+ * 사유를 적고 대리 로그인을 해야 했다 — 도메인 목록 하나 보려고 감사 기록을 남기는 절차를 밟았다.
+ *
+ * <p>탭을 만들지 않고 카드를 얹은 이유는 [대리 로그인] 바로 위에 두기 위해서다 —
+ * 누르기 직전에 어느 서비스로 들어갈지 본다.
+ */
+function BotsCard({ tenantId }: { tenantId: string }) {
+  const { data, isPending, isError } = useTenantBotsQuery(tenantId);
+
+  return (
+    <Card>
+      <CardHeader
+        title="서비스"
+        aside={<Eyebrow>{data ? `${data.length}개` : "—"}</Eyebrow>}
+      />
+      <CardBody>
+        {isPending ? (
+          <LoadingState />
+        ) : isError ? (
+          <ErrorState message="서비스를 불러오지 못했습니다" />
+        ) : data.length === 0 ? (
+          <EmptyState message="서비스가 없습니다." />
+        ) : (
+          <ul className="divide-y divide-line">
+            {data.map((bot) => (
+              <li key={bot.id} className="py-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                    {bot.name}
+                  </span>
+                  {/* 색만으로 구분하지 않는다 — 글자로도 말한다 (WCAG 2.1 AA) */}
+                  <span className="shrink-0 text-[11.5px] text-slate-2">
+                    {bot.lastCalledAt ? "작동 중" : "설치 확인 안 됨"}
+                  </span>
+                </div>
+                <div className="truncate font-mono text-[11px] text-slate-2">
+                  {bot.primaryDomain} · {bot.publishableKey}
+                </div>
+                <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                  {bot.allowedOrigins.map((origin) => (
+                    <li key={origin.id} className="font-mono text-[11px] text-slate-2">
+                      {origin.origin}
+                      <span className="ml-1 font-sans">
+                        {origin.lastCalledAt ? "✔" : "· 호출 없음"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
   );
 }

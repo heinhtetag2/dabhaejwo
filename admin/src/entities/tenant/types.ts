@@ -33,6 +33,8 @@ export interface TenantSummary {
   id: string;
   name: string;
   primaryDomain: string;
+  /** 서비스 수. 1이면 화면이 지금과 글자 하나 다르지 않다. */
+  botCount: number;
   status: TenantStatus;
   plan: PlanRef | null;
   convCount: number;
@@ -128,4 +130,20 @@ export interface ImpersonationSession {
   startedAt: string;
   expiresAt: string;
   status: ImpersonationStatus;
+}
+
+export type BotStatus = "ACTIVE" | "PAUSED" | "DELETING";
+
+/** 운영 콘솔이 보는 서비스. 업체 대시보드와 겹치는 필드는 이름·타입이 같다. */
+export interface OpsBot {
+  id: string;
+  name: string;
+  primaryDomain: string;
+  publishableKey: string;
+  status: BotStatus;
+  defaultBot: boolean;
+  /** null 이면 위젯이 아직 한 번도 호출되지 않았다 — 설치가 안 됐다는 뜻이다. */
+  lastCalledAt: string | null;
+  createdAt: string;
+  allowedOrigins: Array<{ id: string; origin: string; lastCalledAt: string | null }>;
 }

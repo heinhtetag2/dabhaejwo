@@ -11,6 +11,8 @@ export interface Plan {
   negotiable: boolean;
   convLimit: number;
   docLimit: number;
+  /** 만들 수 있는 서비스 수. 생성 시점에만 검사한다. */
+  botLimit: number;
   tenantCount: number;
   /** 삭제 대신 판매 중단만 한다 — 기존 계약 업체가 남아 있다. */
   sellable: boolean;

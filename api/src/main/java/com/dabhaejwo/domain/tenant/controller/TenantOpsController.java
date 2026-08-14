@@ -17,6 +17,7 @@ import com.dabhaejwo.domain.tenant.service.TenantQueryService;
 import com.dabhaejwo.global.common.PageResponse;
 import com.dabhaejwo.global.security.Permission;
 import com.dabhaejwo.global.security.RequirePermission;
+import com.dabhaejwo.domain.tenant.dto.response.OpsBotResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -104,6 +105,18 @@ public class TenantOpsController {
     public TenantDetailResponse extendTrial(@PathVariable UUID tenantId,
                                             @Valid @RequestBody TrialExtensionRequest request) {
         return adminService.extendTrial(tenantId, request);
+    }
+
+    /**
+     * 업체의 서비스 전부. 허용 주소를 함께 준다.
+     *
+     * <p>운영 콘솔이 <b>허용 도메인을 처음 보게 되는 지점</b>이다 — 지금까지는 대리 로그인
+     * 말고는 볼 길이 없었다.
+     */
+    @GetMapping("/{tenantId}/bots")
+    @RequirePermission(Permission.TENANT_READ)
+    public List<OpsBotResponse> bots(@PathVariable UUID tenantId) {
+        return queryService.bots(tenantId);
     }
 
     @GetMapping("/{tenantId}/quota-overrides")

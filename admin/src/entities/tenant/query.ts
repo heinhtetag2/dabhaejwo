@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type PageResponse } from "@/shared/api/http-client";
 
 import type {
+  OpsBot,
   QuotaOverride,
   TenantActivity,
   TenantDetail,
@@ -76,5 +77,13 @@ export function useQuotaOverridesQuery(id: string | null) {
     queryKey: tenantKeys.quotas(id ?? ""),
     queryFn: () => api<QuotaOverride[]>(`/api/ops/tenants/${id}/quota-overrides`),
     enabled: Boolean(id),
+  });
+}
+
+/** 업체가 가진 서비스. 허용 주소를 함께 준다 — CS 문의 1순위가 미등록 주소다. */
+export function useTenantBotsQuery(tenantId: string) {
+  return useQuery<OpsBot[]>({
+    queryKey: [...tenantKeys.detail(tenantId), "bots"],
+    queryFn: () => api<OpsBot[]>(`/api/ops/tenants/${tenantId}/bots`),
   });
 }

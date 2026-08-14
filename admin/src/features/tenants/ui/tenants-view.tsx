@@ -91,7 +91,7 @@ export function TenantsView() {
             value={query}
             onChange={(e) => setParam("q", e.target.value, "")}
             // 문의 메일에 적힌 도메인만으로 찾을 수 있어야 한다 (§4.1.2)
-            placeholder="업체명, 도메인, 키로 찾기"
+            placeholder="업체명, 서비스명, 도메인, 키로 찾기"
             aria-label="업체 검색"
             className="w-57.5 px-2.5 py-1.5 text-[13px]"
           />
@@ -176,7 +176,18 @@ export function TenantsView() {
                      * 버튼이 아니라 링크여야 새 탭으로 열고 주소를 복사할 수 있다.
                      */}
                     <Link href={detailHref(tenant.id)} className="block text-left">
-                      <TitleCell title={tenant.name} sub={tenant.primaryDomain} />
+                      <TitleCell
+                      title={tenant.name}
+                      /*
+                        서비스가 여럿이면 대표 도메인만 보여주는 것은 거짓말이 된다 —
+                        위젯이 도는 주소가 여럿이기 때문이다. 1이면 지금과 글자 하나 다르지 않다.
+                      */
+                      sub={
+                        tenant.botCount > 1
+                          ? `${tenant.primaryDomain} 외 ${tenant.botCount - 1}`
+                          : tenant.primaryDomain
+                      }
+                    />
                     </Link>
                   </Td>
                   <Td className="text-[13px] text-slate">{tenant.plan?.name ?? "—"}</Td>
