@@ -39,7 +39,7 @@ export function TenantSidebar() {
     <aside className="sticky top-0 flex h-dvh w-[236px] shrink-0 flex-col bg-ink text-[#c9d4dc]">
       <div className="border-b border-white/8 px-5 pt-5.5 pb-4.5">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-[22px] place-items-center rounded-md bg-mark font-mono text-xs font-bold text-ink">
+          <span className="grid size-[22px] place-items-center rounded-md bg-mark font-mono text-xs font-bold text-white">
             A
           </span>
           <span className="font-semibold tracking-[-0.01em] text-white">답해줘</span>
@@ -122,7 +122,7 @@ export function TenantSidebar() {
           </div>
           {/* 한도는 색만으로 알리지 않는다 — 숫자를 함께 적는다 (WCAG 2.1 AA) */}
           <div className="mt-2.5 h-1 overflow-hidden rounded-[3px] bg-white/12">
-            <span className="block h-full rounded-[3px] bg-mark" style={{ width: `${usedPercent}%` }} />
+            <span className="block h-full rounded-[3px] bg-mark-bright" style={{ width: `${usedPercent}%` }} />
           </div>
           <div className="mt-1.5 flex justify-between font-mono text-[10.5px] text-[#7e8f9c]">
             <span>

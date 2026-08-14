@@ -189,7 +189,7 @@ function Bubble({ message }: { message: ConversationMessage }) {
           <StatusBadge tone="error" label="답변 실패" />
           <Link
             href={ROUTES.improve}
-            className="rounded-md bg-mark px-2.5 py-1 text-[12px] font-medium text-ink"
+            className="rounded-md bg-mark px-2.5 py-1 text-[12px] font-medium text-white"
           >
             여기에 답 달기
           </Link>

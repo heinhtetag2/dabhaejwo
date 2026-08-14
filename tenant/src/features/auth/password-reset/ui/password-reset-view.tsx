@@ -17,8 +17,11 @@ import {
 import { ApiError } from "@/shared/api/http-client";
 import { Button } from "@/shared/common/button";
 import { ROUTES } from "@/shared/config/routes";
+import type { Language } from "@/shared/lib/language";
 import { fieldInputClass, FormField } from "@/shared/ui/form-field";
 import { Notice } from "@/shared/ui/notice";
+
+import { PASSWORD_RESET_TEXT } from "./password-reset-content";
 
 /**
  * 비밀번호 찾기.
@@ -27,8 +30,11 @@ import { Notice } from "@/shared/ui/notice";
  *
  * <p>단계를 URL 로 남긴다({@code ?step=reset}) — 메일을 확인하러 갔다가 돌아오는 흐름이라
  * 상태를 메모리에만 두면 탭을 옮기는 순간 처음으로 돌아간다.
+ *
+ * <p>`language` 는 페이지에서 `getLanguage()` 로 읽어 props 로 내려받는다 — 이 컴포넌트는
+ * `"use client"` 라 쿠키를 직접 못 읽는다.
  */
-export function PasswordResetView() {
+export function PasswordResetView({ language }: { language: Language }) {
   const params = useSearchParams();
   const [step, setStep] = useState<"forgot" | "reset">(
     params.get("step") === "reset" ? "reset" : "forgot",
@@ -37,17 +43,19 @@ export function PasswordResetView() {
 
   return step === "forgot" ? (
     <ForgotStep
+      language={language}
       onSent={(sentTo) => {
         setEmail(sentTo);
         setStep("reset");
       }}
     />
   ) : (
-    <ResetStep email={email} />
+    <ResetStep email={email} language={language} />
   );
 }
 
-function ForgotStep({ onSent }: { onSent: (email: string) => void }) {
+function ForgotStep({ onSent, language }: { onSent: (email: string) => void; language: Language }) {
+  const t = PASSWORD_RESET_TEXT[language];
   const forgot = useForgotPasswordMutation();
 
   const {
@@ -55,7 +63,7 @@ function ForgotStep({ onSent }: { onSent: (email: string) => void }) {
     handleSubmit,
     formState: { errors },
   } = useForm<ForgotFormValues>({
-    resolver: zodResolver(forgotFormSchema),
+    resolver: zodResolver(forgotFormSchema(language)),
     defaultValues: { email: "" },
   });
 
@@ -65,13 +73,11 @@ function ForgotStep({ onSent }: { onSent: (email: string) => void }) {
 
   return (
     <div className="mx-auto max-w-105 px-5 pt-16 pb-24 sm:pt-24">
-      <h1 className="text-[30px] leading-[1.3] font-bold tracking-[-0.04em]">비밀번호 찾기</h1>
-      <p className="mt-3.5 text-[15.5px] leading-[1.7] text-slate">
-        가입하신 이메일로 임시 비밀번호를 보내드립니다.
-      </p>
+      <h1 className="text-[30px] leading-[1.3] font-bold tracking-[-0.04em]">{t.forgotTitle}</h1>
+      <p className="mt-3.5 text-[15.5px] leading-[1.7] text-slate">{t.forgotSubtitle}</p>
 
       <form onSubmit={onSubmit} noValidate className="mt-10">
-        <FormField id="forgot-email" label="이메일" error={errors.email?.message}>
+        <FormField id="forgot-email" label={t.emailLabel} error={errors.email?.message}>
           <input
             id="forgot-email"
             type="email"
@@ -85,9 +91,7 @@ function ForgotStep({ onSent }: { onSent: (email: string) => void }) {
 
         {forgot.isError ? (
           <Notice tone="error" size="md" className="mb-5">
-            {forgot.error instanceof ApiError
-              ? forgot.error.message
-              : "메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요."}
+            {forgot.error instanceof ApiError ? forgot.error.message : t.forgotGenericError}
           </Notice>
         ) : null}
 
@@ -98,24 +102,23 @@ function ForgotStep({ onSent }: { onSent: (email: string) => void }) {
           className="w-full justify-center"
           disabled={forgot.isPending}
         >
-          {forgot.isPending ? "보내는 중…" : "임시 비밀번호 받기"}
+          {forgot.isPending ? t.sending : t.getTemporaryPassword}
         </Button>
       </form>
 
       {/* 가입 여부를 알려주지 않는다. 서버도 같은 이유로 없는 주소에 204 를 준다. */}
-      <p className="mt-6 text-center text-[13px] leading-relaxed text-slate-2">
-        가입된 주소라면 메일이 갑니다. 오지 않으면 스팸함을 확인해 주세요.
-      </p>
+      <p className="mt-6 text-center text-[13px] leading-relaxed text-slate-2">{t.forgotNote}</p>
       <p className="mt-7 text-center text-[14px] text-slate">
         <Link href={ROUTES.login} className="font-medium underline underline-offset-2">
-          로그인으로 돌아가기
+          {t.backToLogin}
         </Link>
       </p>
     </div>
   );
 }
 
-function ResetStep({ email }: { email: string }) {
+function ResetStep({ email, language }: { email: string; language: Language }) {
+  const t = PASSWORD_RESET_TEXT[language];
   const router = useRouter();
   const reset = useResetPasswordMutation();
 
@@ -124,7 +127,7 @@ function ResetStep({ email }: { email: string }) {
     handleSubmit,
     formState: { errors },
   } = useForm<ResetFormValues>({
-    resolver: zodResolver(resetFormSchema),
+    resolver: zodResolver(resetFormSchema(language)),
     defaultValues: { email, temporaryPassword: "", newPassword: "", confirmPassword: "" },
   });
 
@@ -136,13 +139,11 @@ function ResetStep({ email }: { email: string }) {
 
   return (
     <div className="mx-auto max-w-105 px-5 pt-16 pb-24 sm:pt-24">
-      <h1 className="text-[30px] leading-[1.3] font-bold tracking-[-0.04em]">새 비밀번호 설정</h1>
-      <p className="mt-3.5 text-[15.5px] leading-[1.7] text-slate">
-        메일로 받은 임시 비밀번호를 입력하고 새 비밀번호를 정해 주세요.
-      </p>
+      <h1 className="text-[30px] leading-[1.3] font-bold tracking-[-0.04em]">{t.resetTitle}</h1>
+      <p className="mt-3.5 text-[15.5px] leading-[1.7] text-slate">{t.resetSubtitle}</p>
 
       <form onSubmit={onSubmit} noValidate className="mt-10">
-        <FormField id="reset-email" label="이메일" error={errors.email?.message}>
+        <FormField id="reset-email" label={t.emailLabel} error={errors.email?.message}>
           <input
             id="reset-email"
             type="email"
@@ -155,8 +156,8 @@ function ResetStep({ email }: { email: string }) {
 
         <FormField
           id="reset-temp"
-          label="임시 비밀번호"
-          hint="메일에 적힌 값을 그대로 입력해 주세요."
+          label={t.temporaryPasswordLabel}
+          hint={t.temporaryPasswordHint}
           error={errors.temporaryPassword?.message}
         >
           <input
@@ -170,8 +171,8 @@ function ResetStep({ email }: { email: string }) {
 
         <FormField
           id="reset-new"
-          label="새 비밀번호"
-          hint="8자 이상"
+          label={t.newPasswordLabel}
+          hint={t.newPasswordHint}
           error={errors.newPassword?.message}
         >
           <input
@@ -184,11 +185,7 @@ function ResetStep({ email }: { email: string }) {
           />
         </FormField>
 
-        <FormField
-          id="reset-confirm"
-          label="새 비밀번호 확인"
-          error={errors.confirmPassword?.message}
-        >
+        <FormField id="reset-confirm" label={t.confirmPasswordLabel} error={errors.confirmPassword?.message}>
           <input
             id="reset-confirm"
             type="password"
@@ -201,9 +198,7 @@ function ResetStep({ email }: { email: string }) {
 
         {reset.isError ? (
           <Notice tone="error" size="md" className="mb-5">
-            {reset.error instanceof ApiError
-              ? reset.error.message
-              : "비밀번호를 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요."}
+            {reset.error instanceof ApiError ? reset.error.message : t.resetGenericError}
           </Notice>
         ) : null}
 
@@ -214,13 +209,13 @@ function ResetStep({ email }: { email: string }) {
           className="w-full justify-center"
           disabled={reset.isPending}
         >
-          {reset.isPending ? "바꾸는 중…" : "비밀번호 바꾸기"}
+          {reset.isPending ? t.changing : t.changePassword}
         </Button>
       </form>
 
       <p className="mt-7 text-center text-[14px] text-slate">
         <Link href={ROUTES.login} className="font-medium underline underline-offset-2">
-          로그인으로 돌아가기
+          {t.backToLogin}
         </Link>
       </p>
     </div>

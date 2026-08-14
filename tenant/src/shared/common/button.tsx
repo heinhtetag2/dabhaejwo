@@ -32,6 +32,21 @@ const SIZE: Record<Size, string> = {
 const BASE =
   "inline-flex items-center gap-1.5 border font-medium whitespace-nowrap transition-colors";
 
+/** `Button`/`LinkButton` 과 같은 클래스 조합을 계산만 한다 — 앵커가 아닌 다른 요소에 같은
+ *  모양을 입혀야 할 때 쓴다(예: `shared/ui/signup-cta-link.tsx`). BASE/VARIANT/SIZE 를
+ *  export 하지 않는 이유는 소비자가 조합 순서까지 신경 쓰게 만들지 않기 위해서다. */
+export function buttonClassName({
+  variant = "default",
+  size = "md",
+  className,
+}: {
+  variant?: Variant;
+  size?: Size;
+  className?: string;
+}): string {
+  return cn(BASE, VARIANT[variant], SIZE[size], className);
+}
+
 export function Button({
   variant = "default",
   size = "md",

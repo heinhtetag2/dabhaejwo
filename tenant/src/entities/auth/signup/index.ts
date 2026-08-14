@@ -5,23 +5,56 @@ import { z } from "zod";
 
 import { api } from "@/shared/api/http-client";
 import { useAuthStore } from "@/shared/lib/auth-store";
+import type { Language } from "@/shared/lib/language";
+
+const VALIDATION_TEXT: Record<
+  Language,
+  {
+    invalidEmail: string;
+    passwordMinLength: string;
+    tenantNameRequired: string;
+    domainRequired: string;
+    domainInvalid: string;
+    termsRequired: string;
+  }
+> = {
+  en: {
+    invalidEmail: "Not a valid email address",
+    passwordMinLength: "Must be at least 8 characters",
+    tenantNameRequired: "Enter your company name",
+    domainRequired: "Enter your site's address",
+    domainInvalid: "That doesn't look like a valid address. e.g. shop.example.com",
+    termsRequired: "You must agree to the terms to sign up",
+  },
+  ko: {
+    invalidEmail: "이메일 형식이 아닙니다",
+    passwordMinLength: "8자 이상이어야 합니다",
+    tenantNameRequired: "업체명을 입력하세요",
+    domainRequired: "홈페이지 주소를 입력하세요",
+    domainInvalid: "주소 형식이 올바르지 않습니다. 예: shop.example.com",
+    termsRequired: "약관에 동의해야 가입할 수 있습니다",
+  },
+};
 
 /** 가입. 응답 형태는 로그인과 같다 — 가입 직후 로그인 상태여야 한다 (§7.2). */
-export const signupFormSchema = z.object({
-  email: z.email("이메일 형식이 아닙니다"),
-  password: z.string().min(8, "8자 이상이어야 합니다"),
-  tenantName: z.string().trim().min(1, "업체명을 입력하세요").max(60),
-  primaryDomain: z
-    .string()
-    .trim()
-    .min(1, "홈페이지 주소를 입력하세요")
-    .refine((value) => value.replace(/^https?:\/\//, "").split("/")[0].includes("."), {
-      message: "주소 형식이 올바르지 않습니다. 예: shop.example.com",
-    }),
-  termsAgreed: z.literal(true, { message: "약관에 동의해야 가입할 수 있습니다" }),
-});
+export function signupFormSchema(language: Language) {
+  const t = VALIDATION_TEXT[language];
+  return z.object({
+    email: z.email(t.invalidEmail),
+    password: z.string().min(8, t.passwordMinLength),
+    tenantName: z.string().trim().min(1, t.tenantNameRequired).max(60),
+    primaryDomain: z
+      .string()
+      .trim()
+      .min(1, t.domainRequired)
+      .refine((value) => value.replace(/^https?:\/\//, "").split("/")[0].includes("."), {
+        message: t.domainInvalid,
+      }),
+    termsAgreed: z.literal(true, { message: t.termsRequired }),
+  });
+}
 
-export type SignupFormValues = z.infer<typeof signupFormSchema>;
+export type SignupFormValues = z.infer<ReturnType<typeof signupFormSchema>>;
 
 const signupResultSchema = z.object({
   accessToken: z.string(),
