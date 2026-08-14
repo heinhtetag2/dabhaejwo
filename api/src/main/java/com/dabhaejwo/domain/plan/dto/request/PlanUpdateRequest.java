@@ -14,5 +14,7 @@ public record PlanUpdateRequest(
         boolean negotiable,
         @Min(0) int convLimit,
         @Min(0) int docLimit,
+        /** 만들 수 있는 서비스 수. 생성 시점에만 검사한다. */
+        @Min(1) int botLimit,
         boolean sellable) {
 }

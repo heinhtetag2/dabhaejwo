@@ -4,15 +4,17 @@ import { useHomeSummaryQuery } from "@/entities/dashboard/home";
 import { LinkButton } from "@/shared/common/button";
 import { Card, CardBody, CardHeader, Eyebrow, Stat } from "@/shared/common/card";
 import { ErrorState, LoadingState } from "@/shared/common/states";
-import { ROUTES } from "@/shared/config/routes";
+import { botRoute } from "@/shared/config/routes";
 
 import { KnowledgeStrip } from "./knowledge-strip";
+import { useCurrentBotId } from "@/shared/lib/current-bot";
 
 /**
  * 홈. 화면의 중심은 통계가 아니라 <b>오늘 할 일 하나</b>다 (tenant-plan.md §2.1).
  * 그래서 지표 카드보다 헤드라인 문장이 먼저 온다.
  */
 export function HomeView() {
+  const botId = useCurrentBotId();
   const { data, isPending, isError, refetch } = useHomeSummaryQuery();
 
   if (isPending) {
@@ -64,11 +66,11 @@ export function HomeView() {
           <CardBody>
             <KnowledgeStrip knowledge={data.knowledge} />
             <div className="mt-4 flex flex-wrap gap-2 border-t border-line-2 pt-4">
-              <LinkButton size="sm" href={ROUTES.sources}>
+              <LinkButton size="sm" href={botRoute(botId, "sources")}>
                 소스 관리
               </LinkButton>
               {data.knowledge.failedCount > 0 ? (
-                <LinkButton size="sm" href={ROUTES.sources}>
+                <LinkButton size="sm" href={botRoute(botId, "sources")}>
                   실패 {data.knowledge.failedCount}건 확인
                 </LinkButton>
               ) : null}
@@ -111,6 +113,7 @@ export function HomeView() {
  * 이 문장이 곧 행동 유도다.
  */
 function Headline({ convCount, gapCount }: { convCount: number; gapCount: number }) {
+  const botId = useCurrentBotId();
   const nothingToDo = gapCount === 0;
 
   return (
@@ -142,7 +145,7 @@ function Headline({ convCount, gapCount }: { convCount: number; gapCount: number
         </p>
       ) : (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <LinkButton variant="accent" href={ROUTES.improve}>
+          <LinkButton variant="accent" href={botRoute(botId, "improve")}>
             {gapCount}건 채우러 가기
           </LinkButton>
           <span className="text-[12.5px] text-slate">

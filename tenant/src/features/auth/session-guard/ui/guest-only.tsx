@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-import { ROUTES } from "@/shared/config/routes";
 
 import { useSessionRestore } from "../model/use-session-restore";
 
@@ -22,7 +21,7 @@ export function GuestOnly({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace(ROUTES.home);
+      router.replace("/app");
     }
   }, [status, router]);
 

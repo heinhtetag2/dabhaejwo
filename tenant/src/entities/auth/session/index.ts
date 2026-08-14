@@ -8,6 +8,7 @@ export {
   useVerifyOtpMutation,
 } from "./mutation";
 export {
+  botSchema,
   forgotFormSchema,
   inviteAcceptFormSchema,
   loginFormSchema,
@@ -25,6 +26,8 @@ export type {
 } from "./schema";
 export type {
   AppContext,
+  Bot,
+  BotStatus,
   ImpersonationContext,
   InviteState,
   Member,

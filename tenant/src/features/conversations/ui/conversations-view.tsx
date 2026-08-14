@@ -11,12 +11,13 @@ import {
 import { Button } from "@/shared/common/button";
 import { Card, CardBody, CardHeader } from "@/shared/common/card";
 import { EmptyState, ErrorState, LoadingState } from "@/shared/common/states";
-import { ROUTES } from "@/shared/config/routes";
+import { botRoute } from "@/shared/config/routes";
 import { cn } from "@/shared/lib/cn";
 import { Pagination } from "@/shared/ui/pagination";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
 import { time, dateTime } from "@/shared/lib/format";
+import { useCurrentBotId } from "@/shared/lib/current-bot";
 
 /**
  * 대화 로그. 좌측 목록 + 우측 상세.
@@ -161,6 +162,7 @@ export function ConversationsView() {
 }
 
 function Bubble({ message }: { message: ConversationMessage }) {
+  const botId = useCurrentBotId();
   if (message.role === "VISITOR") {
     return (
       <p className="ml-auto w-fit max-w-[80%] rounded-[12px] bg-ink px-3.5 py-2.5 text-[13px] text-white">
@@ -188,7 +190,7 @@ function Bubble({ message }: { message: ConversationMessage }) {
         <span className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-dashed border-[#ebbfb7] pt-2.5">
           <StatusBadge tone="error" label="답변 실패" />
           <Link
-            href={ROUTES.improve}
+            href={botRoute(botId, "improve")}
             className="rounded-md bg-mark px-2.5 py-1 text-[12px] font-medium text-white"
           >
             여기에 답 달기

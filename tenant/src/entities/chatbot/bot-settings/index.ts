@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { ApiError, api } from "@/shared/api/http-client";
 import { useAuthStore } from "@/shared/lib/auth-store";
+import { botApi, botKey, useCurrentBotId } from "@/shared/lib/current-bot";
 
 /** 챗봇 설정. 키는 api-contracts.md §9-4 와 동일하다. */
 export type LauncherSize = "SMALL" | "MEDIUM" | "LARGE";
@@ -91,12 +92,13 @@ export const botSettingsKeys = {
 };
 
 export function useBotSettingsQuery() {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<BotSettings>({
-    queryKey: botSettingsKeys.current,
-    enabled: accessToken !== null,
-    queryFn: async () => botSettingsSchema.parse(await api("/api/app/appearance")),
+    queryKey: botKey(botId, botSettingsKeys.current),
+    enabled: botId !== null && (accessToken !== null),
+    queryFn: async () => botSettingsSchema.parse(await api(botApi(botId, "/appearance"))),
   });
 }
 
@@ -141,30 +143,33 @@ export function useBotSettingsDraft() {
 
 /** 로고·런처 아이콘 업로드. 형식·크기 검증은 서버가 한다 — 여기서 막는 것은 UX 다. */
 export function useUploadBrandingImage(kind: "logo" | "launcher-icon") {
+  const botId = useCurrentBotId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => {
       const form = new FormData();
       form.append("file", file);
-      return api<{ url: string }>(`/api/app/appearance/${kind}`, { method: "POST", body: form });
+      return api<{ url: string }>(botApi(botId, `/appearance/${kind}`), { method: "POST", body: form });
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botSettingsKeys.current }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botKey(botId, botSettingsKeys.current) }),
   });
 }
 
 export function useRemoveBrandingImage(kind: "logo" | "launcher-icon") {
+  const botId = useCurrentBotId();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api<void>(`/api/app/appearance/${kind}`, { method: "DELETE" }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botSettingsKeys.current }),
+    mutationFn: () => api<void>(botApi(botId, `/appearance/${kind}`), { method: "DELETE" }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botKey(botId, botSettingsKeys.current) }),
   });
 }
 
 export function useSaveBotSettings() {
+  const botId = useCurrentBotId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (settings: BotSettings) =>
-      api("/api/app/appearance", { method: "PUT", body: settings }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botSettingsKeys.current }),
+      api(botApi(botId, "/appearance"), { method: "PUT", body: settings }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botKey(botId, botSettingsKeys.current) }),
   });
 }

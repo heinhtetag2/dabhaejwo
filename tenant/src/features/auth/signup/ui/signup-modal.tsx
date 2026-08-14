@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 
 import { Modal } from "@/shared/common/modal";
-import { ROUTES } from "@/shared/config/routes";
 import type { Language } from "@/shared/lib/language";
 import { useSignupModalStore } from "@/shared/lib/signup-modal-store";
 
@@ -25,7 +24,7 @@ export function SignupModal({ language }: { language: Language }) {
 
   return (
     <Modal open={isOpen} onOpenChange={(open) => (open ? undefined : close())} title={t.title}>
-      <SignupForm language={language} onSuccess={() => router.replace(ROUTES.home)} />
+      <SignupForm language={language} onSuccess={() => router.replace("/app")} />
     </Modal>
   );
 }

@@ -1,6 +1,8 @@
 package com.dabhaejwo.domain.tenant.repository;
 
 import com.dabhaejwo.domain.tenant.entity.Tenant;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import com.dabhaejwo.domain.tenant.entity.TenantStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +15,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TenantRepository extends JpaRepository<Tenant, UUID> {
+
+    /**
+     * 서비스 수 상한처럼 <b>세고 나서 만드는</b> 판정에 쓴다.
+     *
+     * <p>잠그지 않으면 동시 요청이 각자 "아직 여유가 있다"고 판단해 상한을 넘겨 만든다.
+     * 사람이 대시보드에서 누르는 드문 행위라 잠금 비용이 사실상 0이다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Tenant t WHERE t.id = :id")
+    java.util.Optional<Tenant> findByIdForUpdate(@Param("id") java.util.UUID id);
+
 
     /**
      * 오늘까지 청구할 업체.
@@ -36,8 +49,14 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     Optional<Tenant> findByPublishableKey(String publishableKey);
 
     /**
-     * 업체명·도메인·공개 키 부분 일치 검색.
-     * 문의 메일에 적힌 도메인만으로 찾을 수 있어야 하므로 도메인은 서브도메인도 매칭된다.
+     * 업체명·도메인·<b>서비스</b>(이름·도메인·위젯 키) 부분 일치 검색.
+     *
+     * <p>문의 메일에 적힌 도메인만으로 찾을 수 있어야 하므로 도메인은 서브도메인도 매칭된다.
+     *
+     * <p><b>서비스까지 보는 것이 요점이다.</b> 위젯 키가 `tenants` 에서 `bots` 로 옮겨간 뒤로
+     * 두 번째 서비스의 키로는 업체를 찾을 수 없었다 — CS 문의 1순위가 "이 키 쓰는 업체가
+     * 누구냐"인데 그 경로가 끊겨 있었다. {@code tenants.publishable_key} 는 첫 서비스의
+     * 키를 복제한 유물이라 더는 보지 않는다.
      */
     @Query("""
             SELECT t FROM Tenant t
@@ -45,7 +64,10 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
               AND (:q IS NULL
                    OR LOWER(t.name) LIKE LOWER(CONCAT('%', :q, '%'))
                    OR LOWER(t.primaryDomain) LIKE LOWER(CONCAT('%', :q, '%'))
-                   OR LOWER(t.publishableKey) LIKE LOWER(CONCAT('%', :q, '%')))
+                   OR EXISTS (SELECT 1 FROM Bot b WHERE b.tenantId = t.id
+                              AND (LOWER(b.name) LIKE LOWER(CONCAT('%', :q, '%'))
+                                OR LOWER(b.primaryDomain) LIKE LOWER(CONCAT('%', :q, '%'))
+                                OR LOWER(b.publishableKey) LIKE LOWER(CONCAT('%', :q, '%')))))
             """)
     Page<Tenant> search(@Param("q") String q,
                         @Param("excluded") TenantStatus excluded,
@@ -70,7 +92,10 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
             SELECT t FROM Tenant t
             WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :q, '%'))
                OR LOWER(t.primaryDomain) LIKE LOWER(CONCAT('%', :q, '%'))
-               OR LOWER(t.publishableKey) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR EXISTS (SELECT 1 FROM Bot b WHERE b.tenantId = t.id
+                          AND (LOWER(b.name) LIKE LOWER(CONCAT('%', :q, '%'))
+                            OR LOWER(b.primaryDomain) LIKE LOWER(CONCAT('%', :q, '%'))
+                            OR LOWER(b.publishableKey) LIKE LOWER(CONCAT('%', :q, '%'))))
             """)
     List<Tenant> searchAll(@Param("q") String q);
 

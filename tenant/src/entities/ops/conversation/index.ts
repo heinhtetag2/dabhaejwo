@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { api, type PageResponse } from "@/shared/api/http-client";
 import { useAuthStore } from "@/shared/lib/auth-store";
+import { botApi, botKey, useCurrentBotId } from "@/shared/lib/current-bot";
 
 /** 대화 로그. 키는 api-contracts.md §9-3 과 동일하다. */
 export type MessageRole = "VISITOR" | "BOT";
@@ -81,22 +82,24 @@ export const conversationKeys = {
 };
 
 export function useConversationsQuery(q: string, page: number) {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<PageResponse<ConversationSummary>>({
-    queryKey: conversationKeys.list(q, page),
-    enabled: accessToken !== null,
+    queryKey: botKey(botId, conversationKeys.list(q, page)),
+    enabled: botId !== null && (accessToken !== null),
     queryFn: async () =>
-      summaryPageSchema.parse(await api("/api/app/conversations", { query: { q, page } })),
+      summaryPageSchema.parse(await api(botApi(botId, "/conversations"), { query: { q, page } })),
   });
 }
 
 export function useConversationDetailQuery(id: string | null) {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<ConversationDetail>({
-    queryKey: conversationKeys.detail(id ?? ""),
-    enabled: accessToken !== null && id !== null,
-    queryFn: async () => detailSchema.parse(await api(`/api/app/conversations/${id}`)),
+    queryKey: botKey(botId, conversationKeys.detail(id ?? "")),
+    enabled: botId !== null && (accessToken !== null && id !== null),
+    queryFn: async () => detailSchema.parse(await api(botApi(botId, `/conversations/${id}`))),
   });
 }

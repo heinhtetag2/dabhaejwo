@@ -26,7 +26,12 @@ public class AppContextController {
         return appContextService.current();
     }
 
-    @GetMapping("/home")
+    /**
+     * 홈은 <b>서비스별</b> 화면이라 경로에 서비스가 실린다.
+     *
+     * <p>{@code /me} 는 업체 단위로 남는다 — 로그인한 사람과 계약은 서비스를 가리지 않는다.
+     */
+    @GetMapping("/bots/{botId}/home")
     public HomeSummaryResponse home() {
         return homeService.summary();
     }

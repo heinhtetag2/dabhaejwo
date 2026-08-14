@@ -8,12 +8,16 @@ import { useBotSettingsQuery } from "@/entities/chatbot/bot-settings";
 import { useAllowedOriginsQuery } from "@/entities/tenant/allowed-origin";
 import { env } from "@/shared/config/env";
 import { LogoutButton } from "@/features/auth/logout";
-import { NAV_GROUPS, ROUTES } from "@/shared/config/routes";
+import { ACCOUNT_NAV, NAV_GROUPS, ROUTES, botRoute } from "@/shared/config/routes";
+import { useNavBotId } from "@/shared/lib/current-bot";
+import { BotSelector } from "@/features/bot/ui/bot-selector";
 import { cn } from "@/shared/lib/cn";
 
 export function TenantSidebar() {
   const pathname = usePathname();
   const { data } = useAppContextQuery();
+  // 계정 화면에는 URL 에 서비스가 없다. 그래도 링크는 어딘가를 가리켜야 한다.
+  const navBotId = useNavBotId(data?.bots);
   const { data: settings } = useBotSettingsQuery();
   const { data: origins } = useAllowedOriginsQuery();
 
@@ -57,12 +61,7 @@ export function TenantSidebar() {
               className="size-7 shrink-0 rounded-md bg-white/90 object-contain"
             />
           ) : null}
-          <span className="min-w-0">
-          {data?.tenant.name ?? "—"}
-          <span className="block font-mono text-[10.5px] tracking-[0.06em] text-[#7e8f9c]">
-            {data?.tenant.primaryDomain ?? ""}
-          </span>
-          </span>
+          <BotSelector bots={data?.bots ?? []} currentBotId={navBotId} tenantName={data?.tenant.name} />
         </div>
       </div>
 
@@ -73,14 +72,13 @@ export function TenantSidebar() {
               {group.label}
             </span>
             {group.items.map((item) => {
-              const active =
-                item.href === ROUTES.home
-                  ? pathname === ROUTES.home
-                  : pathname.startsWith(item.href);
+              const href = navBotId ? botRoute(navBotId, item.screen) : ROUTES.bots;
+              // 홈은 접두사가 나머지 전부와 겹치므로 완전 일치로만 본다.
+              const active = item.screen === "" ? pathname === href : pathname.startsWith(href);
               return (
                 <Link
-                  key={item.href}
-                  href={item.href}
+                  key={item.screen}
+                  href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "mb-px flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13.5px] transition-colors",
@@ -95,6 +93,28 @@ export function TenantSidebar() {
             })}
           </div>
         ))}
+
+        {/* 업체 단위 — 서비스를 바꿔도 그대로다. */}
+        <div className="mb-[18px]">
+          <span className="block px-2 pb-[7px] font-mono text-[10px] tracking-[0.11em] text-[#6c7d8b] uppercase">
+            계정
+          </span>
+          {ACCOUNT_NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={pathname.startsWith(item.href) ? "page" : undefined}
+              className={cn(
+                "mb-px flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13.5px] transition-colors",
+                pathname.startsWith(item.href)
+                  ? "bg-mark/15 font-medium text-white"
+                  : "text-[#b9c6cf] hover:bg-white/7 hover:text-white",
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
       </nav>
 
       <div className="border-t border-white/8 p-3.5">

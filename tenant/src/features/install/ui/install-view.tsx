@@ -19,6 +19,7 @@ import { Notice } from "@/shared/ui/notice";
 import { StatusBadge } from "@/shared/ui/status-badge";
 import { controlClass } from "@/shared/common/control";
 import { date } from "@/shared/lib/format";
+import { useCurrentBotId } from "@/shared/lib/current-bot";
 
 /**
  * 위젯 CDN. 배포 환경마다 다르므로 **빌드 시점에 주입**한다(`NEXT_PUBLIC_WIDGET_SRC`).
@@ -52,7 +53,14 @@ export function InstallView() {
   const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  /*
+   * 키는 **서비스의 것**이다. 업체에서 읽으면 서비스가 둘일 때 어느 쪽 스니펫인지 알 수 없고,
+   * 잘못 붙이면 방문자가 옆 사이트 챗봇을 보게 된다.
+   */
+  const botId = useCurrentBotId();
   const editable = canEdit(context?.member?.role);
+  const publishableKey =
+    context?.bots.find((bot) => bot.id === botId)?.publishableKey ?? "";
 
   if (origins.isPending || settings.isPending) {
     return <LoadingState />;
@@ -61,7 +69,6 @@ export function InstallView() {
     return <ErrorState message="설치 정보를 불러오지 못했습니다" onRetry={() => void origins.refetch()} />;
   }
 
-  const publishableKey = context?.tenant.publishableKey ?? "";
   /*
    * `charset="utf-8"` 을 붙인다.
    *

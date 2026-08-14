@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { OtpChallenge } from "@/entities/auth/session";
-import { ROUTES } from "@/shared/config/routes";
 import type { Language } from "@/shared/lib/language";
 
 import { LOGIN_TEXT } from "./login-content";
@@ -43,7 +42,7 @@ export function LoginView({ language }: { language: Language }) {
             language={language}
             challenge={challenge}
             onBack={() => setChallenge(null)}
-            onSuccess={() => router.replace(ROUTES.home)}
+            onSuccess={() => router.replace("/app")}
           />
         </>
       ) : (

@@ -20,7 +20,9 @@ public record PublicPlanResponse(
         int monthlyFee,
         boolean negotiable,
         int convLimit,
-        int docLimit) {
+        int docLimit,
+        /** 만들 수 있는 서비스 수. 요금제 비교표가 보여준다. */
+        int botLimit) {
 
     public static PublicPlanResponse from(Plan plan) {
         return new PublicPlanResponse(
@@ -30,6 +32,6 @@ public record PublicPlanResponse(
                 plan.getMonthlyFee(),
                 plan.isNegotiable(),
                 plan.getConvLimit(),
-                plan.getDocLimit());
+                plan.getDocLimit(), plan.getBotLimit());
     }
 }

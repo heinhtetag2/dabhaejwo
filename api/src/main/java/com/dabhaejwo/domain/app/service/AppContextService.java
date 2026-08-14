@@ -15,6 +15,8 @@ import com.dabhaejwo.global.exception.BusinessException;
 import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
+import com.dabhaejwo.domain.bot.repository.BotRepository;
+import com.dabhaejwo.domain.bot.service.BotService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,8 @@ public class AppContextService {
     private final TenantRepository tenantRepository;
     private final TenantMemberRepository memberRepository;
     private final PlanRepository planRepository;
+    private final BotService botService;
+    private final BotRepository botRepository;
     private final TenantDailyUsageRepository dailyUsageRepository;
     private final KnowledgeDocumentRepository documentRepository;
     private final ImpersonationSessionRepository sessionRepository;
@@ -41,12 +45,16 @@ public class AppContextService {
     public AppContextService(TenantRepository tenantRepository,
                              TenantMemberRepository memberRepository,
                              PlanRepository planRepository,
+                             BotService botService,
+                             BotRepository botRepository,
                              TenantDailyUsageRepository dailyUsageRepository,
                              KnowledgeDocumentRepository documentRepository,
                              ImpersonationSessionRepository sessionRepository) {
         this.tenantRepository = tenantRepository;
         this.memberRepository = memberRepository;
         this.planRepository = planRepository;
+        this.botService = botService;
+        this.botRepository = botRepository;
         this.dailyUsageRepository = dailyUsageRepository;
         this.documentRepository = documentRepository;
         this.sessionRepository = sessionRepository;
@@ -71,10 +79,13 @@ public class AppContextService {
                 new AppContextResponse.TenantContext(
                         tenant.getId(),
                         tenant.getName(),
+                        // 대표 도메인은 **표시용**이다 — 위젯이 실제로 도는 주소는
+                        // 서비스마다의 허용 목록이 정한다.
                         tenant.getPrimaryDomain(),
-                        tenant.getPublishableKey(),
                         tenant.getStatus(),
                         new AppContextResponse.PlanRef(plan.getId(), plan.getName(), plan.getMonthlyFee())),
+                // 위젯 키는 이제 서비스의 것이다. 설치 화면이 여기서 고른다.
+                botService.list(),
                 usage(user.tenantId(), plan),
                 impersonation(user));
     }
@@ -102,8 +113,11 @@ public class AppContextService {
     private AppContextResponse.Usage usage(UUID tenantId, Plan plan) {
         LocalDate today = LocalDate.now();
         long convCount = dailyUsageRepository.sumConvCount(tenantId, today.withDayOfMonth(1), today);
-        long docCount = documentRepository.countActive(tenantId);
-        return new AppContextResponse.Usage(convCount, plan.getConvLimit(), docCount, plan.getDocLimit());
+        // 한도는 업체 합산이다 — 사이드바 게이지도 업체 전체를 보여준다.
+        long docCount = documentRepository.countActiveAcrossBots(tenantId);
+        long botCount = botRepository.countByTenantId(tenantId);
+        return new AppContextResponse.Usage(convCount, plan.getConvLimit(), docCount,
+                plan.getDocLimit(), botCount, plan.getBotLimit());
     }
 
     /** 마지막 접속 시각 갱신. 팀원 화면의 "마지막 접속"과 이탈 판정에 쓰인다. */

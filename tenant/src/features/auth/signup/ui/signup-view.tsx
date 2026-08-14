@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 
-import { ROUTES } from "@/shared/config/routes";
 import type { Language } from "@/shared/lib/language";
 
 import { SIGNUP_TEXT } from "./signup-content";
@@ -27,7 +26,7 @@ export function SignupView({ language }: { language: Language }) {
         {t.title}
       </h1>
       <div className="mt-3.5">
-        <SignupForm language={language} onSuccess={() => router.replace(ROUTES.home)} />
+        <SignupForm language={language} onSuccess={() => router.replace("/app")} />
       </div>
     </div>
   );

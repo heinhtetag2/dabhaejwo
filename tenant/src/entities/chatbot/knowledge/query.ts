@@ -7,6 +7,7 @@ import { useAuthStore } from "@/shared/lib/auth-store";
 
 import { knowledgeDocumentPageSchema, knowledgeSourceListSchema } from "./schema";
 import type { DocumentStatus, KnowledgeDocument, KnowledgeSource } from "./types";
+import { botApi, botKey, useCurrentBotId } from "@/shared/lib/current-bot";
 
 export const knowledgeKeys = {
   sources: ["knowledge", "list", "sources"] as const,
@@ -21,13 +22,14 @@ export interface DocumentQuery {
 }
 
 export function useKnowledgeSourcesQuery() {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<KnowledgeSource[]>({
-    queryKey: knowledgeKeys.sources,
-    enabled: accessToken !== null,
+    queryKey: botKey(botId, knowledgeKeys.sources),
+    enabled: botId !== null && (accessToken !== null),
     queryFn: async () =>
-      knowledgeSourceListSchema.parse(await api("/api/app/knowledge/sources")),
+      knowledgeSourceListSchema.parse(await api(botApi(botId, "/knowledge/sources"))),
   });
 }
 
@@ -42,6 +44,7 @@ const INDEXING_POLL_MS = 5_000;
  * 진행 중인 문서가 없으면 폴링을 멈춘다 — 가만히 있는 화면이 서버를 계속 두드리지 않게.
  */
 export function useKnowledgeDocumentsQuery(params: DocumentQuery) {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<PageResponse<KnowledgeDocument>>({
@@ -51,12 +54,12 @@ export function useKnowledgeDocumentsQuery(params: DocumentQuery) {
       )
         ? INDEXING_POLL_MS
         : false,
-    queryKey: knowledgeKeys.documents(params),
+    queryKey: botKey(botId, knowledgeKeys.documents(params)),
     // 소스를 아직 못 고른 상태에서 전체를 긁지 않는다.
-    enabled: accessToken !== null && params.sourceId !== undefined,
+    enabled: botId !== null && (accessToken !== null && params.sourceId !== undefined),
     queryFn: async () =>
       knowledgeDocumentPageSchema.parse(
-        await api("/api/app/knowledge/documents", {
+        await api(botApi(botId, "/knowledge/documents"), {
           query: {
             sourceId: params.sourceId,
             status: params.status,

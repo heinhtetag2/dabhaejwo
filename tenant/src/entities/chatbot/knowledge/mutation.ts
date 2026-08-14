@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "@/shared/api/http-client";
 import { env } from "@/shared/config/env";
 import { currentAccessToken } from "@/shared/lib/auth-store";
+import { botApi, useCurrentBotId } from "@/shared/lib/current-bot";
 
 /**
  * 소스와 문서는 서로 영향을 준다(제외하면 소스의 문서 수가 바뀐다).
@@ -16,19 +17,21 @@ function useInvalidateKnowledge() {
 }
 
 export function useChangeAutoRefresh() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateKnowledge();
   return useMutation({
     mutationFn: ({ id, autoRefresh }: { id: string; autoRefresh: boolean }) =>
-      api(`/api/app/knowledge/sources/${id}`, { method: "PATCH", body: { autoRefresh } }),
+      api(botApi(botId, `/knowledge/sources/${id}`), { method: "PATCH", body: { autoRefresh } }),
     onSuccess: invalidate,
   });
 }
 
 export function useChangeExcluded() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateKnowledge();
   return useMutation({
     mutationFn: ({ id, excluded }: { id: string; excluded: boolean }) =>
-      api(`/api/app/knowledge/documents/${id}`, { method: "PATCH", body: { excluded } }),
+      api(botApi(botId, `/knowledge/documents/${id}`), { method: "PATCH", body: { excluded } }),
     onSuccess: invalidate,
   });
 }
@@ -40,9 +43,10 @@ export function useChangeExcluded() {
  * 성공한 척하지 않으므로 화면은 그 메시지를 그대로 보여주면 된다.
  */
 export function useRecrawlSource() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateKnowledge();
   return useMutation({
-    mutationFn: (id: string) => api(`/api/app/knowledge/sources/${id}/recrawl`, { method: "POST" }),
+    mutationFn: (id: string) => api(botApi(botId, `/knowledge/sources/${id}/recrawl`), { method: "POST" }),
     onSuccess: invalidate,
   });
 }
@@ -54,6 +58,7 @@ export function useRecrawlSource() {
  * 경계 문자열을 만들어야 하므로 <b>Content-Type 을 우리가 정하면 안 된다.</b>
  */
 export function useUploadDocument() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateKnowledge();
 
   return useMutation({
@@ -61,7 +66,7 @@ export function useUploadDocument() {
       const form = new FormData();
       form.append("file", file);
 
-      const response = await fetch(new URL("/api/app/knowledge/documents", env.apiBaseUrl), {
+      const response = await fetch(new URL(botApi(botId, "/knowledge/documents"), env.apiBaseUrl), {
         method: "POST",
         headers: { Authorization: `Bearer ${currentAccessToken() ?? ""}` },
         body: form,
@@ -82,10 +87,11 @@ export function useUploadDocument() {
 }
 
 export function useDeleteDocument() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateKnowledge();
   return useMutation({
     mutationFn: (id: string) =>
-      api(`/api/app/knowledge/documents/${id}`, { method: "DELETE" }),
+      api(botApi(botId, `/knowledge/documents/${id}`), { method: "DELETE" }),
     onSuccess: invalidate,
   });
 }
@@ -95,10 +101,11 @@ export function useDeleteDocument() {
  * 되돌릴 문서가 없으면 400 이다 — 눌렀는데 아무 일도 없는 상태를 만들지 않는다.
  */
 export function useRetryFailed() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateKnowledge();
   return useMutation({
     mutationFn: (sourceId?: string) =>
-      api<{ requeued: number }>("/api/app/knowledge/documents/retry-failed", {
+      api<{ requeued: number }>(botApi(botId, "/knowledge/documents/retry-failed"), {
         method: "POST",
         query: { sourceId },
       }),

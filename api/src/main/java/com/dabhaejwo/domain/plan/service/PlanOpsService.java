@@ -73,7 +73,7 @@ public class PlanOpsService {
 
         Plan saved = planRepository.save(Plan.create(
                 request.code(), request.name(), request.monthlyFee(), request.negotiable(),
-                request.convLimit(), request.docLimit(), request.sortOrder()));
+                request.convLimit(), request.docLimit(), request.botLimit(), request.sortOrder()));
 
         auditLogService.record(operator.operatorId(), AuditAction.PLAN_WRITE, null, "",
                 Map.of("action", "create", "code", saved.getCode()));
@@ -88,7 +88,7 @@ public class PlanOpsService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLAN_NOT_FOUND));
 
         plan.update(request.name(), request.monthlyFee(), request.negotiable(),
-                request.convLimit(), request.docLimit(), request.sellable());
+                request.convLimit(), request.docLimit(), request.sellable(), request.botLimit());
 
         auditLogService.record(operator.operatorId(), AuditAction.PLAN_WRITE, null, "",
                 Map.of("action", "update", "code", plan.getCode(), "sellable", request.sellable()));

@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { api } from "@/shared/api/http-client";
+import { botApi, useCurrentBotId } from "@/shared/lib/current-bot";
 
 /**
  * 미리보기 답변. 위젯의 `/api/widget/ask` 와 <b>같은 파이프라인</b>을 탄다 —
@@ -29,10 +30,11 @@ const previewAnswerSchema = z.object({
 });
 
 export function usePreviewAnswer() {
+  const botId = useCurrentBotId();
   return useMutation<PreviewAnswer, unknown, string>({
     mutationFn: async (question: string) =>
       previewAnswerSchema.parse(
-        await api("/api/app/chat/preview", { method: "POST", body: { question } }),
+        await api(botApi(botId, "/chat/preview"), { method: "POST", body: { question } }),
       ),
   });
 }

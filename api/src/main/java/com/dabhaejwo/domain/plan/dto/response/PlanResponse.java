@@ -18,6 +18,7 @@ public record PlanResponse(
         boolean negotiable,
         int convLimit,
         int docLimit,
+        int botLimit,
         long tenantCount,
         boolean sellable) {
 
@@ -29,7 +30,7 @@ public record PlanResponse(
                 plan.getMonthlyFee(),
                 plan.isNegotiable(),
                 plan.getConvLimit(),
-                plan.getDocLimit(),
+                plan.getDocLimit(), plan.getBotLimit(),
                 tenantCount,
                 plan.isSellable());
     }

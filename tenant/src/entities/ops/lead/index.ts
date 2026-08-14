@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { api, type PageResponse } from "@/shared/api/http-client";
 import { useAuthStore } from "@/shared/lib/auth-store";
+import { botApi, botKey, useCurrentBotId } from "@/shared/lib/current-bot";
 
 /** 남긴 연락처. contact 는 마스킹된 값이다 — 원문은 CSV 에서만 나간다. */
 export type LeadStatus = "NEW" | "CONTACTED" | "CLOSED";
@@ -48,20 +49,22 @@ export const leadKeys = {
 };
 
 export function useLeadsQuery(page: number) {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<PageResponse<Lead>>({
-    queryKey: leadKeys.list(page),
-    enabled: accessToken !== null,
-    queryFn: async () => leadPageSchema.parse(await api("/api/app/leads", { query: { page } })),
+    queryKey: botKey(botId, leadKeys.list(page)),
+    enabled: botId !== null && (accessToken !== null),
+    queryFn: async () => leadPageSchema.parse(await api(botApi(botId, "/leads"), { query: { page } })),
   });
 }
 
 export function useChangeLeadStatus() {
+  const botId = useCurrentBotId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
-      api(`/api/app/leads/${id}`, { method: "PATCH", body: { status } }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["lead"] }),
+      api(botApi(botId, `/leads/${id}`), { method: "PATCH", body: { status } }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: botKey(botId, ["lead"]) }),
   });
 }

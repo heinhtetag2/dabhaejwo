@@ -49,21 +49,48 @@ export const memberSchema = z.object({
   lastSeenAt: z.string().nullable(),
 });
 
+export const botStatusSchema = z.enum(["ACTIVE", "PAUSED", "DELETING"]);
+
+/**
+ * 서비스 — 챗봇 한 벌. 화면 용어는 "서비스", API 는 `bot` 이다.
+ *
+ * `lastCalledAt` 이 null 이면 위젯이 아직 한 번도 호출되지 않았다 —
+ * 화면의 작동 상태 점이 이 값으로 결정된다.
+ */
+export const botSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  primaryDomain: z.string(),
+  publishableKey: z.string(),
+  status: botStatusSchema,
+  defaultBot: z.boolean(),
+  lastCalledAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+
 export const appContextSchema = z.object({
   member: memberSchema.nullable(),
   tenant: z.object({
     id: z.string(),
     name: z.string(),
+    /** 표시용이다 — 위젯이 실제로 도는 주소는 서비스마다의 허용 목록이 정한다. */
     primaryDomain: z.string(),
-    publishableKey: z.string(),
     status: tenantStatusSchema,
     plan: z.object({ id: z.string(), name: z.string(), monthlyFee: z.number() }),
   }),
+  /** 이 업체의 서비스 전부. 선택기·리다이렉트 판정·설치 화면이 이걸로 산다. */
+  bots: z.array(botSchema),
+  /**
+   * 사용량. <b>전부 업체 합산이다</b> — 계약의 단위가 업체다.
+   * 서비스가 여럿이면 화면이 범위를 밝혀야 한다.
+   */
   usage: z.object({
     convCount: z.number(),
     convLimit: z.number(),
     docCount: z.number(),
     docLimit: z.number(),
+    botCount: z.number(),
+    botLimit: z.number(),
   }),
   impersonation: z
     .object({ sessionId: z.string(), reason: z.string(), expiresAt: z.string() })

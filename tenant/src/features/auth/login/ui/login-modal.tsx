@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import type { OtpChallenge } from "@/entities/auth/session";
 import { Modal } from "@/shared/common/modal";
-import { ROUTES } from "@/shared/config/routes";
 import type { Language } from "@/shared/lib/language";
 import { useLoginModalStore } from "@/shared/lib/login-modal-store";
 
@@ -50,7 +49,7 @@ export function LoginModal({ language }: { language: Language }) {
             language={language}
             challenge={challenge}
             onBack={() => setChallenge(null)}
-            onSuccess={() => router.replace(ROUTES.home)}
+            onSuccess={() => router.replace("/app")}
           />
         </>
       ) : (

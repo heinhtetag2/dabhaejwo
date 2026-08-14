@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { api, type PageResponse } from "@/shared/api/http-client";
 import { useAuthStore } from "@/shared/lib/auth-store";
+import { botApi, botKey, useCurrentBotId } from "@/shared/lib/current-bot";
 
 /** 답변 개선 대상. 키는 api-contracts.md §9-3 과 동일하다. */
 export type GapReason = "ANSWER_FAILED" | "THUMBS_DOWN";
@@ -52,14 +53,15 @@ export const answerGapKeys = {
 };
 
 export function useAnswerGapsQuery(status: GapStatus, page: number) {
+  const botId = useCurrentBotId();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery<PageResponse<AnswerGap>>({
-    queryKey: answerGapKeys.list(status, page),
-    enabled: accessToken !== null,
+    queryKey: botKey(botId, answerGapKeys.list(status, page)),
+    enabled: botId !== null && (accessToken !== null),
     queryFn: async () =>
       answerGapPageSchema.parse(
-        await api("/api/app/answer-gaps", { query: { status, page } }),
+        await api(botApi(botId, "/answer-gaps"), { query: { status, page } }),
       ),
   });
 }
@@ -75,18 +77,20 @@ function useInvalidateGaps() {
 }
 
 export function useResolveGap() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateGaps();
   return useMutation({
     mutationFn: ({ id, answer, question }: { id: number; answer: string; question?: string }) =>
-      api(`/api/app/answer-gaps/${id}/resolve`, { method: "POST", body: { answer, question } }),
+      api(botApi(botId, `/answer-gaps/${id}/resolve`), { method: "POST", body: { answer, question } }),
     onSuccess: invalidate,
   });
 }
 
 export function useDismissGap() {
+  const botId = useCurrentBotId();
   const invalidate = useInvalidateGaps();
   return useMutation({
-    mutationFn: (id: number) => api(`/api/app/answer-gaps/${id}/dismiss`, { method: "POST" }),
+    mutationFn: (id: number) => api(botApi(botId, `/answer-gaps/${id}/dismiss`), { method: "POST" }),
     onSuccess: invalidate,
   });
 }

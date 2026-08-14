@@ -41,6 +41,15 @@ public class Plan {
     @Column(name = "doc_limit", nullable = false)
     private int docLimit;
 
+    /**
+     * 만들 수 있는 서비스 수.
+     *
+     * <p><b>생성 시점에만 검사한다.</b> 내려도 기존 서비스를 강제로 지우지 않는다 —
+     * 이미 남의 사이트에서 도는 위젯을 요금제 변경으로 조용히 죽이면 방문자에게는 장애로 보인다.
+     */
+    @Column(name = "bot_limit", nullable = false)
+    private int botLimit;
+
     @Column(nullable = false)
     private boolean sellable;
 
@@ -54,13 +63,14 @@ public class Plan {
     }
 
     public static Plan create(String code, String name, int monthlyFee, boolean negotiable,
-                              int convLimit, int docLimit, int sortOrder) {
+                              int convLimit, int docLimit, int botLimit, int sortOrder) {
         Plan plan = new Plan();
         plan.code = code;
         plan.name = name;
         plan.monthlyFee = monthlyFee;
         plan.negotiable = negotiable;
         plan.convLimit = convLimit;
+        plan.botLimit = botLimit;
         plan.docLimit = docLimit;
         plan.sellable = true;
         plan.sortOrder = sortOrder;
@@ -73,11 +83,13 @@ public class Plan {
      * 참조가 조용히 끊긴다.
      */
     public void update(String newName, int newMonthlyFee, boolean newNegotiable,
-                       int newConvLimit, int newDocLimit, boolean newSellable) {
+                       int newConvLimit, int newDocLimit, boolean newSellable, int newBotLimit) {
         this.name = newName;
         this.monthlyFee = newMonthlyFee;
         this.negotiable = newNegotiable;
         this.convLimit = newConvLimit;
+        // 내려도 기존 서비스를 강제로 지우지 않는다 — 생성 시점에만 검사한다.
+        this.botLimit = newBotLimit;
         this.docLimit = newDocLimit;
         this.sellable = newSellable;
     }
@@ -121,6 +133,10 @@ public class Plan {
 
     public int getDocLimit() {
         return docLimit;
+    }
+
+    public int getBotLimit() {
+        return botLimit;
     }
 
     public boolean isSellable() {

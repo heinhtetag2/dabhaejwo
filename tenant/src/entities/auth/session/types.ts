@@ -20,17 +20,40 @@ export interface Member {
 export interface TenantContext {
   id: string;
   name: string;
+  /** 표시용이다 — 위젯이 실제로 도는 주소는 서비스마다의 허용 목록이 정한다. */
   primaryDomain: string;
-  publishableKey: string;
   status: TenantStatus;
   plan: { id: string; name: string; monthlyFee: number };
 }
 
+export type BotStatus = "ACTIVE" | "PAUSED" | "DELETING";
+
+/**
+ * 서비스 — 챗봇 한 벌. 화면 용어는 "서비스", API·코드는 `bot` 이다
+ * ({@code docs/plan/service-plan.md} §3).
+ */
+export interface Bot {
+  id: string;
+  name: string;
+  primaryDomain: string;
+  /** 설치 스니펫에 들어간다. <b>서비스마다 다르다.</b> */
+  publishableKey: string;
+  status: BotStatus;
+  /** 서비스를 지목하지 않는 옛 경로의 착지점. 업체당 하나다. */
+  defaultBot: boolean;
+  /** null 이면 위젯이 아직 한 번도 호출되지 않았다 — 설치가 확인되지 않았다는 뜻이다. */
+  lastCalledAt: string | null;
+  createdAt: string;
+}
+
+/** 사용량. <b>전부 업체 합산이다</b> — 계약의 단위가 업체다. */
 export interface Usage {
   convCount: number;
   convLimit: number;
   docCount: number;
   docLimit: number;
+  botCount: number;
+  botLimit: number;
 }
 
 /**
@@ -44,6 +67,8 @@ export interface ImpersonationContext {
 }
 
 export interface AppContext {
+  /** 이 업체의 서비스 전부. 선택기·리다이렉트 판정·설치 화면이 이걸로 산다. */
+  bots: Bot[];
   member: Member | null;
   tenant: TenantContext;
   usage: Usage;

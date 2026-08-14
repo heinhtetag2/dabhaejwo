@@ -20,56 +20,70 @@ export const ROUTES = {
   terms: "/terms",
   privacy: "/privacy",
 
-  // 대시보드 — 운영
-  home: "/app",
-  improve: "/app/improve",
-  conversations: "/app/conversations",
-  leads: "/app/leads",
-
-  // 대시보드 — 챗봇
-  sources: "/app/sources",
-  faq: "/app/faq",
-  appearance: "/app/appearance",
-  widget: "/app/widget",
-  install: "/app/install",
-
-  // 대시보드 — 계정
+  // 대시보드 — 계정 (업체 단위. 서비스를 가리지 않는다)
   plan: "/app/plan",
   team: "/app/team",
+  bots: "/app/bots",
+  botNew: "/app/bots/new",
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 
+/**
+ * 서비스별 화면. <b>서비스가 URL 세그먼트다.</b>
+ *
+ * 전역 선택 상태로 두면 서비스 둘을 두 탭에 띄울 수 없다 — 한쪽을 바꾸면 다른 쪽이
+ * 다음 조회에서 조용히 따라 바뀐다. 그런데 여러 서비스를 나란히 비교하는 것이
+ * 이 기능을 쓰는 사람이 하는 일 그 자체다.
+ *
+ * `/s/` 표식이 있는 이유는 `/app/plan`·`/app/team` 과 첫 세그먼트가 자리를 다투지 않게
+ * 하기 위해서다 — URL 에 `/s/` 가 있으면 서비스별, 없으면 업체 단위다.
+ */
+export const BOT_SCREENS = [
+  "", "improve", "conversations", "leads",
+  "sources", "faq", "appearance", "widget", "install",
+] as const;
+
+export type BotScreen = (typeof BOT_SCREENS)[number];
+
+export function botRoute(botId: string | null, screen: BotScreen = ""): string {
+  if (!botId) {
+    // 서비스를 모르는 자리(로그인 직후 등). 진입점이 알아서 현재 서비스로 보낸다.
+    return "/app";
+  }
+  return screen === "" ? `/app/s/${botId}` : `/app/s/${botId}/${screen}`;
+}
+
 export const NAV_GROUPS: ReadonlyArray<{
   label: string;
-  items: ReadonlyArray<{ href: RoutePath; label: string }>;
+  items: ReadonlyArray<{ screen: BotScreen; label: string }>;
 }> = [
   {
     label: "운영",
     items: [
-      { href: ROUTES.home, label: "홈" },
-      { href: ROUTES.improve, label: "답변 개선" },
-      { href: ROUTES.conversations, label: "대화 로그" },
-      { href: ROUTES.leads, label: "남긴 연락처" },
+      { screen: "", label: "홈" },
+      { screen: "improve", label: "답변 개선" },
+      { screen: "conversations", label: "대화 로그" },
+      { screen: "leads", label: "남긴 연락처" },
     ],
   },
   {
     label: "챗봇",
     items: [
-      { href: ROUTES.sources, label: "지식 소스" },
-      { href: ROUTES.faq, label: "공통 질문" },
-      { href: ROUTES.appearance, label: "말투" },
-      { href: ROUTES.widget, label: "위젯 관리" },
-      { href: ROUTES.install, label: "설치" },
+      { screen: "sources", label: "지식 소스" },
+      { screen: "faq", label: "공통 질문" },
+      { screen: "appearance", label: "말투" },
+      { screen: "widget", label: "위젯 관리" },
+      { screen: "install", label: "설치" },
     ],
   },
-  {
-    label: "계정",
-    items: [
-      { href: ROUTES.plan, label: "요금제" },
-      { href: ROUTES.team, label: "팀원" },
-    ],
-  },
+];
+
+/** 업체 단위 항목. 서비스를 바꿔도 그대로다. */
+export const ACCOUNT_NAV: ReadonlyArray<{ href: string; label: string }> = [
+  { href: ROUTES.bots, label: "서비스" },
+  { href: ROUTES.plan, label: "요금제" },
+  { href: ROUTES.team, label: "팀원" },
 ];
 
 /** 공개 헤더의 이동 항목. */
