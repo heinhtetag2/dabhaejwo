@@ -105,8 +105,11 @@ public class HomeService {
     }
 
     /**
-     * TODO(stub): 답변 파이프라인이 없어 {@code messages.latency_ms} 가 비어 있다.
-     * 그동안은 null 이 내려가고 화면은 "—" 를 보여준다. 그럴듯한 값을 지어내지 않는다.
+     * 실제로 잰 값이다 — {@code AnswerService} 가 답변마다 {@code messages.latency_ms} 를 남긴다(M5).
+     *
+     * <p>대화가 아직 없으면 null 이 내려가고 화면은 "—" 를 보여준다. 0 으로 채우지 않는다.
+     * <b>저장 답변(공통 질문)은 이 평균에 들어오지 않는다</b> — 모델을 거치지 않아 잰 것이
+     * DB 읽기 시간뿐이라, 섞으면 응답 속도가 실제보다 좋아 보인다.
      */
     private Integer averageLatencyMs(UUID botId, OffsetDateTime from) {
         Double average = messageRepository.averageLatency(botId, from);

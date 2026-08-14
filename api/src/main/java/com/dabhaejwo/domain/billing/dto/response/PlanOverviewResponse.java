@@ -42,7 +42,7 @@ public record PlanOverviewResponse(
     }
 
     /**
-     * @param receiptUrl TODO(stub): PG 미연동이라 항상 null 이다. 화면은 "준비 중"으로 표시한다
+     * @param receiptUrl 토스가 준 영수증 주소. 결제 전·실패 행은 null 이다
      */
     public record BillingItem(
             Long id,

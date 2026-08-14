@@ -42,7 +42,7 @@ public class BillingRecord {
     @Column(name = "failure_reason")
     private String failureReason;
 
-    /** TODO(stub): PG 미연동이라 항상 null 이다. 결제 붙일 때 채운다. */
+    /** 토스가 준 영수증 주소. 결제되지 않은 행(청구·실패)에서는 null 이다. */
     @Column(name = "receipt_url")
     private String receiptUrl;
 

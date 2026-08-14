@@ -52,7 +52,7 @@ export function HomeView() {
         <Stat
           label="평균 응답"
           value={data.avgResponseMs === null ? "—" : `${(data.avgResponseMs / 1000).toFixed(1)}초`}
-          // TODO(stub): 답변 파이프라인이 없어 응답 시간을 잰 적이 없다. 값을 지어내지 않는다.
+          // 실측값이다. 대화가 없으면 null 이 오고, 그때 0 으로 채우지 않는다.
           detail={data.avgResponseMs === null ? "아직 측정된 대화가 없습니다" : "정상 범위"}
         />
       </div>
