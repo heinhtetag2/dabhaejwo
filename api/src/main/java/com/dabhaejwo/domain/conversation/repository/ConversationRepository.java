@@ -88,6 +88,22 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
     java.util.List<TenantCount> countByTenantBetween(@Param("from") OffsetDateTime from,
                                                      @Param("to") OffsetDateTime to);
 
+    /** 같은 정의를 서비스별로. 업체 축 쿼리는 그대로다. */
+    @Query("""
+            SELECT c.botId AS botId, COUNT(c) AS count FROM Conversation c
+            WHERE c.startedAt >= :from AND c.startedAt < :to
+              AND EXISTS (SELECT 1 FROM Message m WHERE m.conversationId = c.id)
+            GROUP BY c.botId
+            """)
+    java.util.List<BotCount> countByBotBetween(@Param("from") OffsetDateTime from,
+                                               @Param("to") OffsetDateTime to);
+
+    interface BotCount {
+        UUID getBotId();
+
+        long getCount();
+    }
+
     interface TenantCount {
         UUID getTenantId();
 

@@ -112,7 +112,7 @@ public class ConversationService {
         if (user.impersonating()) {
             // 운영자가 남의 고객 대화를 열었다. 이 기록은 수정·삭제할 수 없다.
             auditLogService.recordImpersonatedRead(
-                    user.impersonatingOperatorId(), user.tenantId(),
+                    user.impersonatingOperatorId(), botContext.scope(),
                     user.impersonationSessionId(), conversationId);
         }
 

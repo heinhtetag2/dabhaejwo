@@ -16,6 +16,9 @@ import com.dabhaejwo.global.exception.ErrorCode;
 import com.dabhaejwo.global.security.AuthPrincipal;
 import com.dabhaejwo.global.security.CurrentAuth;
 import com.dabhaejwo.global.security.JwtProvider;
+import com.dabhaejwo.domain.bot.entity.Bot;
+import com.dabhaejwo.domain.bot.repository.BotRepository;
+import com.dabhaejwo.domain.bot.service.BotContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,8 @@ public class ImpersonationOpsService {
 
     private final ImpersonationSessionRepository sessionRepository;
     private final TenantRepository tenantRepository;
+    private final BotRepository botRepository;
+    private final BotContext botContext;
     private final JwtProvider jwtProvider;
     private final AuditLogService auditLogService;
     private final NotificationEvents notificationEvents;
@@ -49,9 +54,13 @@ public class ImpersonationOpsService {
                                    JwtProvider jwtProvider,
                                    AuditLogService auditLogService,
                                    NotificationEvents notificationEvents,
-                                   AppProperties properties) {
+                                   AppProperties properties,
+                                   BotRepository botRepository,
+                                   BotContext botContext) {
         this.sessionRepository = sessionRepository;
         this.tenantRepository = tenantRepository;
+        this.botRepository = botRepository;
+        this.botContext = botContext;
         this.jwtProvider = jwtProvider;
         this.auditLogService = auditLogService;
         this.notificationEvents = notificationEvents;
@@ -69,19 +78,35 @@ public class ImpersonationOpsService {
                     "해지된 업체에는 대리 접속할 수 없습니다");
         }
 
+        /*
+         * 들어갈 서비스를 먼저 정한다. 지목하지 않았으면 기본 서비스다.
+         *
+         * **감사 기록에는 실제로 들어간 서비스를 남긴다** — 업체가 서비스를 여럿 운영하면
+         * "이 업체에 들어갔다"만으로는 무엇을 봤는지 알 수 없다. 이 테이블은 3년 보존·
+         * 수정 불가라 나중에 채울 수 없다.
+         */
+        Bot bot = request.botId() == null
+                ? botContext.defaultBot(tenantId)
+                : botRepository.findByIdAndTenantId(request.botId(), tenantId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BOT_NOT_FOUND));
+
         ImpersonationSession session = sessionRepository.save(ImpersonationSession.start(
                 tenantId, operator.operatorId(), request.reason().strip(),
                 authProperties.impersonationTtlMinutes()));
 
         auditLogService.record(operator.operatorId(), AuditAction.IMPERSONATE, tenantId,
-                request.reason(), Map.of("impersonationSessionId", session.getId().toString()));
+                request.reason(), Map.of("impersonationSessionId", session.getId().toString(),
+                        "botId", bot.getId().toString(),
+                        "botName", bot.getName()));
 
         // 사후 이력보다 실시간 알림이 훨씬 강한 신뢰 장치다 (tenant-plan.md §6.3).
         // 업체는 우리가 들어온 사실을 나중에 찾아보는 게 아니라 그 순간 안다.
         notificationEvents.impersonationStarted(tenantId, session.getReason());
 
         return ImpersonationSessionResponse.of(session, tenantRef(tenant),
-                jwtProvider.issueImpersonationToken(session.getId(), operator.operatorId(), tenantId));
+                jwtProvider.issueImpersonationToken(session.getId(), operator.operatorId(), tenantId),
+                // 경로를 서버가 만든다 — 두 프론트가 각자 규칙을 적으면 갈린다.
+                "/app/s/" + bot.getId());
     }
 
     /**
@@ -110,9 +135,11 @@ public class ImpersonationOpsService {
                         "impersonationSessionId", session.getId().toString(),
                         "extended", true));
 
+        // 연장은 보던 화면을 이어 보는 것이다 — 진입 경로를 다시 주지 않는다.
         return ImpersonationSessionResponse.of(session, tenantRef(tenant),
                 jwtProvider.issueImpersonationToken(session.getId(), operator.operatorId(),
-                        session.getTenantId()));
+                        session.getTenantId()),
+                null);
     }
 
     /** 종료. 이미 끝난 세션을 또 끝내도 오류가 아니다 — 처음 끝난 시각이 그대로 남는다. */
@@ -126,7 +153,7 @@ public class ImpersonationOpsService {
         session.end();
 
         // 종료에는 토큰을 주지 않는다. 응답을 그대로 다시 쓰면 끝난 세션으로 접속하게 된다.
-        return ImpersonationSessionResponse.of(session, tenantRef(tenant), null);
+        return ImpersonationSessionResponse.of(session, tenantRef(tenant), null, null);
     }
 
     private ImpersonationSessionResponse.TenantRef tenantRef(Tenant tenant) {

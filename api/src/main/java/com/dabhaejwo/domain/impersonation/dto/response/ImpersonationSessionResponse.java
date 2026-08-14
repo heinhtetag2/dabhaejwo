@@ -17,6 +17,13 @@ public record ImpersonationSessionResponse(
         TenantRef tenant,
         String reason,
         String accessToken,
+        /**
+         * 업체 대시보드에서 열 경로. <b>서버가 만든다.</b>
+         *
+         * <p>admin·tenant 두 프로젝트가 각자 URL 규칙을 적기 시작하면 갈린다 —
+         * 알림 경로를 서버가 만드는 것과 같은 이유다. 세션 종료 응답에는 없다(null).
+         */
+        String entryPath,
         OffsetDateTime startedAt,
         OffsetDateTime expiresAt,
         ImpersonationStatus status) {
@@ -26,12 +33,14 @@ public record ImpersonationSessionResponse(
 
     public static ImpersonationSessionResponse of(ImpersonationSession session,
                                                   TenantRef tenant,
-                                                  String accessToken) {
+                                                  String accessToken,
+                                                  String entryPath) {
         return new ImpersonationSessionResponse(
                 session.getId(),
                 tenant,
                 session.getReason(),
                 accessToken,
+                entryPath,
                 session.getStartedAt(),
                 session.getExpiresAt(),
                 session.getStatus());

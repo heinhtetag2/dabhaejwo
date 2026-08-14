@@ -109,6 +109,21 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
         long getAskCount();
     }
 
+    /** 같은 정의를 서비스별로. 업체 축 쿼리는 그대로다. */
+    @Query("""
+            SELECT m.botId AS botId, COUNT(m) AS count FROM Message m
+            WHERE m.saved = true AND m.createdAt >= :from AND m.createdAt < :to
+            GROUP BY m.botId
+            """)
+    List<BotCount> countSavedByBotBetween(@Param("from") OffsetDateTime from,
+                                          @Param("to") OffsetDateTime to);
+
+    interface BotCount {
+        UUID getBotId();
+
+        long getCount();
+    }
+
     interface TenantCount {
         UUID getTenantId();
 

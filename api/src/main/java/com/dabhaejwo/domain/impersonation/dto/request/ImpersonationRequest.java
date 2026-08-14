@@ -9,5 +9,14 @@ import jakarta.validation.constraints.NotBlank;
  * 서비스 레이어의 {@code AuditLogService} 와 DB CHECK 가 같은 조건을 한 번 더 건다 —
  * 이 사유는 업체에게 공개되므로 빈 값이 새어나가면 신뢰 장치가 무너진다.
  */
-public record ImpersonationRequest(@NotBlank String reason) {
+public record ImpersonationRequest(
+        @NotBlank String reason,
+        /**
+         * 들어갈 서비스. <b>선택이다</b> — 업체 상세의 조치 카드에서 누르면 비어 있고,
+         * 서비스 카드의 행에서 누르면 그 서비스가 실린다.
+         *
+         * <p>비어 있으면 기본 서비스로 들어간다. 어느 쪽이든 감사 기록에는 실제로 들어간
+         * 서비스가 남는다.
+         */
+        java.util.UUID botId) {
 }
