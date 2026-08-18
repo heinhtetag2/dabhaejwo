@@ -25,19 +25,24 @@ import java.util.UUID;
 public class BotSettings {
 
     /**
-     * PK 는 아직 {@code tenant_id} 다 — V17 에서 {@code bot_id} 로 교체한다.
+     * PK 는 서비스다. V17 이 DB PK 를 {@code bot_id} 로 바꿨고 <b>여기가 따라오지 않았다.</b>
      *
-     * <p>먼저 바꾸지 않는 이유: {@code ddl-auto: validate} 는 PK 를 검사하지 않으므로
-     * 앱이 {@code bot_id} 를 진실로 다루면서도 DB PK 는 나중에 바꿀 수 있다.
-     * 스키마를 먼저 조이면 구버전으로 롤백할 길이 사라진다.
+     * <p>그 사이에 실제로 벌어진 일: {@code @Id} 가 {@code tenant_id} 인 채로 두 번째 서비스의
+     * 설정을 저장하면 JPA 가 <b>같은 키로 보고 첫 서비스의 행을 덮어썼다.</b> 업체가 두 화면을
+     * 번갈아 열 때마다 행 하나가 서로를 밀어내며 매번 기본값으로 되돌아갔다 —
+     * 적어둔 말투가 소리 없이 사라졌다는 뜻이다.
+     *
+     * <p>{@code ddl-auto: validate} 는 <b>PK 를 검사하지 않는다.</b> 그래서 이 어긋남은
+     * 기동에서도, 컴파일에서도, 단위 테스트에서도 드러나지 않는다 —
+     * 서비스가 둘인 업체가 생겨야 드러난다.
      */
     @Id
-    @Column(name = "tenant_id")
-    private UUID tenantId;
-
-    /** <b>이 설정의 진짜 주인.</b> 조회는 전부 이 값으로 한다. */
-    @Column(name = "bot_id", nullable = false)
+    @Column(name = "bot_id")
     private UUID botId;
+
+    /** 격리용. 조회 조건이 아니라 복합 FK {@code (bot_id, tenant_id)} 의 짝이다. */
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 
     @Column(name = "bot_name", nullable = false)
     private String botName;

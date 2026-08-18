@@ -133,15 +133,36 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
-  async function run(question: string, send: () => Promise<void>) {
+  async function run(question: string, send: (session: string) => Promise<void>) {
     if (!sessionId || busy) return;
     // 물어봤으면 목록은 역할을 다했다. 열어둔 채로 두면 새 답변 아래에 계속 따라다닌다.
     setListOpen(false);
     setMessages((prev) => [...prev, { role: "visitor", text: question }]);
     setBusy(true);
     try {
-      await send();
+      await send(sessionId);
     } catch (error) {
+      /*
+       * **끊긴 세션은 오류가 아니다.** 들고 있던 대화가 이 서비스의 것이 아니게 되면
+       * (업체가 설치 스니펫을 다른 서비스 것으로 바꿔 붙이면 그렇게 된다) 서버가
+       * `CONVERSATION_NOT_FOUND` 를 준다. 그걸 그대로 보여주면 방문자는 "일시적인 문제"를
+       * 읽고 새로고침해야 하는데, 사실은 **한 번 다시 시작하면 그만인 일**이다.
+       *
+       * 재시도는 딱 한 번이다 — 두 번째도 실패하면 진짜 문제이므로 그때는 말한다.
+       */
+      if (error instanceof WidgetApiError && error.code === "CONVERSATION_NOT_FOUND") {
+        try {
+          const session = await api.createSession(path);
+          setSessionId(session.sessionId);
+          await send(session.sessionId);
+          setBusy(false);
+          return;
+        } catch (retryError) {
+          setMessages((prev) => [...prev, botMessage(errorText(retryError))]);
+          setBusy(false);
+          return;
+        }
+      }
       setMessages((prev) => [...prev, botMessage(errorText(error))]);
     } finally {
       setBusy(false);
@@ -168,12 +189,12 @@ export function WidgetApp({ config, path }: { config: WidgetConfig; path: string
   }
 
   async function ask(question: string) {
-    await run(question, async () => receive(await api.ask(sessionId!, question, path)));
+    await run(question, async (session) => receive(await api.ask(session, question, path)));
   }
 
   async function askFaq(faq: Faq) {
     setAsked((prev) => (prev.includes(faq.id) ? prev : [...prev, faq.id]));
-    await run(faq.question, async () => receive(await api.askFaq(sessionId!, faq.id)));
+    await run(faq.question, async (session) => receive(await api.askFaq(session, faq.id)));
   }
 
   function submit(event: Event) {

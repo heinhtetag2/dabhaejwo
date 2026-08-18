@@ -398,3 +398,93 @@ describe("작성 중", () => {
     expect(root.textContent).toContain("그건 이렇습니다.");
   });
 });
+
+/**
+ * 끊긴 세션.
+ *
+ * <p>업체가 설치 스니펫을 <b>다른 서비스의 것으로 바꿔 붙이면</b> 열려 있던 페이지가 들고
+ * 있는 대화 id 는 더 이상 그 서비스의 것이 아니다. 서버는 `CONVERSATION_NOT_FOUND` 로
+ * 거절하는데, 그걸 그대로 방문자에게 보여주면 <b>"일시적인 문제"</b>가 뜬다 —
+ * 사실은 다시 시작하면 그만인 일이고, 방문자는 그 사정을 알 길이 없다.
+ */
+describe("끊긴 세션", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    delete (window as unknown as Record<string, unknown>).dabhaejwo;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** 첫 ask 만 `CONVERSATION_NOT_FOUND` 로 거절하고, 두 번째부터는 정상으로 답한다. */
+  function stubStaleSession() {
+    let asked = 0;
+    let sessions = 0;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/widget/config")) {
+        return { ok: true, status: 200, json: async () => ({ enabled: true, widgetPosition: "BOTTOM_RIGHT", nudgeDelayMs: 0 }) };
+      }
+      if (url.includes("/api/widget/session")) {
+        sessions += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            sessionId: `s${sessions}`,
+            botName: "상담봇",
+            greeting: "안녕하세요",
+            brandColor: "#17222E",
+            widgetPosition: "BOTTOM_RIGHT",
+            leadCaptureEnabled: false,
+            faqs: [{ id: "f1", question: "유지보수도 해주시나요?" }],
+          }),
+        };
+      }
+      asked += 1;
+      if (asked === 1) {
+        return {
+          ok: false,
+          status: 404,
+          json: async () => ({ code: "CONVERSATION_NOT_FOUND", message: "대화를 찾을 수 없습니다" }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          answered: true,
+          saved: true,
+          answer: "1년 무상입니다.",
+          links: [],
+          messageId: "m1",
+          followUpFaqs: [],
+        }),
+      };
+    }) as unknown as typeof fetch;
+    return () => ({ asked, sessions });
+  }
+
+  it("세션이 끊기면 조용히 새로 시작해 답을 받아낸다 — 오류를 보여주지 않는다", async () => {
+    const counts = stubStaleSession();
+    (window as unknown as Record<string, unknown>).dabhaejwo = {
+      key: "pk_live_x",
+      apiBaseUrl: "https://api.example.com",
+    };
+    const host = mount()!;
+    await settle();
+    const root = host.shadowRoot!;
+    root.querySelector<HTMLButtonElement>(".bubble")!.click();
+    await settle();
+    root.querySelector<HTMLButtonElement>(".sugg button")!.click();
+    await settle();
+
+    const text = root.textContent ?? "";
+    expect(text).toContain("1년 무상입니다.");
+    expect(text).not.toContain("일시적인 문제");
+    // 세션을 다시 발급받았고, 질문은 두 번 나갔다(첫 번은 거절당했다).
+    expect(counts().sessions).toBe(2);
+    expect(counts().asked).toBe(2);
+  });
+});
