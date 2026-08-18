@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { fetchPublicPlans } from "@/entities/public/plan";
-import { PricingVersionSwitch } from "@/features/pricing";
+import { PricingViewV2 } from "@/features/pricing";
 import { getLanguage } from "@/shared/lib/get-language";
 
 export const metadata: Metadata = {
@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const [plans, language] = await Promise.all([fetchPublicPlans(), getLanguage()]);
-  return <PricingVersionSwitch plans={plans} language={language} />;
+  return <PricingViewV2 plans={plans} language={language} />;
 }

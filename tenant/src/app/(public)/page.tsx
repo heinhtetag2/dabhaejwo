@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { LandingVersionSwitch } from "@/features/landing";
+import { LandingViewV2 } from "@/features/landing";
 import { getLanguage } from "@/shared/lib/get-language";
 
 export const metadata: Metadata = {
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const language = await getLanguage();
-  return <LandingVersionSwitch language={language} />;
+  return <LandingViewV2 language={language} />;
 }
