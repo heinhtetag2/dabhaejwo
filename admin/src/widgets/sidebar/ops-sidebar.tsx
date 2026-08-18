@@ -21,7 +21,7 @@ export function OpsSidebar() {
   const operator = useAuthStore((state) => state.operator);
 
   return (
-    <aside className="sticky top-0 flex h-dvh w-[230px] shrink-0 flex-col bg-ink text-[#c9d4dc]">
+    <aside className="sticky top-0 flex h-dvh w-[230px] shrink-0 flex-col bg-ink text-[#d2d2d6]">
       <div className="border-b border-white/8 px-5 pt-5 pb-4">
         <div className="flex items-center gap-2.5">
           <span className="grid size-[22px] place-items-center rounded-md bg-seal font-mono text-[11px] font-semibold text-white">
@@ -29,7 +29,7 @@ export function OpsSidebar() {
           </span>
           <span className="font-semibold tracking-[-0.01em] text-white">답해줘 운영</span>
         </div>
-        <div className="mt-[5px] font-mono text-[10.5px] tracking-[0.08em] text-[#6c7d8b]">
+        <div className="mt-[5px] font-mono text-[10.5px] tracking-[0.08em] text-[#7d7d86]">
           PRODUCTION
         </div>
       </div>
@@ -46,7 +46,7 @@ export function OpsSidebar() {
           }
           return (
             <div key={group.label} className="mb-[18px]">
-              <Eyebrow className="block px-2 pb-[7px] text-[10px] text-[#6c7d8b]">
+              <Eyebrow className="block px-2 pb-[7px] text-[10px] text-[#7d7d86]">
                 {group.label}
               </Eyebrow>
               {visible.map((item) => {
@@ -60,7 +60,7 @@ export function OpsSidebar() {
                       "mb-px flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13.5px] transition-colors",
                       active
                         ? "bg-seal/30 font-medium text-white"
-                        : "text-[#b9c6cf] hover:bg-white/7 hover:text-white",
+                        : "text-[#c2c2c8] hover:bg-white/7 hover:text-white",
                     )}
                   >
                     {item.label}

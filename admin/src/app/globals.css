@@ -12,16 +12,26 @@
  *   업체 대시보드 → mark(노랑)
  */
 @theme {
-  --color-ink: #17222e;
-  --color-ink-2: #22303f;
-  --color-ink-3: #31424f;
+  /*
+   * ── revamp 중립 스케일 ─────────────────────────────────────────────
+   * 랜딩 v2 가 `text-black`/`black/40`/`black/8` 로 그려져 있어, 남색 `ink` 를 쓰던
+   * 대시보드와 나란히 놓으면 **로그인 전후가 다른 서비스처럼 보인다.**
+   * 그래서 회색 계열을 검정 쪽으로 옮겼다 — 강조색(mark·seal)은 건드리지 않는다.
+   * 두 콘솔을 색으로 구별하는 장치는 강조색이지 회색이 아니다.
+   *
+   * 밀도는 그대로다(사용자 결정). 곡률과 면 색만 바뀌므로 한 화면에 들어가는
+   * 정보량은 이전과 같다.
+   */
+  --color-ink: #1c1c1f;
+  --color-ink-2: #2b2b30;
+  --color-ink-3: #3c3c43;
 
-  --color-slate: #5c6e7e;
-  --color-slate-2: #8b9aa6;
+  --color-slate: #5c5c64;
+  --color-slate-2: #8a8a93;
 
-  --color-line: #dce3e2;
-  --color-line-2: #e9edec;
-  --color-paper: #eff2f1;
+  --color-line: #e6e6e9;
+  --color-line-2: #f0f0f2;
+  --color-paper: #f6f6f7;
   --color-card: #ffffff;
 
   /* 운영 콘솔 강조색 */
@@ -41,7 +51,7 @@
   /* mark-soft 면 위의 글자. 노랑 자체는 흰 바탕에서 대비가 모자라 글자색으로 못 쓴다. */
   --color-mark-ink: #8a6a00;
 
-  --radius-card: 10px;
+  --radius-card: 14px;
   /* shared/common/button.tsx 의 lg 사이즈가 쓴다. 두 콘솔의 버튼 파일은 같은 내용을 유지한다. */
   --radius-btn: 14px;
 

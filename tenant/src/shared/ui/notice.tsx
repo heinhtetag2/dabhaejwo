@@ -25,7 +25,7 @@ export function Notice({
       role="status"
       className={cn(
         "leading-relaxed",
-        size === "sm" ? "rounded-[7px] px-3 py-2.5 text-[12.5px]" : "rounded-block px-4 py-4 text-[14px]",
+        size === "sm" ? "rounded-[10px] px-3 py-2.5 text-[12.5px]" : "rounded-block px-4 py-4 text-[14px]",
         tone === "error" && "bg-brick-soft text-brick",
         tone === "warn" && "bg-mark-soft text-mark-ink",
         tone === "info" && "bg-line-2 text-slate",

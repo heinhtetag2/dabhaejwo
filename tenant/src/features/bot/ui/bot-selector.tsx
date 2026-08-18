@@ -32,7 +32,7 @@ export function BotSelector({
     return (
       <span className="min-w-0">
         {current?.name ?? tenantName ?? "—"}
-        <span className="block truncate font-mono text-[10.5px] tracking-[0.06em] text-[#7e8f9c]">
+        <span className="block truncate font-mono text-[10.5px] tracking-[0.06em] text-[#8b8b94]">
           {current?.primaryDomain ?? ""}
         </span>
       </span>
@@ -48,20 +48,20 @@ export function BotSelector({
 
   return (
     <span className="min-w-0 flex-1">
-      <span className="block truncate text-[10.5px] text-[#7e8f9c]">{tenantName}</span>
+      <span className="block truncate text-[10.5px] text-[#8b8b94]">{tenantName}</span>
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-1.5 text-left text-[13px] text-[#dde6eb]"
+        className="flex w-full items-center gap-1.5 text-left text-[13px] text-[#e4e4e8]"
       >
         <span className="min-w-0 flex-1 truncate">{current?.name ?? "—"}</span>
-        <span aria-hidden className="shrink-0 text-[10px] text-[#7e8f9c]">
+        <span aria-hidden className="shrink-0 text-[10px] text-[#8b8b94]">
           {open ? "▲" : "▼"}
         </span>
       </button>
-      <span className="block truncate font-mono text-[10.5px] tracking-[0.06em] text-[#7e8f9c]">
+      <span className="block truncate font-mono text-[10.5px] tracking-[0.06em] text-[#8b8b94]">
         {current?.primaryDomain ?? ""}
       </span>
 
@@ -75,12 +75,12 @@ export function BotSelector({
               onClick={() => setOpen(false)}
               className={cn(
                 "block rounded-md px-2 py-1.5 text-[12.5px]",
-                bot.id === current?.id ? "bg-white/10 text-white" : "text-[#c9d4dc] hover:bg-white/8",
+                bot.id === current?.id ? "bg-white/10 text-white" : "text-[#d2d2d6] hover:bg-white/8",
               )}
             >
               <span className="block truncate">{bot.name}</span>
               {/* 색만으로 구분하지 않는다 — 작동 여부는 글자로도 말한다 (WCAG 2.1 AA) */}
-              <span className="block truncate text-[10.5px] text-[#7e8f9c]">
+              <span className="block truncate text-[10.5px] text-[#8b8b94]">
                 {bot.lastCalledAt ? bot.primaryDomain : `${bot.primaryDomain} · 설치 확인 안 됨`}
               </span>
             </Link>

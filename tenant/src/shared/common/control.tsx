@@ -15,11 +15,16 @@ import { cn } from "@/shared/lib/cn";
  * <p>크기는 {@code Button} 과 <b>정확히 같은 값</b>을 쓴다. 글자 크기·세로 여백·테두리가
  * 같아야 같은 높이가 되므로, 한쪽만 고치면 다시 어긋난다. 바꿀 일이 있으면 둘 다 바꾼다.
  */
+/*
+ * 입력은 <b>알약 모양으로 만들지 않는다.</b> 버튼은 눌리는 것이라 둥글수록 읽기 쉽지만,
+ * 입력은 글자가 왼쪽 끝에서 시작하므로 곡률이 커질수록 첫 글자가 테두리에 먹힌다.
+ * revamp 원본(요금제 v2)도 카드는 14px, 입력·작은 버튼은 8px 로 나눠 쓴다.
+ */
 const SIZE = {
   /** 폼 본문. Button 의 md 와 같은 높이다. */
-  md: "px-[11px] py-[7.5px] text-[13.5px] rounded-[7px]",
+  md: "px-[11px] py-[7.5px] text-[13.5px] rounded-[9px]",
   /** 툴바·표 안. Button 의 sm 과 같은 높이다. */
-  sm: "px-2.5 py-[4.5px] text-[12.5px] rounded-md",
+  sm: "px-2.5 py-[4.5px] text-[12.5px] rounded-[7px]",
 } as const;
 
 type ControlSize = keyof typeof SIZE;

@@ -22,11 +22,16 @@ const VARIANT: Record<Variant, string> = {
   ghost: "border-transparent bg-transparent text-slate hover:bg-line-2",
 };
 
+/*
+ * 곡률만 revamp 로 옮겼다 — **세로 여백과 글자 크기는 한 픽셀도 건드리지 않았다.**
+ * 그 둘이 높이를 정하고, 높이는 `control.tsx` 와 맞춰져 있다(같은 줄의 입력과 버튼이
+ * 어긋나던 문제를 그렇게 없앴다). 모양을 바꾸려다 그 합의를 깨면 화면 전체가 다시 어긋난다.
+ */
 const SIZE: Record<Size, string> = {
   /** 공개 영역의 주요 행동. 손가락으로 누르는 크기이고, 화면에서 다음 할 일이 분명해야 한다. */
-  lg: "px-6 py-[14px] text-[15.5px] rounded-btn font-semibold",
-  md: "px-3.5 py-[7.5px] text-[13.5px] rounded-[7px]",
-  sm: "px-2.5 py-[4.5px] text-[12.5px] rounded-md",
+  lg: "px-6 py-[14px] text-[15.5px] rounded-full font-semibold",
+  md: "px-4 py-[7.5px] text-[13.5px] rounded-full",
+  sm: "px-3 py-[4.5px] text-[12.5px] rounded-full",
 };
 
 const BASE =

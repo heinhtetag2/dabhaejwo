@@ -4,7 +4,7 @@ import { useId } from "react";
 import { cn } from "@/shared/lib/cn";
 
 const CONTROL =
-  "w-full rounded-[7px] border border-line bg-card px-[11px] py-[8.5px] text-[13.5px] " +
+  "w-full rounded-[9px] border border-line bg-card px-[11px] py-[8.5px] text-[13.5px] " +
   "focus:border-ink-3 focus:outline-none focus:ring-[3px] focus:ring-ink/6";
 
 /**

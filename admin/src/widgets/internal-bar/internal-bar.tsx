@@ -11,7 +11,7 @@ export function InternalBar() {
       className="sticky top-0 z-60 py-1 text-center font-mono text-[10.5px] tracking-[0.16em] text-[#a8d8cc]"
       style={{
         background:
-          "repeating-linear-gradient(45deg, #17222e, #17222e 9px, #1e2c3a 9px, #1e2c3a 18px)",
+          "repeating-linear-gradient(45deg, #1c1c1f, #1c1c1f 9px, #26262b 9px, #26262b 18px)",
       }}
     >
       내부 운영 도구 · 고객에게 보이지 않습니다
