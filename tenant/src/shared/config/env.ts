@@ -18,13 +18,16 @@ const schema = z.object({
 
 export const env = schema.parse({
   // 포트 4310 = api. admin 은 4311, tenant 는 4312 를 쓴다.
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4310",
+  // `??` 는 undefined 만 잡고 빈 문자열은 통과시킨다 — Vercel 콘솔에 변수를 만들어놓고
+  // 값을 비워두면 apiBaseUrl 이 "" 로 z.url() 을 통과 못 해 전체 빌드가 죽는다(실제로 겪음).
+  // `||` 로 빈 문자열도 미설정과 같이 취급한다.
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4310",
   /**
    * 설치 화면이 업체에게 보여주는 스크립트 주소.
    *
    * **여기가 틀리면 업체가 붙인 코드가 아무 일도 하지 않는다.** 화면에는 정상으로 보이고
    * 위젯만 안 뜨므로, 배포마다 반드시 실제 CDN 주소를 넣는다. 기본값은 로컬 데모용이다.
    */
-  widgetSrc: process.env.NEXT_PUBLIC_WIDGET_SRC ?? "http://localhost:5173/w.js",
+  widgetSrc: process.env.NEXT_PUBLIC_WIDGET_SRC || "http://localhost:5173/w.js",
   tossClientKey: process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "",
 });
