@@ -41,10 +41,14 @@ export async function fetchPublicPlans(): Promise<PublicPlan[]> {
       next: { revalidate: 60 },
     });
     if (!response.ok) {
+      // 이유 없이 빈 배열만 돌려주면 운영 환경(Vercel 등)에서 원인을 알 방법이 없다 —
+      // 실제로 겪었다. 화면은 그대로 "문의" 안내로 대체하되, 로그에는 남긴다.
+      console.error(`fetchPublicPlans: ${response.status} ${response.statusText} from ${env.apiBaseUrl}`);
       return [];
     }
     return z.array(publicPlanSchema).parse(await response.json());
-  } catch {
+  } catch (error) {
+    console.error("fetchPublicPlans failed:", env.apiBaseUrl, error);
     return [];
   }
 }
