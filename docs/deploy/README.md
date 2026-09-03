@@ -160,3 +160,29 @@ git revert <commit> && git push     # 파이프라인이 다시 돌며 이전 �
 | **알림이 콘솔 밖으로 안 나간다** | 원가 상한 도달이 새벽에 떠도 콘솔을 열기 전까지 모른다 |
 
 전부 `docs/IMPROVEMENTS.md` 에 등록돼 있다.
+
+---
+
+## 7. Vercel (tenant, 대안 배포)
+
+위 파이프라인과 별개로 `tenant` 는 Vercel 에도 배포하고 있다(GitHub 연동, push 시 자동 빌드).
+**api 는 Vercel 에 올리지 않는다** — 상주 워커(`IndexingWorker`·`BotPurgeWorker`)·pgvector
+네이티브 커넥션이 필요해 서버리스와 안 맞는다. Vercel 배포는 여전히 `dabhaejwo-api.tagoplus.co.kr`
+(위 §1의 서버)를 호출한다.
+
+Vercel 프로젝트 → Settings → Environment Variables 에 아래 두 개가 **반드시** 있어야 한다.
+`.env.example` 처럼 로컬 기본값(`localhost:4310`)으로 조용히 떨어지면 Vercel 서버에서는
+그 주소에 아무것도 없어 빈 응답만 돌아온다 — 화면은 뜨는데 요금제·데이터가 전부 안 보인다.
+
+| 키 | 값 |
+|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | `https://dabhaejwo-api.tagoplus.co.kr` |
+| `NEXT_PUBLIC_WIDGET_SRC` | `https://dabhaejwo-cdn.tagoplus.co.kr/w.js` |
+
+**`NEXT_PUBLIC_*` 는 빌드 시점에 번들에 박힌다.** 값을 저장만 하고 재배포를 안 하면 이전
+빌드가 그대로 서빙된다 — Deployments 탭에서 최신 배포를 Redeploy 해야 반영된다.
+
+또 하나 — 위 API 서버의 `CORS_ALLOWED_ORIGINS` 는 `dabhaejwo.tagoplus.co.kr` 기준으로
+정해져 있다. Vercel 이 내려주는 도메인(`*.vercel.app` 또는 커스텀 도메인)을 여기 추가하지
+않으면 서버 컴포넌트 요청(요금제 등)은 되지만 **브라우저에서 직접 부르는 로그인·가입은
+CORS 로 막힌다.**
